@@ -12,7 +12,6 @@
 
 #define NUM_LASSO_BANDS 5
 #define TOTAL_BANDS 8
-#define MAX_SCENES 63
 int lasso_band_list[NUM_LASSO_BANDS] = {2, 3, 4, 5, 7};
 
 /******************************************************************************
@@ -58,7 +57,7 @@ main (int argc, char *argv[])
     //    Output_t *output = NULL; /* output structure and metadata */
     bool verbose;               /* verbose flag for printing messages */
     float alb = 0.1;
-    int i, k, m;
+    int i, k;
     int num_points;
     char **scene_list = NULL;
     float **results = NULL;
@@ -89,9 +88,13 @@ main (int argc, char *argv[])
     Input_meta_t *meta;
     int row, col;
     int landsat_number;
-    int loop_number;
-    FILE *fp_bin[MAX_SCENES][TOTAL_BANDS];
     int fmask_sum = 0;
+    int claer_water_sum = 0;
+    int clear_land_sum = 0;
+    int snow_sum = 0;
+    int cloud_and_shadow_sum = 0;
+    float ws_pct;
+    float sn_pct;
 
     time_t now;
     time (&now);
@@ -184,139 +187,59 @@ main (int argc, char *argv[])
     }
 
     /* Open input files */
+    FILE *fp_bin[num_scenes][TOTAL_BANDS];
     short int buf[num_scenes][TOTAL_BANDS-1];
     unsigned char fmask_buf[num_scenes];
     /* Open input files */
-    for (m = 0; m < loop_number; m++)
-    {
-        for (i = 0; i < MAX_SCENES; i++)
-        {
-            for (k = 0; k < TOTAL_BANDS; k++)
-            {
-                landsat_number = atoi(sub_string(scene_list[m*MAX_SCENES+i],2,1));
-                if (landsat_number != 8)
-                {
-                    if (k == 5)
-                        sprintf(filename, "%s_toa_band6.img", 
-                                scene_list[m*MAX_SCENES+i]);
-                    else if (k == 7)
-                        sprintf(filename, "%s_cfmask.img", 
-                                scene_list[m*MAX_SCENES+i]);
-                    else
-                        sprintf(filename, "%s_sr_band%d.img", 
-                                scene_list[m*MAX_SCENES+i], k+1);
-                }
-                else
-                {
-                    if (k == 5)
-                        sprintf(filename, "%s_toa_band10.img", 
-                                scene_list[m*MAX_SCENES+i]);
-                    else if (k == 7)
-                        sprintf(filename, "%s_cfmask.img", 
-                                scene_list[m*MAX_SCENES+i]);
-                    else if (k == 6)
-                        sprintf(filename, "%s_sr_band%d.img", 
-                                scene_list[m*MAX_SCENES+i], k+1);
-                    else 
-                        sprintf(filename, "%s_sr_band%d.img", 
-                                scene_list[m*MAX_SCENES+i], k+2);
-                }
-
-                fp_bin[i][k] = open_raw_binary(filename,"rb");
-                if (fp_bin[i][k] == NULL)
-                    printf("error open %d scene, %d bands files\n",i, k+1);
-                if (k != TOTAL_BANDS-1)
-                {
-                    fseek(fp_bin[i][k], (row * meta->samples + col)*sizeof(short int), 
-                          SEEK_SET);
-                    if (read_raw_binary(fp_bin[i][k], meta->lines, meta->samples, 
-                        sizeof(short int), &buf[m*MAX_SCENES+i][k]) != 0)
-                        printf("error reading %d scene, %d bands\n",i, k+1);
-#if 0
-                    printf("scene_number,band_number,buf[i][k] = %d, %d, %d\n",
-                       m*MAX_SCENES+i,k+1,buf[m*MAX_SCENES+i][k]);
-#endif
-                }
-                else
-                {
-                    fseek(fp_bin[i][k], (row * meta->samples + col)*sizeof(unsigned char), 
-                        SEEK_SET);
-                    if (read_raw_binary(fp_bin[i][k], meta->lines, meta->samples, 
-                        sizeof(unsigned char), &fmask_buf[m*MAX_SCENES+i]) != 0)
-                        printf("error reading %d scene, %d bands\n",i, k+1);
-#if 0
-                    printf("scene_number,band_number,buf[i][k] = %d, %d, %d\n",
-                           m*MAX_SCENES+i,k+1,fmask_buf[m*MAX_SCENES+i]);
-#endif
-                }
-            close_raw_binary(fp_bin[i][k]);
-            }
-        }
-    }
-
-    for (i = 0; i < num_scenes - loop_number * MAX_SCENES; i++)
+    for (i = 0; i < num_scenes; i++)
     {
         for (k = 0; k < TOTAL_BANDS; k++)
         {
-            landsat_number = atoi(sub_string(scene_list[i + loop_number * MAX_SCENES],2,1));
+            landsat_number = atoi(sub_string(scene_list[i],2,1));
             if (landsat_number != 8)
             {
                 if (k == 5)
-                    sprintf(filename, "%s_toa_band6.img", 
-                            scene_list[i + loop_number * MAX_SCENES]);
+                    sprintf(filename, "%s_toa_band6.img", scene_list[i]);
                 else if (k == 7)
-                    sprintf(filename, "%s_cfmask.img", 
-                            scene_list[i + loop_number * MAX_SCENES]);
+                    sprintf(filename, "%s_cfmask.img", scene_list[i]);
                 else
-                    sprintf(filename, "%s_sr_band%d.img", 
-                            scene_list[i + loop_number * MAX_SCENES], k+1);
+                    sprintf(filename, "%s_sr_band%d.img", scene_list[i], k+1);
             }
             else
             {
                 if (k == 5)
-                    sprintf(filename, "%s_toa_band10.img", 
-                            scene_list[i + loop_number * MAX_SCENES]);
+                    sprintf(filename, "%s_toa_band10.img", scene_list[i]);
                 else if (k == 7)
-                    sprintf(filename, "%s_cfmask.img", 
-                            scene_list[i + loop_number * MAX_SCENES]);
+                    sprintf(filename, "%s_cfmask.img", scene_list[i]);
                 else if (k == 6)
-                    sprintf(filename, "%s_sr_band%d.img", 
-                            scene_list[i + loop_number * MAX_SCENES], k+1);
+                    sprintf(filename, "%s_sr_band%d.img", scene_list[i], k+1);
                 else 
-                    sprintf(filename, "%s_sr_band%d.img", 
-                            scene_list[i + loop_number * MAX_SCENES], k+2);
+                    sprintf(filename, "%s_sr_band%d.img", scene_list[i], k+2);
             }
+
             fp_bin[i][k] = open_raw_binary(filename,"rb");
             if (fp_bin[i][k] == NULL)
-            printf("error open %d scene, %d bands files\n",i, k+1);
+                printf("error open %d scene, %d bands files\n",i, k+1);
             if (k != TOTAL_BANDS-1)
             {
-                fp_bin[i][k] = open_raw_binary(filename,"rb");
-                if (fp_bin[i][k] == NULL)
-                    printf("error open %d scene, %d bands files\n",i, k+1);
-                fseek(fp_bin[i][k], (row * meta->samples + col)*sizeof(short int), 
-                      SEEK_SET);
-                if (read_raw_binary(fp_bin[i][k], meta->lines, meta->samples,          , 
-                    sizeof(short int), &buf[loop_number*MAX_SCENES+i][k]) != 0)
+                fseek(fp_bin[i][k], (row * meta->samples + col)*sizeof(short int), SEEK_SET);
+                if (read_raw_binary(fp_bin[i][k], meta->lines, meta->samples,
+                    sizeof(short int), &buf[i][k]) != 0)
                     printf("error reading %d scene, %d bands\n",i, k+1);
-#if 0
                 printf("scene_number,band_number,buf[i][k] = %d, %d, %d\n",
-                    loop_number*MAX_SCENES+i,k+1,buf[loop_number*MAX_SCENES+i][k]);
-#enif
+                   i,k+1,buf[i][k]);
             }
             else
             {
-                fseek(fp_bin[i][TOTAL_BANDS-1], (row * meta->samples + col)*
-                      sizeof(unsigned char), SEEK_SET);
+                fseek(fp_bin[i][k], (row * meta->samples + col)*sizeof(unsigned char), 
+                    SEEK_SET);
                 if (read_raw_binary(fp_bin[i][k], meta->lines, meta->samples,
-                    sizeof(unsigned char), &fmask_buf[loop_number*MAX_SCENES+i]) != 0)
+                    sizeof(unsigned char), &fmask_buf[i]) != 0)
                     printf("error reading %d scene, %d bands\n",i, k+1);
-#if 0
                 printf("scene_number,band_number,buf[i][k] = %d, %d, %d\n",
-                       loop_number*MAX_SCENES+i,k+1,fmask_buf[loop_number*MAX_SCENES+i]);
-#endif
+                       i,k+1,fmask_buf[i]);
             }
-            close_raw_binary(fp_bin[i][k]);
+        close_raw_binary(fp_bin[i][k]);
         }
     }
 
@@ -332,9 +255,39 @@ main (int argc, char *argv[])
         printf("Clear-sky pixel percentage = %f7.2\n", fmask_sum / num_scenes);
 
 
-    /* pixel value ranges should follow physical rules & based on cfmask
-       results to get good clear-sky pixel over both land and water */
+    /* Get each mask pixel totals */
+    for (i = 0; i < num_scenes; i++)
+    { 
+        if (fmask_buf[i] == 0)
+            clear_land_sum++;
+        if (fmask_buf[i] == 1)
+            clear_water_sum++;
+        if (fmask_buf[i] == 2 || fmask_sum[i] ==4)
+            cloud_and_shadow_sum++;
+        if (fmask_buf[i] == 3)
+            snow_sum++;
+    }
 
+    /* percent of water pixels */
+    ws_pct = (float) clear_water_sum / (float) (clear_land_sum + clear_water_sum);
+
+    /* percent of snow observations */
+    sn_pct =  (float) snow_sum / (float)(clear_land_sum + 
+               clear_water_sum + snow_sum); 
+
+    /* pixel value ranges should follow physical rules and set fmask value 
+       be 254*/
+    for (i = 0; i < num_scenes; i++)
+    { 
+     if ((buf[i][0] < 0) || (buf[i][0] > 10000) ||
+         (buf[i][1] < 0) || (buf[i][1] > 10000) ||
+         (buf[i][2] < 0) || (buf[i][2] > 10000) ||
+         (buf[i][3] < 0) || (buf[i][3] > 10000) ||
+         (buf[i][4] < 0) || (buf[i][4] > 10000) ||
+         (buf[i][5] < -9320) || (buf[i][5] > 7070) ||
+         (buf[i][6] < 0) || (buf[i][6] > 10000))
+      fmask_buf[i] = 254;
+    }
 
 #if 0
     /* If the scene is an ascending polar scene (flipped upside down), then
@@ -360,152 +313,12 @@ main (int argc, char *argv[])
     }
 #endif
 
-    /* call build_modtran_input to generate tape5 file and commandList */
-    status = build_modtran_input (input, &num_points, verbose);
-    if (status != SUCCESS)
-    {
-        RETURN_ERROR ("Building MODTRAN input\n", FUNC_NAME, EXIT_FAILURE);
-    }
-
-    if (verbose)
-    {
-        printf ("DEBUG: Number of Points: %d\n", num_points);
-    }
-
-// TODO TODO TODO - RDD - stopping here for right now
-// TODO TODO TODO - RDD - stopping here for right now
-// TODO TODO TODO - RDD - stopping here for right now
-    exit (0);
-// TODO TODO TODO - RDD - stopping here for right now
-// TODO TODO TODO - RDD - stopping here for right now
-// TODO TODO TODO - RDD - stopping here for right now
-
-    num_cases = num_points * NUM_ELEVATIONS * 3;
-    case_list = (char **) allocate_2d_array (num_cases, MAX_STR_LEN,
-                                             sizeof (char));
-    if (case_list == NULL)
-    {
-        RETURN_ERROR ("Allocating case_list memory", FUNC_NAME, EXIT_FAILURE);
-    }
-
-    command_list = (char **) allocate_2d_array (num_cases, MAX_STR_LEN,
-                                                sizeof (char));
-    if (command_list == NULL)
-    {
-        RETURN_ERROR ("Allocating command_list memory", FUNC_NAME,
-                      EXIT_FAILURE);
-    }
-
-    /* Read case_list from caseList file */
-    fd = fopen ("caseList", "r");
-    if (fd == NULL)
-    {
-        RETURN_ERROR ("Opening file: caseList\n", FUNC_NAME, EXIT_FAILURE);
-    }
-
-    /* Read in the caseList file */
-    for (k = 0; k < num_cases; k++)
-    {
-        fscanf (fd, "%s", case_list[k]);
-    }
-
-    /* Close the caseList file */
-    status = fclose (fd);
-    if (status)
-    {
-        RETURN_ERROR ("Closing file: caseList\n", FUNC_NAME, EXIT_FAILURE);
-    }
-
-    /* Read command_list from commandList file */
-    fd = fopen ("commandList", "r");
-    if (fd == NULL)
-    {
-        RETURN_ERROR ("Opening file: commandList\n", FUNC_NAME, EXIT_FAILURE);
-    }
-
-    /* Read in the commandList file */
-    for (k = 0; k < num_cases; k++)
-    {
-        fgets (command_list[k], MAX_STR_LEN, fd);
-    }
-
-    /* Close the commandList file */
-    status = fclose (fd);
-    if (status)
-    {
-        RETURN_ERROR ("Closing file: commandList\n", FUNC_NAME, EXIT_FAILURE);
-    }
-
-    /* perform modtran runs by calling command_list */
-    for (i = 0; i < num_cases; i++)
-    {
-        status = system (command_list[i]);
-        if (status != SUCCESS)
-        {
-            RETURN_ERROR ("executing command_list[i]", FUNC_NAME,
-                          EXIT_FAILURE);
-        }
-    }
-
-    /* PARSING TAPE6 FILES: for each case in caseList (for each modtran run),
-       copy program to delete headers and parse wavelength and total radiance
-       from tape6 file */
-    status = system ("cp $BIN/tape6parser.bash .");
-    if (status != SUCCESS)
-    {
-        RETURN_ERROR ("cp $BIN/tape6parser.bash\n", FUNC_NAME, EXIT_FAILURE);
-    }
-
-    for (i = 0; i < num_cases; i++)
-    {
-        /* Just use $LST_DATA/elim2.sed directly instead of linking it */
-        sprintf (command, "./tape6parser.bash %s", case_list[i]);
-        status = system (command);
-        if (status != SUCCESS)
-        {
-            RETURN_ERROR ("./tape6parser.bash\n", FUNC_NAME, EXIT_FAILURE);
-        }
-    }
-
-// TODO TODO TODO - RDD - stopping here for right now
-// TODO TODO TODO - RDD - stopping here for right now
-// TODO TODO TODO - RDD - stopping here for right now
-// TODO TODO TODO - RDD - stopping here for right now
-// TODO TODO TODO - RDD - stopping here for right now
-// TODO TODO TODO - RDD - stopping here for right now
-// TODO TODO TODO - RDD - stopping here for right now
-// TODO TODO TODO - RDD - stopping here for right now
-    exit (0);
-// TODO TODO TODO - RDD - stopping here for right now
-// TODO TODO TODO - RDD - stopping here for right now
-// TODO TODO TODO - RDD - stopping here for right now
-// TODO TODO TODO - RDD - stopping here for right now
-// TODO TODO TODO - RDD - stopping here for right now
-// TODO TODO TODO - RDD - stopping here for right now
-// TODO TODO TODO - RDD - stopping here for right now
-// TODO TODO TODO - RDD - stopping here for right now
-// TODO TODO TODO - RDD - stopping here for right now
-// TODO TODO TODO - RDD - stopping here for right now
-// TODO TODO TODO - RDD - stopping here for right now
-// TODO TODO TODO - RDD - stopping here for right now
-// TODO TODO TODO - RDD - stopping here for right now
-// TODO TODO TODO - RDD - stopping here for right now
-// TODO TODO TODO - RDD - stopping here for right now
-// TODO TODO TODO - RDD - stopping here for right now
-// TODO TODO TODO - RDD - stopping here for right now
-// TODO TODO TODO - RDD - stopping here for right now
-// TODO TODO TODO - RDD - stopping here for right now
-    status = system ("rm tape6parser.bash");
-    if (status != SUCCESS)
-    {
-        RETURN_ERROR ("rm tape6parser.bash\n", FUNC_NAME, EXIT_FAILURE);
-    }
 
     /* Free memory allocation */
-    status = free_2d_array ((void **) command_list);
+    status = free_2d_array ((void **) scene_list);
     if (status != SUCCESS)
     {
-        RETURN_ERROR ("Freeing memory: command_list\n", FUNC_NAME,
+        RETURN_ERROR ("Freeing memory: scene_list\n", FUNC_NAME,
                       EXIT_FAILURE);
     }
 
@@ -515,30 +328,6 @@ main (int argc, char *argv[])
     if (results == NULL)
     {
         RETURN_ERROR ("Allocating results memory", FUNC_NAME, EXIT_FAILURE);
-    }
-
-    /* call second_narr to generate parameters for each height and NARR point */
-    status =
-        second_narr (input, num_points, alb, case_list, results, verbose);
-    if (status != SUCCESS)
-    {
-        RETURN_ERROR ("Calling scene_based_list\n", FUNC_NAME, EXIT_FAILURE);
-    }
-
-    /* Free memory allocation */
-    status = free_2d_array ((void **) case_list);
-    if (status != SUCCESS)
-    {
-        RETURN_ERROR ("Freeing memory: current_case\n", FUNC_NAME,
-                      EXIT_FAILURE);
-    }
-
-    /* call third_pixels_post to generate parameters for each Landsat pixel */
-    status = third_pixels_post (input, num_points, dem_name, emissivity_name,
-                                results, verbose);
-    if (status != SUCCESS)
-    {
-        RETURN_ERROR ("Calling scene_based_list\n", FUNC_NAME, EXIT_FAILURE);
     }
 
 #if 0
