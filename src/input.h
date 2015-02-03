@@ -188,7 +188,18 @@ int sort_scene_based_on_year_doy
 (
     char **scene_list,      /* I/O: scene_list, sorted as output */
     int num_scenes,         /* I: number of scenes in the scene list */
-    float *sdate            /* O: year plus date since 0000 */
+    int *sdate              /* O: year plus date since 0000 */
+);
+
+void update_cft
+(
+    int i_span,
+    int n_times,
+    int min_num_c,
+    int mid_num_c,
+    int max_num_c,
+    int num_c,
+    int *update_number_c
 );
 
 void usage ();

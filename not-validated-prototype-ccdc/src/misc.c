@@ -12,6 +12,12 @@
 #include "utilities.h"
 #include "input.h"
 
+#ifndef max
+#define max(a,b) (((a) (b)) ? (a) : (b))
+#endif
+#ifndef min
+#define min(a,b) (((a) < (b)) ? (a) : (b))
+#endif
 
 /******************************************************************************
 MODULE:  get_args
@@ -540,10 +546,10 @@ MODULE:  sort_scene_based_on_year_jday
 PURPOSE:  Sort scene list based on year and julian day of year
 
 RETURN VALUE:
-Type = char
+Type = int
 Value           Description
 -----           -----------
-sub staring
+
 
 HISTORY:
 Date        Programmer       Reason
@@ -556,7 +562,7 @@ int sort_scene_based_on_year_doy
 (
     char **scene_list,      /* I/O: scene_list, sorted as output */
     int num_scenes,         /* I: number of scenes in the scene list */
-    float *sdate            /* O: year plus date since 0000 */
+    int *sdate              /* O: year plus date since 0000 */
 )
 {
     int i;
@@ -590,5 +596,43 @@ int sort_scene_based_on_year_doy
     free(yeardoy);
 
     return SUCCESS;
+
+}
+
+/******************************************************************************
+MODULE:  update_cft
+
+PURPOSE:  determine the number of coefficientd use in the time series model
+
+RETURN VALUE:
+Type = void
+Value           Description
+-----           -----------
+
+
+HISTORY:
+Date        Programmer       Reason
+--------    ---------------  -------------------------------------
+1/23/2015   Song Guo         Original Development
+
+NOTES:
+******************************************************************************/
+void update_cft
+(
+    int i_span,
+    int n_times,
+    int min_num_c,
+    int mid_num_c,
+    int max_num_c,
+    int num_c,
+    int *update_number_c
+)
+{
+    if (i_span < mid_num_c * n_times)
+        update_num_c = min(min_num_c, num_c);  /* start with 4 coefficients model */ 
+    else if (i_span < max_num_c * n_times) 
+        update_num_c = min(mid_num_c, num_c);  /* start with 6 coefficients model */ 
+    else
+        update_num_c = min(max_num_c, num_c);  /* start with 8 coefficients model */ 
 
 }

@@ -13,29 +13,37 @@
 #define NUM_COEFFS 5
 #define NUM_BANDS 7
 
-/* Structure for the 'output' data type */
+typedef struct {
+  int row;
+  int col;
+} Position_t;
 
+/* Structure for the 'output' data type */
 typedef struct
 {
     bool open;             /* Flag to indicate whether output file is open 
                               for access; 'true' = open, 'false' = not open */
     FILE *fp_bin;          /* File pointer for binary output file */
-    Date_t t_start;        /* time when series model gets started */
-    Date_t t_end;          /* time when series model gets ended */
-    Date_t t_break;        /* time when the first break (change) is observed */
+    int t_start;           /* time when series model gets started */
+    int t_end;             /* time when series model gets ended */
+    int t_break;           /* time when the first break (change) is observed */
     float model_coefs[NUM_BANDS][NUM_COEFFS];
                            /*  coefficients for each time series model for each 
                                spectral band*/    
-    float model_rmse[NUM_BANDS][NUM_COEFFS];
+    float model_rmse[NUM_BANDS];
                            /*  RMSE for each time series model for each 
                                spectral band*/    
-    int pos;               /* the location of each time series model */
+    Position pos;          /* the location of each time series model */
     float change_prob;     /* the probability of a pixel that have undergone 
                               change (between 0 and 100) */
     int num_obs;           /* the number of "good" observations used for model 
                               estimation */
-    float category;        /* the quality of the model estimation (what model 
-                              is used, what process is used)*/
+    int category;          /* the quality of the model estimation (what model 
+                              is used, what process is used) 
+                              1x: persistent snow    2x: persistent water 
+                              3x: Fmask fails        4x: normal precedure
+                              x1: mean value (1)     x4: simple fit (4)
+                              x6: basic fit (6)      x8: full fit (8) */
     float magnitude;       /* the magnitude of change (difference between model 
                               prediction and observation for each spectral band)*/
 } Output_t;
