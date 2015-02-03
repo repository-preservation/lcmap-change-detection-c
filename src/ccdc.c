@@ -12,6 +12,7 @@
 
 #define NUM_LASSO_BANDS 5
 #define TOTAL_BANDS 8
+#define MAX_NUM_FC 10 /* Values change with number of pixels run */
 int lasso_band_list[NUM_LASSO_BANDS] = {2, 3, 4, 5, 7};
 
 /******************************************************************************
@@ -54,7 +55,7 @@ main (int argc, char *argv[])
     float t_max_cg;
     int conse;
     int status;                 /* return value from function call */
-    //    Output_t *output = NULL; /* output structure and metadata */
+    Output_t *rec_cg[MAX_NUM_FC-1] = NULL;/* output structure and metadata */
     bool verbose;               /* verbose flag for printing messages */
     float alb = 0.1;
     int i, k;
@@ -67,7 +68,7 @@ main (int argc, char *argv[])
     int min_num_c = 4;
     int mid_num_c = 6;
     int max_num_c = 8;
-    int num_c;                /* max number of coefficients for the model */
+    int num_c = 8;            /* max number of coefficients for the model */
     int n_times = 3;          /* number of clear observations/coefficients*/
     int num_fc = 0;           /* intialize NUM of Functional Curves */
     float num_yrs = 365.25;   /* number of days per year */
@@ -84,7 +85,7 @@ main (int argc, char *argv[])
     float t_ws = 0.95;        /* no change detection for permanent water pixels */
     float t_sn = 0.6;         /* no change detection for permanent snow pixels */ 
     float t_cs = 0.6;         /* Fmask fails threshold */
-    float *sdate;
+    int *sdate;
     Input_meta_t *meta;
     int row, col;
     int landsat_number;
@@ -95,6 +96,20 @@ main (int argc, char *argv[])
     int cloud_and_shadow_sum = 0;
     float ws_pct;
     float sn_pct;
+    float cs_pct;
+    int n_ws = 0;
+    int n_sn = 0;
+    int n_clr = 0;
+    int *clrx;
+    int **clry;
+    int i_start;
+    int end;
+    float **fit_cft;
+    float **rmse;
+    int i_span;
+    int update_num_c;
+    int v_qa;
+    int8 *id_label;
 
     time_t now;
     time (&now);
@@ -146,10 +161,38 @@ main (int argc, char *argv[])
         }
     }
 
-    /* Allocate memory for yeardoy */
-    sdate = malloc(num_scenes * sizeof(float));
+    /* Allocate memory */
+    sdate = malloc(num_scenes * sizeof(int));
     if (sdate == NULL)
-        RETURN_ERROR("ERROR allocating memory", FUNC_NAME, FAILURE);
+        RETURN_ERROR("ERROR allocating sdate memory", FUNC_NAME, FAILURE);
+
+    clrx = malloc(num_scenes * sizeof(int));
+    if (clrx == NULL)
+        RETURN_ERROR("ERROR allocating clrx memory", FUNC_NAME, FAILURE);
+
+    id_label = malloc(num_scenes * sizeof(int8));
+    if (clrx == NULL)
+        RETURN_ERROR("ERROR allocating id_label memory", FUNC_NAME, FAILURE);
+
+    clry = (int16 **) allocate_2d_array (num_scenes, TOTAL_BANDS - 1, 
+                                         sizeof (int16));
+    if (clry == NULL)
+    {
+        RETURN_ERROR ("Allocating clry memory", FUNC_NAME, FAILURE);
+    }
+
+    fit_cft = (float **) allocate_2d_array (max_num_c, TOTAL_BANDS - 1, 
+                                         sizeof (float));
+    if (fir_ctf == NULL)
+    {
+        RETURN_ERROR ("Allocating fit_cft memory", FUNC_NAME, FAILURE);
+    }
+
+    rmse = malloc((TOTAL_BANDS - 1) * sizeof(float));
+    if (rmse == NULL)
+    {
+        RETURN_ERROR ("Allocating rmse memory", FUNC_NAME, FAILURE);
+    }
 
     /* sort scene_list based on year & julian_day */
     status = sort_scene_based_on_year_doy(scene_list, num_scenes, sdate);
@@ -254,6 +297,20 @@ main (int argc, char *argv[])
     else
         printf("Clear-sky pixel percentage = %f7.2\n", fmask_sum / num_scenes);
 
+    /* pixel value ranges should follow physical rules */
+    for (i = 0; i < num_scenes; i++)
+    { 
+        if ((buf[i][0] > 0) && (buf[i][0] < 10000) &&
+            (buf[i][1] > 0) && (buf[i][1] < 10000) &&
+            (buf[i][2] > 0) && (buf[i][2] < 10000) &&
+            (buf[i][3] > 0) && (buf[i][3] < 10000) &&
+            (buf[i][4] > 0) && (buf[i][4] < 10000) &&
+            (buf[i][5] > -9320) && (buf[i][5] < 7070) &&
+            (buf[i][6] > 0) && (buf[i][6] < 10000))
+            id_label[i] = 1;
+        else
+            id_label[i] = 0;
+    }
 
     /* Get each mask pixel totals */
     for (i = 0; i < num_scenes; i++)
@@ -275,71 +332,233 @@ main (int argc, char *argv[])
     sn_pct =  (float) snow_sum / (float)(clear_land_sum + 
                clear_water_sum + snow_sum); 
 
-    /* pixel value ranges should follow physical rules and set fmask value 
-       be 254*/
-    for (i = 0; i < num_scenes; i++)
-    { 
-     if ((buf[i][0] < 0) || (buf[i][0] > 10000) ||
-         (buf[i][1] < 0) || (buf[i][1] > 10000) ||
-         (buf[i][2] < 0) || (buf[i][2] > 10000) ||
-         (buf[i][3] < 0) || (buf[i][3] > 10000) ||
-         (buf[i][4] < 0) || (buf[i][4] > 10000) ||
-         (buf[i][5] < -9320) || (buf[i][5] > 7070) ||
-         (buf[i][6] < 0) || (buf[i][6] > 10000))
-      fmask_buf[i] = 254;
+    /* percent of cloud and cloud shadow pixels */
+    cs_pct = (float)cloud_and_shadow_sum / (float)fmask_sum;  
+
+    /* fit only water pixels (permanet water) */
+    if (ws_pct > t_ws)
+    {
+        for (i = 0; i < num_scenes; i++)
+        { 
+            if (fmask_buf[i] == 1 && id_label[i] == 1)
+            {
+                clrx[n_ws] = sdate[i];
+                for (k = 0; k < TOTAL_BANDS - 1; k++)
+                     clry[n_ws][k] = buf[i][k];
+                n_ws++;
+            }   
+        }
+        end = n_ws;
+
+        printf("Permanent water pixel = %f\n", 100.0 * ws_pct);
+
+        if (n_ws < ntimes * min_num_c ) /* not enough water pixels */
+            RETURN_ERROR ("Not enough good water observations\n", 
+                 FUNC_NAME, EXIT_FAILURE);
+        else
+        {
+            /* start model fit for snow persistent pixels */
+            printf ("Fit permanent water observations\n"); 
+
+            /* the first observation for TSFit */
+            i_start = 0; /* the first observation for TSFit */
+
+            /* use all water and snow values to fit */
+            i_span = n_ws;
+            update_cft(i_span, n_times, min_num_c, mid_num_c, max_num_c, num_c,
+                       &update_num_c);
+
+            for (k = 0; k < TOTAL_BANDS - 1; k++)
+            {
+             // TO DO: [fit_cft(:,i_B),rmse(i_B)]=autoTSFit(clrx,clry(:,i_B),update_num_c);   
+            }
+
+            /* update information at each iteration */
+            rec_cg[num_fc].t_start = clrx[i_start]; /* record time of curve start */
+            rec_cg[num_fc].t_end = clrx[end]; /* record time of curve end */
+            rec_cg[num_fc].t_break = 0; /* no break at the moment */
+            rec_cg[num_fc].pos.row = row; /* record postion of the pixel */
+            rec_cg[num_fc].pos.col = col; /* record postion of the pixel */
+            for (i = 0; i < TOTAL_BANDS - 1; i++)
+            {
+                for (k = 0; k < update_num_c; k++)
+                    rec_cg[num_fc].coefs[i][k] = fit_cft[i][k]; /* record fitted coefficients */
+                rec_cg[num_fc].rmse[i] = rmse[i]; /* record rmse of the pixel */
+            }
+            rec_cg[num_fc].change_prob = 0.0; /* record change probability */
+            rec_cg[num_fc].num_obs = n_ws; /* record number of observations */
+            rec_cg[num_fc].category = 20 + update_num_c; /* record fit category */
+            for (i = 0; i < TOTAL_BANDS - 1; i++)
+                rec_cg[num_fc].magnitude = 0.0; /* record change magnitude */
+            num_fc++;    /* NUM of Fitted Curves (num_fc) */
+        }
+    }
+    else if (sn_pct > t_sn) /* fit only snow pixels (permanet snow) */
+    {
+        for (i = 0; i < num_scenes; i++)
+        { 
+            if (fmask_buf[i] == 3)
+            {
+                clrx[n_sn] = sdate[i];
+                for (k = 0; k < TOTAL_BANDS - 1; k++)
+                     clry[n_sn][k] = buf[i][k];
+                n_sn++;
+            }   
+        }
+        end = n_sn;
+
+        printf("Permanent snow pixel = %f\n", 100.0 * sn_pct);
+
+        if (n_sn < ntimes * min_num_c ) /* not enough snow pixels */
+            RETURN_ERROR ("Not enough good snow observations\n", 
+                 FUNC_NAME, EXIT_FAILURE);
+        else
+        {
+            /* start model fit for snow persistent pixels */
+            printf ("Fit permanent snow observations\n"); 
+
+            /* the first observation for TSFit */
+            i_start = 0; /* the first observation for TSFit */
+
+            /* treat saturated and unsaturated pixels differently */
+            for (k = 0; k < TOTAL_BANDS -1; k++)
+            {
+                i_span = 0;
+                if (k != TOTAL_BANDS - 3) /* for optical bands */
+                {
+                    for (i = 0; i < num_scenes; i++)
+                    {
+                        if (clry[i][k] > 0 && clry[i][k] < 10000)
+                            i_span++;
+                        if (i_span < min_num_c * n_times)
+                            fit_cft[i][k] = 10000; /* fixed value for saturated
+                                                       pixels */
+                        else
+                        {
+                            update_cft(i_span, n_times, min_num_c, mid_num_c, 
+                                       max_num_c, num_c, &update_num_c);
+
+                            for (k = 0; k < TOTAL_BANDS - 1; k++)
+                            {
+                                // TO DO: [fit_cft(:,i_B),rmse(i_B)]=autoTSFit(clrx,clry(:,i_B),update_num_c);  
+                            }
+                        }
+                    } 
+                }
+                else /* for thermal band */
+                {
+                    for (i = 0; i < num_scenes; i++)
+                    {
+                        if (clry[i][k] > -9300 && clry[i][k] < 7070)
+                            i_span++;
+                        update_cft(i_span, n_times, min_num_c, mid_num_c, 
+                                   max_num_c, num_c, &update_num_c);
+
+                        // TO DO: [fit_cft(:,i_B),rmse(i_B)]=autoTSFit(clrx,clry(:,i_B),update_num_c);  
+                    }
+                }
+
+
+            /* update information at each iteration */
+            rec_cg[num_fc].t_start = clrx[i_start]; /* record time of curve start */
+            rec_cg[num_fc].t_end = clrx[end]; /* record time of curve end */
+            rec_cg[num_fc].t_break = 0; /* no break at the moment */
+            rec_cg[num_fc].pos.row = row; /* record postion of the pixel */
+            rec_cg[num_fc].pos.col = col; /* record postion of the pixel */
+            for (i = 0; i < TOTAL_BANDS - 1; i++)
+            {
+                for (k = 0; k < update_num_c; k++)
+                    rec_cg[num_fc].coefs[i][k] = fit_cft[i][k]; /* record fitted coefficients */
+                rec_cg[num_fc].rmse[i] = rmse[i]; /* record rmse of the pixel */
+            }
+            rec_cg[num_fc].change_prob = 0.0; /* record change probability */
+            rec_cg[num_fc].num_obs = n_ws; /* record number of observations */
+            rec_cg[num_fc].category = 20 + update_num_c; /* record fit category */
+            for (i = 0; i < TOTAL_BANDS - 1; i++)
+                rec_cg[num_fc].magnitude = 0.0; /* record change magnitude */
+            num_fc++;    /* NUM of Fitted Curves (num_fc) */
+        }
+    }
+    else /* clear land or water pixels */
+    {
+        printf("Land pixel (water/snow) = %f/%f\n", 100.0 * ws_pct, 100.0 * sn_pct);
+
+        if (cs_pct < t_cs)  /* Fmask works */
+        {
+            for (i = 0; i < num_scenes; i++)
+            { 
+                if ((fmask_buf[i] == 0 || fmask_buf[i] == 1) && id_label[i] == 1)
+                {
+                    clrx[n_clr] = sdate[i];
+                    for (k = 0; k < TOTAL_BANDS - 1; k++)
+                         clry[n_clr][k] = buf[i][k];
+                    n_clr++;
+                }   
+            }
+            end = n_clr;
+            v_qa = 40; /* QA var for normal procedure */
+        }
+        else /* Fmask fails in persistent commission */
+        {
+            /* catch back all valid wthin range observations */
+            for (i = 0; i < num_scenes; i++)
+            { 
+                if ((fmask_buf[i] == 0 || fmask_buf[i] == 1
+                     fmask_buf[i] == 2 || fmask_buf[i] == 4) && id_label[i] == 1)
+                {
+                    clrx[n_clr] = sdate[i];
+                    for (k = 0; k < TOTAL_BANDS - 1; k++)
+                         clry[n_clr][k] = buf[i][k];
+                    n_clr++;
+                }   
+            }
+            end = n_clr;
+            v_qa = 30; /* QA var for normal procedure */
+        }
+
+        if (n_ws < ntimes * min_num_c ) /* not enough snow pixels */
+            RETURN_ERROR ("Not enough good water or snow observations\n", 
+                 FUNC_NAME, EXIT_FAILURE);
+        else
+        {
+            /* start model fit for snow persistent pixels */
+            printf ("Fit permanent water or snow observations\n"); 
+
+            /* the first observation for TSFit */
+            i_start = 0; /* the first observation for TSFit */
+
+            /* use all water and snow values to fit */
+            i_span = n_ws;
+            update_cft(i_span, n_times, min_num_c, mid_num_c, max_num_c, num_c,
+                       &update_num_c);
+
+            for (k = 0; k < TOTAL_BANDS - 1; k++)
+            {
+             // TO DO: [fit_cft(:,i_B),rmse(i_B)]=autoTSFit(clrx,clry(:,i_B),update_num_c);   
+            }
+
+            /* update information at each iteration */
+            rec_cg[num_fc].t_start = clrx[i_start]; /* record time of curve start */
+            rec_cg[num_fc].t_end = clrx[end]; /* record time of curve end */
+            rec_cg[num_fc].t_break = 0; /* no break at the moment */
+            rec_cg[num_fc].pos.row = row; /* record postion of the pixel */
+            rec_cg[num_fc].pos.col = col; /* record postion of the pixel */
+            for (i = 0; i < TOTAL_BANDS - 1; i++)
+            {
+                for (k = 0; k < update_num_c; k++)
+                    rec_cg[num_fc].coefs[i][k] = fit_cft[i][k]; /* record fitted coefficients */
+                rec_cg[num_fc].rmse[i] = rmse[i]; /* record rmse of the pixel */
+            }
+            rec_cg[num_fc].change_prob = 0.0; /* record change probability */
+            rec_cg[num_fc].num_obs = n_ws; /* record number of observations */
+            rec_cg[num_fc].category = 20 + update_num_c; /* record fit category */
+            for (i = 0; i < TOTAL_BANDS - 1; i++)
+                rec_cg[num_fc].magnitude = 0.0; /* record change magnitude */
+            num_fc++;    /* NUM of Fitted Curves (num_fc) */
+        }
     }
 
 #if 0
-    /* If the scene is an ascending polar scene (flipped upside down), then
-       the solar azimuth needs to be adjusted by 180 degrees.  The scene in
-       this case would be north down and the solar azimuth is based on north
-       being up clock-wise direction. Flip the south to be up will not change 
-       the actual sun location, with the below relations, the solar azimuth
-       angle will need add in 180.0 for correct sun location */
-    if (input->meta.ul_corner.is_fill &&
-        input->meta.lr_corner.is_fill &&
-        (input->meta.ul_corner.lat - input->meta.lr_corner.lat) < MINSIGMA)
-    {
-        /* Keep the original solar azimuth angle */
-        sun_azi_temp = input->meta.sun_az;
-        input->meta.sun_az += 180.0;
-        if ((input->meta.sun_az - 360.0) > MINSIGMA)
-            input->meta.sun_az -= 360.0;
-        if (verbose)
-            printf
-                ("  Polar or ascending scene.  Readjusting solar azimuth by "
-                 "180 degrees.\n  New value: %f degrees\n",
-                 input->meta.sun_az);
-    }
-#endif
-
-
-    /* Free memory allocation */
-    status = free_2d_array ((void **) scene_list);
-    if (status != SUCCESS)
-    {
-        RETURN_ERROR ("Freeing memory: scene_list\n", FUNC_NAME,
-                      EXIT_FAILURE);
-    }
-
-    /* Allocate memory for results */
-    results = (float **) allocate_2d_array (num_points * NUM_ELEVATIONS, 6,
-                                            sizeof (float));
-    if (results == NULL)
-    {
-        RETURN_ERROR ("Allocating results memory", FUNC_NAME, EXIT_FAILURE);
-    }
-
-#if 0
-    /* Reassign solar azimuth angle for output purpose if south up north 
-       down scene is involved */
-    if (input->meta.ul_corner.is_fill &&
-        input->meta.lr_corner.is_fill &&
-        (input->meta.ul_corner.lat - input->meta.lr_corner.lat) < MINSIGMA)
-    {
-        input->meta.sun_az = sun_azi_temp;
-    }
-
     /* Open the output file */
     output = OpenOutput (&xml_metadata, input);
     if (output == NULL)
@@ -409,58 +628,32 @@ main (int argc, char *argv[])
 #endif
 
     /* Free memory allocation */
-    status = free_2d_array ((void **) results);
+    free(sdate);
+    free(clrx);
+    free(rmse);
+    free(id_label);
+    status = free_2d_array ((void **) scene_list);
     if (status != SUCCESS)
     {
-        RETURN_ERROR ("Freeing memory: results\n", FUNC_NAME, EXIT_FAILURE);
-    }
-
-#if 0
-    /* Delete temporary file */
-    status = system ("rm newHead*");
-    if (status != SUCCESS)
-    {
-        RETURN_ERROR ("Deleting newHead* files\n", FUNC_NAME, EXIT_FAILURE);
-    }
-
-    status = system ("rm newTail*");
-    if (status != SUCCESS)
-    {
-        RETURN_ERROR ("Deleting newTail* files\n", FUNC_NAME, EXIT_FAILURE);
-    }
-
-    status = system ("rm tempLayers.txt");
-    if (status != SUCCESS)
-    {
-        RETURN_ERROR ("Deleting tempLayers file\n", FUNC_NAME, EXIT_FAILURE);
-    }
-
-    /* Delete temporary directories */
-    status = system ("\rm -r HGT*");
-    if (status != SUCCESS)
-    {
-        RETURN_ERROR ("Deleting HGT* directories\n", FUNC_NAME, EXIT_FAILURE);
-    }
-
-    status = system ("\rm -r SHUM*");
-    if (status != SUCCESS)
-    {
-        RETURN_ERROR ("Deleting SHUM* directories\n", FUNC_NAME, EXIT_FAILURE);
-    }
-
-    status = system ("\rm -r TMP*");
-    if (status != SUCCESS)
-    {
-        RETURN_ERROR ("Deleting TMP* directories\n", FUNC_NAME, EXIT_FAILURE);
-    }
-
-    status = system ("\rm -r 4?.*_*");
-    if (status != SUCCESS)
-    {
-        RETURN_ERROR ("Deleting temporary directories\n", FUNC_NAME,
+        RETURN_ERROR ("Freeing memory: scene_list\n", FUNC_NAME,
                       EXIT_FAILURE);
     }
-#endif
+
+    status = free_2d_array ((void **) clry);
+    if (status != SUCCESS)
+    {
+        RETURN_ERROR ("Freeing memory: clry\n", FUNC_NAME,
+                      EXIT_FAILURE);
+    }
+
+    status = free_2d_array ((void **) fit_cft);
+    if (status != SUCCESS)
+    {
+        RETURN_ERROR ("Freeing memory: fit_cft\n", FUNC_NAME,
+                      EXIT_FAILURE);
+    }
+
+
 
     time (&now);
     snprintf (msg_str, sizeof(msg_str),
