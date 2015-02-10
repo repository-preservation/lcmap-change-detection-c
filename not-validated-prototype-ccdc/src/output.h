@@ -44,8 +44,8 @@ typedef struct
                               3x: Fmask fails        4x: normal precedure
                               x1: mean value (1)     x4: simple fit (4)
                               x6: basic fit (6)      x8: full fit (8) */
-    float magnitude;       /* the magnitude of change (difference between model 
-                              prediction and observation for each spectral band)*/
+    float magnitude[NUM_BANDS];/* the magnitude of change (difference between model 
+                                  prediction and observation for each spectral band)*/
 } Output_t;
 
 
