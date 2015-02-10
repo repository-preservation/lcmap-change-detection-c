@@ -202,6 +202,56 @@ void update_cft
     int *update_number_c
 );
 
+void median_filter
+(
+    int16 *array,      /* I: input array */
+    int array_len,     /* I: number of elements in input array */
+    int n,             /* I: output order N, here is an odd number */
+    int *output_array  /* O: output array */
+);
+
+void array_intersection
+(
+    int *array1,       /* I: input array 1 */
+    int array_len1,    /* I: number of elements in input array1 */
+    int *array2,       /* I: input array 2 */
+    int array_len2,    /* I: number of elements in input array2 */
+    int *output_array, /* O: output array */
+    int *output_len    /* O: output array length */
+);
+
+void matlab_norm
+(
+    float *array,        /* I: input array */
+    int array_len,       /* I: number of elements in input array */
+    float  *output_norm  /* O: output norm value */
+);
+
+void matlab_2d_norm
+(
+    float *array,        /* I: input array */
+    int array_dim1,      /* I: number of input elements in 1st dim */
+    int array_dim2,      /* I: number of input elements in 2nd dim */
+    float  *output_norm  /* O: output norm value */
+);
+
+void square_root_mean
+(
+    float **array,       /* I: input array */
+    int dim2_number,     /* I: second dimension number used */   
+    int array_len1,      /* I: number of input elements */
+    float **fit_ctf,     /* I: */
+    float  *rmse         /* O: output rmse value */
+);
+
+void matlab_2d_array_mean
+(
+    float **array,       /* I: input array */
+    int dim1_number,     /* I: first dimension number used */   
+    int array_len2,      /* I: number of input elements in 1st dim */
+    float  *output_mean  /* O: output norm value */
+);
+
 void usage ();
 
 #endif

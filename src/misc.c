@@ -409,7 +409,7 @@ void quick_sort (int arr[], char *brr[], int left, int right)
     int index = partition (arr, brr, left, right);
 
     if (left < index - 1)
-     quick_sort (arr, brr, left, index - 1);
+        quick_sort (arr, brr, left, index - 1);
     if (index < right)
         quick_sort (arr, brr, index, right);
 }
@@ -635,4 +635,329 @@ void update_cft
     else
         update_num_c = min(max_num_c, num_c);  /* start with 8 coefficients model */ 
 
+}
+
+/******************************************************************************
+MODULE:  partition_int
+
+PURPOSE:  partition the sorted list
+
+RETURN VALUE:
+Type = int
+Value           Description
+-----           -----------
+i               partitioned value   
+
+HISTORY:
+Date        Programmer       Reason
+--------    ---------------  -------------------------------------
+1/23/2015   Song Guo         Original Development
+
+NOTES:
+******************************************************************************/
+int partition_int (int arr[], int left, int right)
+{
+    int i = left, j = right;
+    int tmp;
+    int pivot = arr[(left + right) / 2];
+
+    while (i <= j)
+    {
+        while (arr[i] < pivot)
+            i++;
+        while (arr[j] > pivot)
+            j--;
+        if (i <= j)
+        {
+            tmp = arr[i];
+            arr[i] = arr[j];
+            arr[j] = tmp;
+            i++;
+            j--;
+        }
+    }
+
+    return i;
+}
+
+/******************************************************************************
+MODULE:  quick_sort_int
+
+PURPOSE:  sort the scene_list based on yeardoy string
+
+RETURN VALUE: None
+
+HISTORY:
+Date        Programmer       Reason
+--------    ---------------  -------------------------------------
+1/23/2015   Song Guo         Original Development
+
+NOTES:
+******************************************************************************/
+void quick_sort_int (int arr[], int left, int right)
+{
+    int index = partition_int (arr, left, right);
+
+    if (left < index - 1)
+        quick_sort_int (arr, left, index - 1);
+    if (index < right)
+        quick_sort_int (arr, index, right);
+}
+
+/******************************************************************************
+MODULE:  median_filter
+
+PURPOSE:  simulate matlab medfilt1 function for odd number cases only
+
+RETURN VALUE:
+Type = void
+Value           Description
+-----           -----------
+
+
+HISTORY:
+Date        Programmer       Reason
+--------    ---------------  -------------------------------------
+2/3/2015   Song Guo         Original Development
+
+NOTES: We only handle odd number input N case as it will be 2 * conse + 1 
+       for CCDC run, if needed, we can add in even number case later
+******************************************************************************/
+void median_filter
+(
+    int16 *array,      /* I: input array */
+    int array_len,     /* I: number of elements in input array */
+    int n,             /* I: output order N, here is an odd number */
+    int *output_array  /* O: output array */
+)
+{
+    int i, j;
+    int16 temp[n];
+    int m = n / 2;
+
+    for (i = 0; i < array_len; i++)
+    {
+        for (j = 0; j < n; j++)
+        {
+            if (((i + j - m) >= 0) && ((i + j - m) < array_len -1))
+                temp[j] = array[i + j - m];
+            else
+                temp[j] = 0;
+        }
+        quick_sort_int(temp, 0, n - 1); 
+        output_array[i] = temp[m+1];
+    }
+}
+
+/******************************************************************************
+MODULE:  array_intersection
+
+PURPOSE:  simulate matlab intersect function for array cases only
+
+RETURN VALUE:
+Type = void
+Value           Description
+-----           -----------
+
+
+HISTORY:
+Date        Programmer       Reason
+--------    ---------------  -------------------------------------
+2/5/2015   Song Guo         Original Development
+
+NOTES: We only handle odd number input N case as it will be 2 * conse + 1 
+       for CCDC run, if needed, we can add in even number case later
+******************************************************************************/
+void array_intersection
+(
+    int *array1,       /* I: input array 1 */
+    int array_len1,    /* I: number of elements in input array1 */
+    int *array2,       /* I: input array 2 */
+    int array_len2,    /* I: number of elements in input array2 */
+    int *output_array, /* O: output array */
+    int *output_len    /* O: output array length */
+)
+{
+    int i, j;
+    int k = 0;
+
+    if (array_len1 <= array_len2)
+    {
+        for (i = 0; i < array_len1; i++)
+        {
+            for (j = 0; j < array_len2; j++)
+            {
+                if (array1[i] == array2[j])
+                {
+                    output_array[k] = array1[i];
+                    k++;
+                    break;
+                }
+            }
+        }
+    }
+    else
+    {
+        for (i = 0; i < array_len2; i++)
+        {
+            for (j = 0; j < array_len1; j++)
+            {
+                if (array2[i] == array1[j])
+                {
+                    output_array[k] = array2[i];
+                    k++;
+                    break;
+                }
+            }
+        }
+    }
+    *output_len = k;           
+    quick_sort_int(output_array, 0, k - 1); 
+}
+
+/******************************************************************************
+MODULE:  matlab_norm
+
+PURPOSE:  simulate matlab norm function for 1d array cases only
+
+RETURN VALUE:
+Type = void
+Value           Description
+-----           -----------
+
+
+HISTORY:
+Date        Programmer       Reason
+--------    ---------------  -------------------------------------
+2/7/2015   Song Guo         Original Development
+
+NOTES: 
+******************************************************************************/
+void matlab_norm
+(
+    float *array,        /* I: input array */
+    int array_len,       /* I: number of elements in input array */
+    float  *output_norm  /* O: output norm value */
+)
+{
+    int i;
+    float sum = 0.0;
+
+    for (i = 0; i < array_len; i++)
+        sum += array[i] * array[i];
+    *output_norm = sqrt(sum);
+}
+
+/******************************************************************************
+MODULE:  matlab_2d_norm
+
+PURPOSE:  simulate matlab norm function for 2d array cases only
+
+RETURN VALUE:
+Type = void
+Value           Description
+-----           -----------
+
+
+HISTORY:
+Date        Programmer       Reason
+--------    ---------------  -------------------------------------
+2/9/2015   Song Guo         Original Development
+
+NOTES: 
+******************************************************************************/
+void matlab_2d_norm
+(
+    float *array,        /* I: input array */
+    int array_dim1,      /* I: number of input elements in 1st dim */
+    int array_dim2,      /* I: number of input elements in 2nd dim */
+    float  *output_norm  /* O: output norm value */
+)
+{
+    int i, j;
+    float sum = 0.0;
+
+    for (i = 0; i < array_dim1; i++)
+    {
+        for (j = 0; j < array_dim2; j++)
+        {
+            sum += array[i][j] * array[i][j];
+        }
+    }
+    *output_norm = sqrt(sum);
+}
+
+/******************************************************************************
+MODULE:  square_root_mean
+
+PURPOSE:  simulate square root mean function
+
+RETURN VALUE:
+Type = void
+Value           Description
+-----           -----------
+
+
+HISTORY:
+Date        Programmer       Reason
+--------    ---------------  -------------------------------------
+2/9/2015   Song Guo         Original Development
+
+NOTES: 
+******************************************************************************/
+void square_root_mean
+(
+    float **array,       /* I: input array */
+    int dim2_number,     /* I: second dimension number used */   
+    int array_len1,      /* I: number of input elements */
+    float **fit_ctf,     /* I: */
+    float  *rmse         /* O: output rmse value */
+)
+{
+    int i;
+    float sum = 0.0;
+
+    for (i = 0; i < array_len1; i++)
+    {
+        sum += ((array[i][dim2_number] - fit_ctf[0][dim2_number]) *
+            ((array[i][dim2_number] - fit_ctf[0][dim2_number]);
+    }
+    sum = sum / array_len1;
+    *rmse = sqrt(sum);
+}
+
+/******************************************************************************
+MODULE:  matlab_2d_array_mean
+
+PURPOSE:  simulate matlab mean function for 1 dimesion in 2d array cases only
+
+RETURN VALUE:
+Type = void
+Value           Description
+-----           -----------
+
+
+HISTORY:
+Date        Programmer       Reason
+--------    ---------------  -------------------------------------
+2/9/2015   Song Guo         Original Development
+
+NOTES: 
+******************************************************************************/
+void matlab_2d_array_mean
+(
+    float **array,       /* I: input array */
+    int dim2_number,     /* I: second dimension number used */   
+    int array_len1,      /* I: number of input elements in 1st dim */
+    float  *output_mean  /* O: output norm value */
+)
+{
+    int i;
+    float sum = 0.0;
+
+    for (i = 0; i < array_len1; i++)
+    {
+        sum += array[i][dim2_number];
+    }
+    *output_mean = sum / array_len1;
 }
