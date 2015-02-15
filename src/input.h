@@ -229,7 +229,7 @@ void matlab_norm
 
 void matlab_2d_norm
 (
-    float *array,        /* I: input array */
+    float **array,       /* I: input array */
     int array_dim1,      /* I: number of input elements in 1st dim */
     int array_dim2,      /* I: number of input elements in 2nd dim */
     float  *output_norm  /* O: output norm value */
@@ -250,6 +250,38 @@ void matlab_2d_array_mean
     int dim1_number,     /* I: first dimension number used */   
     int array_len2,      /* I: number of input elements in 1st dim */
     float  *output_mean  /* O: output norm value */
+);
+
+void matlab_2d_partial_mean
+(
+    float **array,       /* I: input array */
+    int dim2_number,     /* I: second dimension number used */   
+    int start,           /* I: number of start elements in 1st dim */
+    int end,             /* I: number of end elements in 1st dim */
+    float  *output_mean  /* O: output norm value */
+);
+
+void matlab_2d_partial_square_mean
+(
+    float **array,       /* I: input array */
+    int dim2_number,     /* I: second dimension number used */   
+    int start,           /* I: number of start elements in 1st dim */
+    int end,             /* I: number of end elements in 1st dim */
+    float  *output_mean  /* O: output norm value */
+);
+
+void matlab_2d_array_norm
+(
+    float **array,       /* I: input array */
+    int dim2_number,     /* I: second dimension number used */   
+    int array_len1,      /* I: number of input elements in 1st dim */
+    float  *output_norm  /* O: output norm value */
+);
+
+int *get_id_length
+(
+    int8 *id_array,       /* I: input array */
+    int array_len         /* I: number of input elements in 1st dim */
 );
 
 void usage ();
