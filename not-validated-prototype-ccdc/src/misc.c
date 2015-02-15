@@ -868,7 +868,7 @@ NOTES:
 ******************************************************************************/
 void matlab_2d_norm
 (
-    float *array,        /* I: input array */
+    float **array,        /* I: input array */
     int array_dim1,      /* I: number of input elements in 1st dim */
     int array_dim2,      /* I: number of input elements in 2nd dim */
     float  *output_norm  /* O: output norm value */
@@ -922,8 +922,44 @@ void square_root_mean
         sum += ((array[i][dim2_number] - fit_ctf[0][dim2_number]) *
             ((array[i][dim2_number] - fit_ctf[0][dim2_number]);
     }
-    sum = sum / array_len1;
+    sum = sum / (float)array_len1;
     *rmse = sqrt(sum);
+}
+
+/******************************************************************************
+MODULE:  matlab_2d_array_norm
+
+PURPOSE:  simulate matlab mean function for 1 dimesion in 2d array cases only
+
+RETURN VALUE:
+Type = void
+Value           Description
+-----           -----------
+
+
+HISTORY:
+Date        Programmer       Reason
+--------    ---------------  -------------------------------------
+2/9/2015   Song Guo         Original Development
+
+NOTES: 
+******************************************************************************/
+void matlab_2d_array_norm
+(
+    float **array,       /* I: input array */
+    int dim2_number,     /* I: second dimension number used */   
+    int array_len1,      /* I: number of input elements in 1st dim */
+    float  *output_norm  /* O: output norm value */
+)
+{
+    int i;
+    float sum = 0.0;
+
+    for (i = 0; i < array_len1; i++)
+    {
+        sum += array[i][dim2_number] * array[i][dim2_number];
+    }
+    *output_norm = sqrt(sum);
 }
 
 /******************************************************************************
@@ -959,5 +995,188 @@ void matlab_2d_array_mean
     {
         sum += array[i][dim2_number];
     }
-    *output_mean = sum / array_len1;
+    *output_mean = sum / (float)(array_len1);
+}
+
+/******************************************************************************
+MODULE:  matlab_2d_partial_mean
+
+PURPOSE:  simulate matlab mean function for parital part of 1 dimesion in 2d 
+          array cases only
+
+RETURN VALUE:
+Type = void
+Value           Description
+-----           -----------
+
+
+HISTORY:
+Date        Programmer       Reason
+--------    ---------------  -------------------------------------
+2/9/2015   Song Guo         Original Development
+
+NOTES: 
+******************************************************************************/
+void matlab_2d_partial_mean
+(
+    float **array,       /* I: input array */
+    int dim2_number,     /* I: second dimension number used */   
+    int start,           /* I: number of start elements in 1st dim */
+    int end,             /* I: number of end elements in 1st dim */
+    float  *output_mean  /* O: output norm value */
+)
+{
+    int i;
+    float sum = 0.0;
+
+    for (i = start; i <= end; i++)
+    {
+        sum += array[i][dim2_number];
+    }
+    *output_mean = sum / (float)(end - start + 1);
+}
+
+/******************************************************************************
+MODULE:  matlab_2d_partial_square_mean
+
+PURPOSE:  simulate matlab square mean function for parital part of 1 dimesion 
+          in 2d array cases only
+
+RETURN VALUE:
+Type = void
+Value           Description
+-----           -----------
+
+
+HISTORY:
+Date        Programmer       Reason
+--------    ---------------  -------------------------------------
+2/9/2015   Song Guo         Original Development
+
+NOTES: 
+******************************************************************************/
+void matlab_2d_partial_square_mean
+(
+    float **array,       /* I: input array */
+    int dim2_number,     /* I: second dimension number used */   
+    int start,           /* I: number of start elements in 1st dim */
+    int end,             /* I: number of end elements in 1st dim */
+    float  *output_mean  /* O: output norm value */
+)
+{
+    int i;
+    float sum = 0.0;
+
+    for (i = start; i <= end; i++)
+    {
+        sum += array[i][dim2_number] * array[i][dim2_number];
+    }
+    *output_mean = sum / (float)(end - start + 1);
+}
+
+/******************************************************************************
+MODULE:  get_id_length
+
+PURPOSE:  get total number of non-zero elements of id array
+
+RETURN VALUE:
+Type = int *
+Value           Description
+-----           -----------
+total number of non-zero elements
+
+HISTORY:
+Date        Programmer       Reason
+--------    ---------------  -------------------------------------
+2/11/2015   Song Guo         Original Development
+
+NOTES: 
+******************************************************************************/
+int *get_id_length
+(
+    int8 *id_array,       /* I: input array */
+    int array_len         /* I: number of input elements in 1st dim */
+)
+{
+    int i;
+    static int sum = 0;
+
+    for (i = 0; i < array_len; i++)
+    {
+        sum += id_array[i];
+    }
+
+    return &sum;
+}
+
+/******************************************************************************
+MODULE:  partition_index
+
+PURPOSE:  partition the sorted list with index
+
+RETURN VALUE:
+Type = int
+Value           Description
+-----           -----------
+i               partitioned value   
+
+HISTORY:
+Date        Programmer       Reason
+--------    ---------------  -------------------------------------
+2/14/2015   Song Guo         Original Development
+
+NOTES:
+******************************************************************************/
+int partition_index (int arr[], int idx[], int left, int right)
+{
+    int i = left, j = right;
+    int tmp;
+    int index;
+    int pivot = arr[(left + right) / 2];
+
+    while (i <= j)
+    {
+        while (arr[i] < pivot)
+            i++;
+        while (arr[j] > pivot)
+            j--;
+        if (i <= j)
+        {
+            tmp = arr[i];
+            index = idx[i];
+            arr[i] = arr[j];
+            idx[i] = idx[j];
+            arr[j] = tmp;
+            idx[j] = index;
+            i++;
+            j--;
+        }
+    }
+
+    return i;
+}
+
+/******************************************************************************
+MODULE:  partition_index
+
+PURPOSE:  sorted the array and return its index
+
+RETURN VALUE:
+Type = void
+
+HISTORY:
+Date        Programmer       Reason
+--------    ---------------  -------------------------------------
+2/14/2015   Song Guo         Original Development
+
+NOTES:
+******************************************************************************/
+void quick_sort_index (int arr[], int idx[], int left, int right)
+{
+ int index = partition_index (arr, idx, left, right);
+
+    if (left < index - 1)
+     quick_sort_index (arr, idx, left, index - 1);
+    if (index < right)
+        quick_sort_index (arr, idx, index, right);
 }
