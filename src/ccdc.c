@@ -154,6 +154,7 @@ main (int argc, char *argv[])
     float break_mag;
     float max_v_dif;
     int id_last;
+    FILE *fp_bin_out;
 
     time_t now;
     time (&now);
@@ -397,6 +398,13 @@ main (int argc, char *argv[])
 
     /* percent of cloud and cloud shadow pixels */
     cs_pct = (float)cloud_and_shadow_sum / (float)fmask_sum;  
+
+
+    /* Allocate memory for rec_cg */ 
+    rec_cg = malloc(sizeof(struct Output_t));
+    if (rec_cg == NULL)
+        RETURN_ERROR("ERROR allocating rec_cg memory", FUNC_NAME, FAILURE);
+
 
     /* fit only water pixels (permanet water) */
     if (ws_pct > t_ws)
@@ -1484,75 +1492,6 @@ main (int argc, char *argv[])
         }
     }
 
-#if 0
-    /* Open the output file */
-    output = OpenOutput (&xml_metadata, input);
-    if (output == NULL)
-    {                           /* error message already printed */
-        RETURN_ERROR ("Opening output file", FUNC_NAME, EXIT_FAILURE);
-    }
-
-    if (!PutOutput (output, pixel_mask))
-    {
-        RETURN_ERROR ("Writing output LST in HDF files\n", FUNC_NAME,
-                      EXIT_FAILURE);
-    }
-
-    /* Close the output file */
-    if (!CloseOutput (output))
-    {
-        RETURN_ERROR ("closing output file", FUNC_NAME, EXIT_FAILURE);
-    }
-
-    /* Create the ENVI header file this band */
-    if (create_envi_struct (&output->metadata.band[0], &xml_metadata.global,
-                            &envi_hdr) != SUCCESS)
-    {
-        RETURN_ERROR ("Creating ENVI header structure.", FUNC_NAME,
-                      EXIT_FAILURE);
-    }
-
-    /* Write the ENVI header */
-    strcpy (envi_file, output->metadata.band[0].file_name);
-    cptr = strchr (envi_file, '.');
-    if (cptr == NULL)
-    {
-        RETURN_ERROR ("error in ENVI header filename", FUNC_NAME,
-                      EXIT_FAILURE);
-    }
-
-    strcpy (cptr, ".hdr");
-    if (write_envi_hdr (envi_file, &envi_hdr) != SUCCESS)
-    {
-        RETURN_ERROR ("Writing ENVI header file.", FUNC_NAME, EXIT_FAILURE);
-    }
-
-    /* Append the LST band to the XML file */
-    if (append_metadata (output->nband, output->metadata.band, xml_name)
-        != SUCCESS)
-    {
-        RETURN_ERROR ("Appending spectral index bands to XML file.",
-                      FUNC_NAME, EXIT_FAILURE);
-    }
-
-    /* Free the structure */
-    if (!FreeOutput (output))
-    {
-        RETURN_ERROR ("freeing output file structure", FUNC_NAME,
-                      EXIT_FAILURE);
-    }
-
-    /* Free the metadata structure */
-    free_metadata (&xml_metadata);
-
-    /* Close the input file and free the structure */
-    CloseInput (input);
-    FreeInput (input);
-
-    free (xml_name);
-    printf ("Processing complete.\n");
-#endif
-
     /* Free memory allocation */
     free(sdate);
     free(clrx);
@@ -1581,7 +1520,17 @@ main (int argc, char *argv[])
                       EXIT_FAILURE);
     }
 
+    /* Output rec_cg structure to the output file 
+       note: can use fread to read out the structure from the output file */
+    fp_bin_out = fopen("output.bin", "wb");
+    if (fp_bin_out == NULL)
+        RETURN_ERROR ("Opening output.bin file\n", FUNC_NAME,
+                      EXIT_FAILURE);
+    fwrite(rec_cg, sizeof(struct Output_t), 1, fp_bin_out);
+    fclose(fp_bin_out);   
 
+    /* Free rec_cg memory*/
+    free(rec_cg);
 
     time (&now);
     snprintf (msg_str, sizeof(msg_str),

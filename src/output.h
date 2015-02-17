@@ -21,9 +21,6 @@ typedef struct {
 /* Structure for the 'output' data type */
 typedef struct
 {
-    bool open;             /* Flag to indicate whether output file is open 
-                              for access; 'true' = open, 'false' = not open */
-    FILE *fp_bin;          /* File pointer for binary output file */
     int t_start;           /* time when series model gets started */
     int t_end;             /* time when series model gets ended */
     int t_break;           /* time when the first break (change) is observed */
