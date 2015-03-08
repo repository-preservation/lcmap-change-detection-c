@@ -284,6 +284,40 @@ int *get_id_length
     int array_len         /* I: number of input elements in 1st dim */
 );
 
+
+void quick_sort_index (int arr[], int idx[], int left, int right);
+
+int auto_mask
+(
+    int *clrx,
+    int **clry,
+    int start,
+    int end,
+    float years,
+    int t_times,
+    int *bl_ids
+);
+
+int auto_ts_fit
+(
+    int *clrx,
+    int **clry,
+    int iband,
+    int nums,
+    int df,
+    float *coefs,
+    float *rmse,
+    float *v_dif
+);
+
+int auto_ts_predict
+(
+    int clrx,
+    float **coefs,
+    int iband,
+    float *pred_y
+);
+
 void usage ();
 
 #endif
