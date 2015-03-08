@@ -1157,7 +1157,7 @@ int partition_index (int arr[], int idx[], int left, int right)
 }
 
 /******************************************************************************
-MODULE:  partition_index
+MODULE:  quick_sort_index
 
 PURPOSE:  sorted the array and return its index
 
@@ -1180,3 +1180,393 @@ void quick_sort_index (int arr[], int idx[], int left, int right)
     if (index < right)
         quick_sort_index (arr, idx, index, right);
 }
+
+/******************************************************************************
+MODULE:  auto_robust_fit
+
+PURPOSE:  Robust fit for one band
+
+RETURN VALUE:
+Type = int
+
+HISTORY:
+Date        Programmer       Reason
+--------    ---------------  -------------------------------------
+3/5/2015   Song Guo         Original Development
+
+NOTES:
+******************************************************************************/
+int auto_robust_fit
+(
+    float **x,
+    int **clry,
+    int nums,
+    int iband,
+    float *coefs
+)
+{
+    char FUNC_NAME[] = "auto_robust_fit";
+    int i;
+    FILE *fd;
+
+    /* Save the inputs for robust fitting */
+    fd = fopen("robust_fit.txt", "w");
+    if (fd == NULL)
+        RETURN_ERROR("ERROR opening temporary file", FUNC_NAME, FAILURE);
+    for (i = 0; i < nums; i++)
+    {
+        if (fprintf (fd, "%f,%f,%f,%f,%d", &x[0][i], &x[1][i],
+                 &x[2][i], &x[3][i], &clry[i][iband-1]) == EOF)
+        {
+            RETURN_ERROR ("End of file (EOF) is met before nums"
+                          " lines", FUNC_NAME, FAILURE);
+        }
+    }
+    fclose(fd);
+
+    /* Call R script to do Robust fitting */
+    status = system("R CMD BATCH robust_fit_read.r");
+    if (status != SUCCESS)
+        RETURN_ERROR ("Running robust fit R scripts", FUNC_NAME, FAILURE);
+
+    /* Read out the robust fit coefficients */
+    fd = fopen("robust_fit.txt", "r");
+    if (fd == NULL)
+        RETURN_ERROR("ERROR opening temporary file", FUNC_NAME, FAILURE);
+    fscanf(fd, "%f,%f,%f,%f,%f", &coefs[0], &coefs[1],
+            &coefs[2], &coefs[3], &coefs[4]);
+    fclose(fd);
+
+    return SUCCESS;
+}
+
+/******************************************************************************
+MODULE:  auto_mask
+
+PURPOSE:  Multitemporal cloud, cloud shadow, & snow masks (global version)
+
+RETURN VALUE:
+Type = int
+
+HISTORY:
+Date        Programmer       Reason
+--------    ---------------  -------------------------------------
+3/5/2015   Song Guo         Original Development
+
+NOTES:
+******************************************************************************/
+int auto_mask
+(
+    int *clrx,
+    int **clry,
+    int start,
+    int end,
+    float years,
+    int t_times,
+    int *bl_ids
+)
+{
+    char FUNC_NAME[] = "auto_mask";
+    int year;
+    float w, w2;
+    float *coefs, *coefs2;
+    int i;
+    float **x4;
+    int status;
+    float *pred_b2, *pred_b5;
+    int num;
+
+    num = end - start + 1;
+    /* Allocate memory */
+    x = (float *)allocate_2d_array(4, nums, sizeof(float));
+    if (x == NULL)
+        RETURN_ERROR("ERROR allocating x memory", FUNC_NAME, FAILURE);
+    coefs = (float *)malloc(5 * sizeof(floata));
+    if (coefs == NULL)
+        RETURN_ERROR("ERROR allocating coefs memory", FUNC_NAME, FAILURE);
+    coefs2 = (float *)malloc(5 * sizeof(floata));
+    if (coefs2 == NULL)
+        RETURN_ERROR("ERROR allocating coefs2 memory", FUNC_NAME, FAILURE);
+    pred_b2 = (float *)malloc(nums * sizeof(floata));
+    if (pred_b2 == NULL)
+        RETURN_ERROR("ERROR allocating pred_b2 memory", FUNC_NAME, FAILURE);
+    pred_b5 = (float *)malloc(nums * sizeof(floata));
+    if (pred_b5 == NULL)
+        RETURN_ERROR("ERROR allocating pred_b5 memory", FUNC_NAME, FAILURE);
+
+    year = ceil(years);
+    w = TWO_PI / 365.25;
+    w2 = w / (float)year;
+
+    for (i = 0; i < nums; i++)
+    {
+        x[0][i] = cos(w * (float)clrx[i+start]);
+        x[1][i] = cos(w * (float)clrx[i+start]);
+        x[2][i] = cos(w2 * (float)clrx[i+start]);
+        x[3][i] = cos(w2 * (float)clrx[i+start]);
+    }
+
+    /* Do robust fitting for band 2 */
+    status = auto_robust_fit(x, clry, nums, 2, coefs);
+
+    /* Do robust fitting for band 5 */
+    status = auto_robust_fit(x, clry, nums, 5, coefs2);
+
+    /* predict band 2 * band 5 refs */
+    for (i = 0; i < nums; i++)
+    {
+        pred_b2[i] = coefs[0] + coefs[1] * cos(clrx[i+start] * w ) + coefs[2] 
+                  * sin(clrx[i+start] * w ) + coefs[3] * cos(clrx[i+start] * w2 ) 
+                  + coefs[4] * sin(clrx[i+start] * w2);
+        pred_b5[i] = coefs2[0] + coefs2[1] * cos(clrx[i+start] * w ) + coefs2[2] 
+                  * sin(clrx[i+start] * w ) + coefs2[3] * cos(clrx[i+start] * w2 ) 
+                  + coefs2[4] * sin(clrx[i+start] * w2);
+        if (((clry[i][1]-pred_b2[i]) > (float)t_times) || 
+            ((clry[i][4]-pred_b5[i]) < (float)-t_times))
+            bl_ids[i] = 1;
+        else
+            bl_ids[i] = 0;
+    }
+
+    /* Free allocated memory */
+    free(coefs);
+    free(coefs2);
+    free(pred_b2);
+    free(pred_b5);
+    if (free_2d_array ((void **) x) != SUCCESS)
+        RETURN_ERROR ("Freeing memory: x\n", FUNC_NAME, FAILURE);
+
+    /* Remove the temporary file */
+    status = system("rm robust_fit.txt");
+    if (status != SUCCESS)
+        RETURN_ERROR ("Deleting robust_fit.txt file", FUNC_NAME, FAILURE);
+
+    return SUCCESS;
+}
+
+/******************************************************************************
+MODULE:  auto_ts_predict
+
+PURPOSE:  Using lasso regression fitting coefficients to predict new values
+
+RETURN VALUE:
+Type = int
+
+HISTORY:
+Date        Programmer       Reason
+--------    ---------------  -------------------------------------
+3/5/2015   Song Guo         Original Development
+
+NOTES:
+******************************************************************************/
+void auto_ts_predict
+(
+    int clrx,
+    float **coefs,
+    int iband,
+    float *pred_y
+)
+{
+    char FUNC_NAME[] = "auto_ts_predict";
+    float w, w2, w3;
+    w = TWO_PI / 365.25;
+    w2 = 2 * w;
+    w3 = 3 * w;
+
+    *pred_y = coefs[0][iband-1] + coefs[1][iband-1] * clri[i] + coefs[2][iband-1] * 
+              cos(clrx[i] * w ) + coefs[3][iband-1] * sin(clrx[i] * w ) + 
+              coefs[4][iband-1] * cos(clrx[i] * w2 ) + coefs[5][iband-1] * 
+              sin(clrx[i] * w2) + coefs[6][iband-1] * cos(clrx[i] * w3 ) + 
+              coefs[7][iband-1] * sin(clrx[i] * w3);
+}
+
+/******************************************************************************
+MODULE:  auto_ts_fit
+
+PURPOSE:  Lasso regression fitting
+
+RETURN VALUE:
+Type = int
+
+HISTORY:
+Date        Programmer       Reason
+--------    ---------------  -------------------------------------
+3/5/2015   Song Guo         Original Development
+
+NOTES:
+******************************************************************************/
+int auto_ts_fit
+(
+    int *clrx,
+    int **clry,
+    int iband,
+    int start,
+    int end,
+    int df,
+    float **coefs,
+    float *rmse,
+    float *v_dif
+)
+{
+    char FUNC_NAME[] = "auto_ts_fit";
+    float w;
+    int i;
+    float **x;
+    int status;
+    float *yhat;
+    float v_dif_norm;
+
+    nums = end - start + 1;
+    w = TWO_PI / 365.25;
+    /* Allocate memory */
+    x = (float *)allocate_2d_array(8, nums, sizeof(float));
+    if (x == NULL)
+        RETURN_ERROR("ERROR allocating x memory", FUNC_NAME, FAILURE);
+
+    yhat = (float *)malloc(nums * sizeof(float));
+    if (x == NULL)
+        RETURN_ERROR("ERROR allocating x memory", FUNC_NAME, FAILURE);
+
+    for (i = 0; i < nums; i++)
+    {
+        if (df >= 2)
+            x[0][i] = (float)clrx[i+start];
+        if (df >= 4)
+        {
+            x[1][i] = cos(w * (float)clrx[i+start]);
+            x[2][i] = cos(w * (float)clrx[i+start]);
+        }
+        if (df >= 6)
+        {
+            x[3][i] = cos(2 * w * (float)clrx[i+start]);
+            x[4][i] = cos(2 * w * (float)clrx[i+start]);
+        }
+        if (df >= 8)
+        {
+            x[5][i] = cos(3 * w * (float)clrx[i+start]);
+            x[6][i] = cos(3 * w * (float)clrx[i+start]);
+        }
+    }
+
+    /* Save the inputs for robust fitting */
+    fd = fopen("glmnet_fit.txt", "w");
+    if (fd == NULL)
+        RETURN_ERROR("ERROR opening temporary file", FUNC_NAME, FAILURE);
+    for (i = 0; i < nums; i++)
+    {
+        if (df == 2)
+        {
+            if (fprintf (fd, "%f,%d", &x[0][i], &clry[i][iband-1]) == EOF)
+            {
+                RETURN_ERROR ("End of file (EOF) is met before nums"
+                              " lines", FUNC_NAME, FAILURE);
+            }
+
+            /* Call R script to do Robust fitting */
+            status = system("R CMD BATCH glmnet_fit_fd2.r");
+            if (status != SUCCESS)
+                RETURN_ERROR ("Running glmnet fit R scripts", FUNC_NAME, FAILURE);
+
+            /* Read out the robust fit coefficients */
+            fd = fopen("robust_fit.txt", "r");
+            if (fd == NULL)
+                RETURN_ERROR("ERROR opening temporary file", FUNC_NAME, FAILURE);
+            fscanf(fd, "%f,%f", &coefs[0][iband-1], &coefs[1][iband-1]);
+            fclose(fd);
+        }
+        else if (df == 4)
+        {
+            if (fprintf (fd, "%f,%f,%f,%d", &x[0][i], &x[1][i], &x[2][i], 
+                         &clry[i][iband-1]) == EOF)
+            {
+                RETURN_ERROR ("End of file (EOF) is met before nums"
+                              " lines", FUNC_NAME, FAILURE);
+            }
+
+            /* Call R script to do Robust fitting */
+            status = system("R CMD BATCH glmnet_fit_fd4.r");
+            if (status != SUCCESS)
+                RETURN_ERROR ("Running glmnet fit R scripts", FUNC_NAME, FAILURE);
+
+            /* Read out the robust fit coefficients */
+            fd = fopen("robust_fit.txt", "r");
+            if (fd == NULL)
+                RETURN_ERROR("ERROR opening temporary file", FUNC_NAME, FAILURE);
+            fscanf(fd, "%f,%f", &coefs[0][iband-1], &coefs[1][iband-1], 
+                   &coefs[2][iband-1], &coefs[3][iband-1]);
+            fclose(fd);
+        }
+        else if (df == 6)
+        {
+            if (fprintf (fd, "%f,%f,%f,%f,%f,%d", &x[0][i], &x[1][i], &x[2][i], 
+                         &x[3][i], &x[4][i], &clry[i][iband-1]) == EOF)
+            {
+                RETURN_ERROR ("End of file (EOF) is met before nums"
+                              " lines", FUNC_NAME, FAILURE);
+            }
+
+            /* Call R script to do Robust fitting */
+            status = system("R CMD BATCH glmnet_fit_fd6.r");
+            if (status != SUCCESS)
+                RETURN_ERROR ("Running glmnet fit R scripts", FUNC_NAME, FAILURE);
+
+            /* Read out the robust fit coefficients */
+            fd = fopen("robust_fit.txt", "r");
+            if (fd == NULL)
+                RETURN_ERROR("ERROR opening temporary file", FUNC_NAME, FAILURE);
+            fscanf(fd, "%f,%f", &coefs[0][iband-1], &coefs[1][iband-1], 
+                   &coefs[2][iband-1], &coefs[3][iband-1], 
+                   &coefs[4][iband-1], &coefs[5][iband-1]);
+            fclose(fd);
+        }
+        else if (df == 8)
+        {
+            if (fprintf (fd, "%f,%f,%f,%f,%f,%d", &x[0][i], &x[1][i], &x[2][i], 
+                         &x[3][i], &x[4][i], &x[5][i], &x[6][i], 
+                         &clry[i][iband-1]) == EOF)
+            {
+                RETURN_ERROR ("End of file (EOF) is met before nums"
+                              " lines", FUNC_NAME, FAILURE);
+            }
+
+            /* Call R script to do Robust fitting */
+            status = system("R CMD BATCH glmnet_fit_fd8.r");
+            if (status != SUCCESS)
+                RETURN_ERROR ("Running glmnet fit R scripts", FUNC_NAME, FAILURE);
+
+            /* Read out the robust fit coefficients */
+            fd = fopen("robust_fit.txt", "r");
+            if (fd == NULL)
+                RETURN_ERROR("ERROR opening temporary file", FUNC_NAME, FAILURE);
+            fscanf(fd, "%f,%f", &coefs[0][iband-1], &coefs[1][iband-1], 
+                   &coefs[2][iband-1], &coefs[3][iband-1], &coefs[4][iband-1], 
+                   &coefs[5][iband-1], &coefs[6][iband-1], &coefs[7][iband-1]);
+            fclose(fd);
+        }
+        else
+            RETURN_ERROR("Incorrect df value", FUNC_NAME, FAILURE);
+    }
+    fclose(fd);
+
+    /* predict lasso model results */
+    for (i = 0; i < nums; i++)
+    {
+        auto_ts_pred(clrx[i+start], coefs, yhat[i]);
+        v_dif[i] = clryclry[i][iband-1] - yhat[i];
+    }
+    matlab_norm(v_dif, nums, &v_dif_norm);
+    *rmse = v_dif_norm / sqrt(nums - df);
+
+    /* Free allocated memory */
+    free(yhat);
+    if (free_2d_array ((void **) x) != SUCCESS)
+        RETURN_ERROR ("Freeing memory: x\n", FUNC_NAME, FAILURE);
+
+    /* Remove the temporary file */
+    status = system("rm glmnet_fit.txt");
+    if (status != SUCCESS)
+        RETURN_ERROR ("Deleting robust_fit.txt file", FUNC_NAME, FAILURE);
+
+    return SUCCESS;
+}
+

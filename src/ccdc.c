@@ -154,6 +154,8 @@ main (int argc, char *argv[])
     float break_mag;
     float max_v_dif;
     int id_last;
+    float v_dif_temp;
+    float ts_pred_temp;
     FILE *fp_bin_out;
 
     time_t now;
@@ -439,9 +441,13 @@ main (int argc, char *argv[])
             update_cft(i_span, n_times, min_num_c, mid_num_c, max_num_c, num_c,
                        &update_num_c);
 
-            for (k = 0; k < TOTAL_BANDS - 1; k++)
+            for (k = 0; k < TOTAL_BANDS - 2; k++)
             {
-             // TO DO: [fit_cft(:,i_B),rmse(i_B)]=autoTSFit(clrx,clry(:,i_B),update_num_c);   
+                 status = auto_ts_fit(clrx, clry, k, 0, end-1, update_num_c, fit_cft, 
+                                  &rmse[k], &v_dif_temp); 
+                 if (status != SUCCESS)  
+                     RETURN_ERROR ("Calling auto_ts_fit1\n", 
+                          FUNC_NAME, EXIT_FAILURE);
             }
 
             /* update information at each iteration */
@@ -511,7 +517,11 @@ main (int argc, char *argv[])
 
                             for (k = 0; k < TOTAL_BANDS - 1; k++)
                             {
-                                // TO DO: [fit_cft(:,i_B),rmse(i_B)]=autoTSFit(clrx,clry(:,i_B),update_num_c);  
+                                status = auto_ts_fit(clrx, clry, k, 0, i_span-1, update_num_c, fit_cft, 
+                                         &rmse[k], &v_dif_temp); 
+                                if (status != SUCCESS)  
+                                    RETURN_ERROR ("Calling auto_ts_fit2\n", 
+                                           FUNC_NAME, EXIT_FAILURE);
                             }
                         }
                     } 
@@ -525,7 +535,11 @@ main (int argc, char *argv[])
                         update_cft(i_span, n_times, min_num_c, mid_num_c, 
                                    max_num_c, num_c, &update_num_c);
 
-                        // TO DO: [fit_cft(:,i_B),rmse(i_B)]=autoTSFit(clrx,clry(:,i_B),update_num_c);  
+                        status = auto_ts_fit(clrx, clry, k, 0, i_span-1, update_num_c, fit_cft, 
+                                 &rmse[k], &v_dif_temp); 
+                        if (status != SUCCESS)  
+                            RETURN_ERROR ("Calling auto_ts_fit3\n", 
+                                 FUNC_NAME, EXIT_FAILURE);
                     }
                 }
 
@@ -686,9 +700,11 @@ main (int argc, char *argv[])
                                   FUNC_NAME, FAILURE);
 
                 /* step 1: noise removal */ 
-            TODO:                bl_ids=autoMask(clrx(i_start:i+conse),clry(i_start:i+conse,[num_B1,num_B2]),...
-                    (clrx(i+conse)-clrx(i_start))/num_yrs,T_const);
-
+                status = auto_mask(clrx, clry, i_start, i+conse,
+                    (clrx[i+conse]-clrx[i_start])/num_yrs, t_const);
+                if (status != SUCCES)
+                    RETURN_ERROR("ERROR calling auto_mask routine", 
+                                  FUNC_NAME, FAILURE);
   
                 for (k = i_start; k < i; k++)
                     ids[k] = k;
@@ -811,7 +827,11 @@ main (int argc, char *argv[])
                         for (b = 0; b < 5; b++)
                         { 
                             /* Initial model fit */
-                            [fit_cft(:,i_B),rmse(i_B)] = autoTSFit(clrx(i_start:i),clry(i_start:i,i_B),min_num_c);
+                            status = auto_ts_fit(clrx, clry, k, i_start, i, min_num_c, fit_cft, 
+                                     &rmse[k], &v_dif[k]); 
+                            if (status != SUCCESS)  
+                                RETURN_ERROR ("Calling auto_ts_fit4\n", 
+                                     FUNC_NAME, EXIT_FAILURE);
 
                             /* calculate mini rmse with mean values & mini */
                             mean_v = fit_ctf[0][lasso_blist[b]] + 
@@ -822,15 +842,22 @@ main (int argc, char *argv[])
                             mini_rmse = max(mini_rmse, rmse[lasso_blist[b]]);
 
                             /* compare the first clear obs */
+                            auto_ts_predit(clrx[i_start], fit_cft, b, &ts_pred_temp);  
+                            v_start[lasso_blist[b]] = (clry[i_start][lasso_blist[b]] -
+                               ts_pred_temp)/mini_rmse;
 
-                            v_start[lasso_blist[b]] = (clry[i_start][lasso_blist[b]]-autoTSPred(clrx(i_start),fit_cft(:,i_B)))/mini_rmse;
                             /* compare the last clear observation */
-                            v_end[lasso_blist[b]] = (clry[i][lasso_blist[b]])-autoTSPred(clrx(i),fit_cft(:,i_B)))/mini_rmse;
+                            auto_ts_predit(clrx[i], fit_cft, b, &ts_pred_temp
+                            v_end[lasso_blist[b]] = (clry[i][lasso_blist[b]]-
+                                                     ts_pred_temp)/mini_rmse;
+
                             /* anormalized slope values */
-                            v_slope[lasso_blist[b]] = fit_cft[1][lasso_blist[b]]*(clrx[i]-clrx[i_start])/mini_rmse;
+                            v_slope[lasso_blist[b]] = fit_cft[1][lasso_blist[b]] *
+                                    (clrx[i]-clrx[i_start])/mini_rmse;
                             
                             /* differece in model intialization */
-                            v_dif[lasso_blist[b]] = (abs(v_slope[lasso_blist[b]]) + abs(v_start[lasso_blist[b]) + abs(v_end[lasso_blist[b]]));
+                            v_dif[lasso_blist[b]] = (abs(v_slope[lasso_blist[b]]) + 
+                                 abs(v_start[lasso_blist[b]) + abs(v_end[lasso_blist[b]]));
                        }
                        matlab_2d_norm(v_dif, istart-1, LASSO_BANDS, &vec_mag[i_conse]);
                        vec_mag[i_conse] *= vec_mag[i_conse]; 
@@ -895,8 +922,9 @@ main (int argc, char *argv[])
                                    for (i_b = 0; i_b < TOTAL_BANDS - 1)
                                    {
                                        /* absolute differences */
+                                    auto_ts_predict(clrx[i_conse], fit_cft, i_b, &ts_pred_temp);
                                        v_dif_mag[i_conse][i_b] = clry[i_conse][i_B] - 
-                                           autoTSPred(clrx[i_conse],fit_cft(:,i_B));
+                                          ts_pred_temp );
 
                                        /* normalize to z-score */
                                        for (b = 0; b < LASSO_BANDS - 1; b++)
@@ -931,7 +959,11 @@ main (int argc, char *argv[])
                                    /* defining computed variables */
                                    for (i_b = 0; i_b < TOTAL_BANDS -1; i_b++)
                                    {
-                                       [fit_cft(:,i_B),rmse(i_B)]=autoTSFit(clrx(1:new_i_start-1),clry(1:new_i_start-1,i_B),min_num_c);
+                                       status = auto_ts_fit(clrx, clry, i_b, 0, new_i_start-1, min_num_c, 
+                                                fit_cft, &rmse[i_b], &v_dif_temp); 
+                                       if (status != SUCCESS)  
+                                           RETURN_ERROR ("Calling auto_ts_fit5\n", 
+                                               FUNC_NAME, EXIT_FAILURE);
 
                                        rec_cg[num_fc].t_start = clrx[0]; /* record time of curve start */
                                        rec_cg[num_fc].t_end = clrx[new_i_start-1]; /* record time of curve end */
@@ -1030,7 +1062,11 @@ main (int argc, char *argv[])
 
                     for (i_b = 0; i_b < TOTAL_BANDS - 1; i_b++)
                     {
-                        [fit_cft(:,i_B),rmse(i_B),rec_v_dif(:,i_B)]=autoTSFit(clrx(IDs),clry(IDs,i_B),update_num_c);
+                        status = auto_ts_fit(clrx, clry, i_b, i_start, i, min_num_c, 
+                                             fit_cft, &rmse[i_b], &v_dif_temp); 
+                        if (status != SUCCESS)  
+                            RETURN_ERROR ("Calling auto_ts_fit6\n", 
+                                     FUNC_NAME, EXIT_FAILURE);
                         for (b = 0; b < LASSO_BANDS - 1; b++)
                         {
                             if (i_b == lasso_blist[b])
@@ -1088,9 +1124,9 @@ main (int argc, char *argv[])
                         for (i_b = 0; i_b < TOTAL_BANDS - 1)
                         {
                             /* absolute differences */
-                            v_dif_mag[i_conse][i_b] = clry[i_conse][i_B] - 
-                                   autoTSPred(clrx[i_conse],fit_cft(:,i_B));
-
+                            auto_ts_predict(clrx[i_conse], fit_cft, i_b, &ts_pred_temp);
+                            v_dif_mag[i_conse][i_b] = clry[i_conse][i_B] - ts_pred_temp; 
+       
                            /* normalize to z-score */
                             for (b = 0; b < LASSO_BANDS - 1; b++)
                             {
@@ -1140,7 +1176,11 @@ main (int argc, char *argv[])
 
                         for (i_b = 0; i_b < TOTAL_BANDS - 1; i_b++)
                         {
-                           [fit_cft(:,i_B),rmse(i_B),rec_v_dif(:,i_B)]=autoTSFit(clrx(IDs),clry(IDs,i_B),update_num_c);                        
+                            status = auto_ts_fit(clrx, clry, i_b, i_start, i, min_num_c, 
+                                             fit_cft, &rmse[i_b], &v_dif_temp); 
+                            if (status != SUCCESS)  
+                                RETURN_ERROR ("Calling auto_ts_fit7\n", 
+                                     FUNC_NAME, EXIT_FAILURE);
 
                             for (b = 0; b < LASSO_BANDS - 1; b++)
                             {
@@ -1255,8 +1295,8 @@ main (int argc, char *argv[])
                     for (i_b = 0; i_b < TOTAL_BANDS - 1; i_b++)
                     {
                         /* absolute difference for all bands */
-                        v_dif_mag[conse][i_b] = clry[i+conse][i_b] - 
-                             autoTSPred(clrx[i+conse],fit_cft[:,i_b]);
+                        auto_ts_predit(clrx[i+conse],fit_cft, i_b, &ts_pred_temp);
+                        v_dif_mag[conse][i_b] = clry[i+conse][i_b] - ts_pred_temp;
 
                         /* normalized to z-scores */
                         for (b = 0; b < LASSO_BANDS - 1; b++)
@@ -1403,8 +1443,11 @@ main (int argc, char *argv[])
             /* if break find close to the end of the time series 
                Use [conse,min_num_c*n_times+conse) to fit curve */
             /* multitemporal cloud mask */
-            blIDs=autoMask(clrx(i_start:end),clry(i_start:end,[num_B1,num_B2]),
-                (clrx(end)-clrx(i_start))/num_yrs,T_const);
+            status = auto_mask(clrx, clry, i_start, end,
+                    (clrx[end]-clrx[i_start])/num_yrs, t_const);
+            if (status != SUCCES)
+                RETURN_ERROR("ERROR calling auto_mask routine", 
+                                  FUNC_NAME, FAILURE);
 
             /* update i_span after noise removal */
             i_span = 0;
@@ -1460,7 +1503,10 @@ main (int argc, char *argv[])
             
             for (i_b = 0; i_b < TOTAL_BANDS - 1; i_b++)
             {
-                 [fit_cft(:,i_B),rmse(i_B)]=autoTSFit(clrx(i_start:end),clry(i_start:end,i_B),min_num_c);
+                status = auto_ts_fit(clrx, clry, i_b, i_start, end, min_num_c, 
+                                     fit_cft, &rmse[i_b], &v_dif_temp); 
+                if (status != SUCCESS)  
+                     RETURN_ERROR ("Calling auto_ts_fit8\n", FUNC_NAME, EXIT_FAILURE);
             }
 
             /* record time of curve start */
