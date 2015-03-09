@@ -451,23 +451,35 @@ main (int argc, char *argv[])
             }
 
             /* update information at each iteration */
-            rec_cg[num_fc].t_start = clrx[i_start]; /* record time of curve start */
-            rec_cg[num_fc].t_end = clrx[end]; /* record time of curve end */
-            rec_cg[num_fc].t_break = 0; /* no break at the moment */
-            rec_cg[num_fc].pos.row = row; /* record postion of the pixel */
-            rec_cg[num_fc].pos.col = col; /* record postion of the pixel */
+            /* record time of curve start */
+            rec_cg[num_fc].t_start = clrx[i_start];
+            /* record time of curve end */
+            rec_cg[num_fc].t_end = clrx[end];
+            /* no break at the moment */
+            rec_cg[num_fc].t_break = 0;
+            /* record postion of the pixel */
+            rec_cg[num_fc].pos.row = row;
+            /* record postion of the pixel */
+            rec_cg[num_fc].pos.col = col;
             for (i = 0; i < TOTAL_BANDS - 1; i++)
             {
                 for (k = 0; k < update_num_c; k++)
-                    rec_cg[num_fc].coefs[i][k] = fit_cft[i][k]; /* record fitted coefficients */
-                rec_cg[num_fc].rmse[i] = rmse[i]; /* record rmse of the pixel */
+                    /* record postion of the pixel */
+                    rec_cg[num_fc].coefs[i][k] = fit_cft[i][k]; 
+                /* record rmse of the pixel */
+                rec_cg[num_fc].rmse[i] = rmse[i]; 
             }
-            rec_cg[num_fc].change_prob = 0.0; /* record change probability */
-            rec_cg[num_fc].num_obs = n_ws; /* record number of observations */
-            rec_cg[num_fc].category = 20 + update_num_c; /* record fit category */
+            /* record change probability */            
+            rec_cg[num_fc].change_prob = 0.0;
+            /* record number of observations */
+            rec_cg[num_fc].num_obs = n_ws;
+            /* record fit category */
+            rec_cg[num_fc].category = 20 + update_num_c;
             for (i = 0; i < TOTAL_BANDS - 1; i++)
-                rec_cg[num_fc].magnitude[i] = 0.0; /* record change magnitude */
-            num_fc++;    /* NUM of Fitted Curves (num_fc) */
+                /* record change magnitude */
+                rec_cg[num_fc].magnitude[i] = 0.0;
+            /* NUM of Fitted Curves (num_fc) */
+            num_fc++;   
         }
     }
     else if (sn_pct > t_sn) /* fit only snow pixels (permanet snow) */
@@ -545,23 +557,35 @@ main (int argc, char *argv[])
 
 
             /* update information at each iteration */
-            rec_cg[num_fc].t_start = clrx[i_start]; /* record time of curve start */
-            rec_cg[num_fc].t_end = clrx[end]; /* record time of curve end */
-            rec_cg[num_fc].t_break = 0; /* no break at the moment */
-            rec_cg[num_fc].pos.row = row; /* record postion of the pixel */
-            rec_cg[num_fc].pos.col = col; /* record postion of the pixel */
+            /* record time of curve start */
+            rec_cg[num_fc].t_start = clrx[i_start]; 
+            /* record time of curve end */
+            rec_cg[num_fc].t_end = clrx[end]; 
+            /* no break at the moment */
+            rec_cg[num_fc].t_break = 0; 
+            /* record postion of the pixel */
+            rec_cg[num_fc].pos.row = row; 
+            /* record postion of the pixel */
+            rec_cg[num_fc].pos.col = col; 
             for (i = 0; i < TOTAL_BANDS - 1; i++)
             {
                 for (k = 0; k < update_num_c; k++)
-                    rec_cg[num_fc].coefs[i][k] = fit_cft[i][k]; /* record fitted coefficients */
-                rec_cg[num_fc].rmse[i] = rmse[i]; /* record rmse of the pixel */
+                    /* record fitted coefficients */
+                    rec_cg[num_fc].coefs[i][k] = fit_cft[i][k];
+                /* record rmse of the pixel */
+                rec_cg[num_fc].rmse[i] = rmse[i]; 
             }
-            rec_cg[num_fc].change_prob = 0.0; /* record change probability */
-            rec_cg[num_fc].num_obs = n_ws; /* record number of observations */
-            rec_cg[num_fc].category = 20 + update_num_c; /* record fit category */
+            /* record change probability */
+            rec_cg[num_fc].change_prob = 0.0; 
+            /* record number of observations */
+            rec_cg[num_fc].num_obs = n_ws; 
+            /* record fit category */
+            rec_cg[num_fc].category = 20 + update_num_c; 
             for (i = 0; i < TOTAL_BANDS - 1; i++)
-                rec_cg[num_fc].magnitude[i] = 0.0; /* record change magnitude */
-            num_fc++;    /* NUM of Fitted Curves (num_fc) */
+                /* record change magnitude */ 
+                rec_cg[num_fc].magnitude[i] = 0.0; 
+            /* NUM of Fitted Curves (num_fc) */
+            num_fc++;   
         }
     }
     else /* clear land or water pixels */
@@ -785,7 +809,8 @@ main (int argc, char *argv[])
                     if (time_span < mini_yrs)
                     {
                         i = i_rec;   /* keep the original i */
-                        i++;         /* move forward to the i+1th clear observation */
+                        /* move forward to the i+1th clear observation */
+                        i++;        
                         free(cpx);
                         status = free_2d_array ((void **) cpy);
                         if (status != SUCCESS)
@@ -824,7 +849,7 @@ main (int argc, char *argv[])
                         if (v_dif == NULL)
                             RETURN_ERROR ("Allocating v_dif memory", FUNC_NAME, FAILURE);
  
-                        for (b = 0; b < 5; b++)
+                        for (b = 0; b < num_detect; b++)
                         { 
                             /* Initial model fit */
                             status = auto_ts_fit(clrx, clry, k, i_start, i, min_num_c, fit_cft, 
@@ -922,9 +947,10 @@ main (int argc, char *argv[])
                                    for (i_b = 0; i_b < TOTAL_BANDS - 1)
                                    {
                                        /* absolute differences */
-                                    auto_ts_predict(clrx[i_conse], fit_cft, i_b, &ts_pred_temp);
+                                       auto_ts_predict(clrx[i_conse], fit_cft, i_b, 
+                                           &ts_pred_temp);
                                        v_dif_mag[i_conse][i_b] = clry[i_conse][i_B] - 
-                                          ts_pred_temp );
+                                           ts_pred_temp );
 
                                        /* normalize to z-score */
                                        for (b = 0; b < LASSO_BANDS - 1; b++)
@@ -964,26 +990,36 @@ main (int argc, char *argv[])
                                        if (status != SUCCESS)  
                                            RETURN_ERROR ("Calling auto_ts_fit5\n", 
                                                FUNC_NAME, EXIT_FAILURE);
-
-                                       rec_cg[num_fc].t_start = clrx[0]; /* record time of curve start */
-                                       rec_cg[num_fc].t_end = clrx[new_i_start-1]; /* record time of curve end */
-                                       rec_cg[num_fc].t_break = new_i_start; /* no break at the moment */
-                                       rec_cg[num_fc].pos.row = row; /* record postion of the pixel */
-                                       rec_cg[num_fc].pos.col = col; /* record postion of the pixel */
+                                       /* record time of curve start */
+                                       rec_cg[num_fc].t_start = clrx[0]; 
+                                       /* record time of curve end */
+                                       rec_cg[num_fc].t_end = clrx[new_i_start-1]; 
+                                       /* no break at the moment */
+                                       rec_cg[num_fc].t_break = new_i_start; 
+                                       /* record postion of the pixel */
+                                       rec_cg[num_fc].pos.row = row; 
+                                       /* record postion of the pixel */
+                                       rec_cg[num_fc].pos.col = col; 
                                        for (i = 0; i < TOTAL_BANDS - 1; i++)
                                        {
                                            for (k = 0; k < update_num_c; k++)
+                                               /* record fitted coefficients */
                                                rec_cg[num_fc].coefs[i][k] = fit_cft[i][k]; 
-                                                   /* record fitted coefficients */
-                                           rec_cg[num_fc].rmse[i] = rmse[i]; /* record rmse of the pixel */
+                                           /* record rmse of the pixel */                         
+                                           rec_cg[num_fc].rmse[i] = rmse[i]; 
                                        }
-                                       rec_cg[num_fc].change_prob = 1.0; /* record change probability */
-                                       rec_cg[num_fc].num_obs = new_i_start-1; /* record number of observations */
-                                       rec_cg[num_fc].category = v_qa + min_num_c; /* record fit category */
+                                       /* record change probability */
+                                       rec_cg[num_fc].change_prob = 1.0; 
+                                       /* record number of observations */
+                                       rec_cg[num_fc].num_obs = new_i_start-1; 
+                                       /* record fit category */
+                                       rec_cg[num_fc].category = v_qa + min_num_c; 
                                        for (i = 0; i < TOTAL_BANDS - 1; i++)
                                        {
-                                           matlab_2d_array_mean(v_dif_mag[i], i, conse, &v_dif_mean[i]); 
-                                           rec_cg[num_fc].magnitude[i] = -v_dif_mean[i]; /* record change magnitude */
+                                           matlab_2d_array_mean(v_dif_mag[i], i, conse, 
+                                                                &v_dif_mean[i]);  
+                                           /* record change magnitude */
+                                           rec_cg[num_fc].magnitude[i] = -v_dif_mean[i]; 
                                        }
                                        /* identified and move on for the next functional curve */
                                        num_fc++;  
@@ -1006,27 +1042,38 @@ main (int argc, char *argv[])
                                    matlab_2d_array_mean(clry, i_b, new_i_start-1, &fit_cft[0][i_b]);
                                    square_root_mean(clry, i_b, new_i_start-1, fit_ctf, &rmse[i_b]);
                                }
-
-                               rec_cg[num_fc].t_start = clrx[0]; /* record time of curve start */
-                               rec_cg[num_fc].t_end = clrx[new_i_start-1]; /* record time of curve end */  
-                               rec_cg[num_fc].t_break = clrx[new_i_start]; /* no break at the moment */
-                               rec_cg[num_fc].pos.row = row; /* record postion of the pixel */
-                               rec_cg[num_fc].pos.col = col; /* record postion of the pixel */
+                               /* record time of curve start */
+                               rec_cg[num_fc].t_start = clrx[0]; 
+                               /* record time of curve end */  
+                               rec_cg[num_fc].t_end = clrx[new_i_start-1]; 
+                               /* no break at the moment */
+                               rec_cg[num_fc].t_break = clrx[new_i_start]; 
+                               /* record fitted coefficients */
+                               rec_cg[num_fc].pos.row = row; 
+                               /* record fitted coefficients */
+                               rec_cg[num_fc].pos.col = col; 
                                for (i = 0; i < TOTAL_BANDS - 1; i++)
                                {
                                    for (k = 0; k < update_num_c; k++)
-                                       rec_cg[num_fc].coefs[i][k] = fit_cft[i][k]; /* record fitted coefficients */
-                                   rec_cg[num_fc].rmse[i] = rmse[i]; /* record rmse of the pixel */
+                                       /* record fitted coefficients */
+                                       rec_cg[num_fc].coefs[i][k] = fit_cft[i][k]; 
+                                       /* record rmse of the pixel */
+                                   rec_cg[num_fc].rmse[i] = rmse[i]; 
                                }
-                               rec_cg[num_fc].change_prob = -(new_i_start-1)/conse; /* record change probability */
-                               rec_cg[num_fc].num_obs = new_i_start-1; /* record number of observations */
+                               /* record change probability */
+                               rec_cg[num_fc].change_prob = -(new_i_start-1)/conse; 
+                               /* record number of observations */
+                               rec_cg[num_fc].num_obs = new_i_start-1; 
+                               /* record fit category */
                                rec_cg[num_fc].category = v_qa + 1; /* record fit category */
                                for (i = 0; i < TOTAL_BANDS - 1; i++)
                                {
-                                   matlab_2d_array_mean(v_dif_mag[i], i, conse, &v_dif_mean[i]); 
-                                   rec_cg[num_fc].magnitude[i] = -v_dif_mean[i]; /* record change magnitude */
+                                   matlab_2d_array_mean(v_dif_mag[i], i, conse, &v_dif_mean[i]);
+                                   /* record change magnitude */ 
+                                   rec_cg[num_fc].magnitude[i] = -v_dif_mean[i]; 
                                }
-                               num_fc++;    /* NUM of Fitted Curves (num_fc) */
+                               /* NUM of Fitted Curves (num_fc) */
+                               num_fc++;    
                            }
                        }
                     }              
@@ -1080,23 +1127,34 @@ main (int argc, char *argv[])
                     }
 
                     /* updating information for the first iteration */
-                    rec_cg[num_fc].t_start = clrx[new_i_start]; /* record time of curve start */
-                    rec_cg[num_fc].t_end = clrx[i]; /* record time of curve end */
-                    rec_cg[num_fc].t_break = 0; /* no break at the moment */
-                    rec_cg[num_fc].pos.row = row; /* record postion of the pixel */
-                    rec_cg[num_fc].pos.col = col; /* record postion of the pixel */
+                    /* record time of curve start */
+                    rec_cg[num_fc].t_start = clrx[new_i_start]; 
+                    /* record time of curve end */
+                    rec_cg[num_fc].t_end = clrx[i]; 
+                    /* no break at the moment */
+                    rec_cg[num_fc].t_break = 0; 
+                    /* record postion of the pixel */
+                    rec_cg[num_fc].pos.row = row; 
+                    /* record postion of the pixel */
+                    rec_cg[num_fc].pos.col = col; 
                     for (i = 0; i < TOTAL_BANDS - 1; i++)
                     {
                         for (k = 0; k < update_num_c; k++)
-                            rec_cg[num_fc].coefs[i][k] = fit_cft[i][k]; /* record fitted coefficients */
-                            rec_cg[num_fc].rmse[i] = rmse[i]; /* record rmse of the pixel */
+                            /* record fitted coefficients */
+                            rec_cg[num_fc].coefs[i][k] = fit_cft[i][k]; 
+                            /* record rmse of the pixel */
+                            rec_cg[num_fc].rmse[i] = rmse[i]; 
                     }
-                    rec_cg[num_fc].change_prob = 0.0; /* record change probability */
-                    rec_cg[num_fc].num_obs = i-i_start+1; /* record number of observations */
-                    rec_cg[num_fc].category = v_qa + update_num_c; /* record fit category */
+                    /* record change probability */
+                    rec_cg[num_fc].change_prob = 0.0; 
+                    /* record number of observations */
+                    rec_cg[num_fc].num_obs = i-i_start+1; 
+                    /* record fit category */
+                    rec_cg[num_fc].category = v_qa + update_num_c; 
                     for (i = 0; i < TOTAL_BANDS - 1; i++)
                     {
-                        rec_cg[num_fc].magnitude[i] = 0.0; /* record change magnitude */
+                        /* record change magnitude */
+                        rec_cg[num_fc].magnitude[i] = 0.0; 
                     }
 
                     /* detect change, value of difference for conse obs */
@@ -1199,11 +1257,15 @@ main (int argc, char *argv[])
                         for (i = 0; i < TOTAL_BANDS - 1; i++)
                         {
                             for (k = 0; k < update_num_c; k++)
-                                rec_cg[num_fc].coefs[i][k] = fit_cft[i][k]; /* record fitted coefficients */
-                                rec_cg[num_fc].rmse[i] = rmse[i]; /* record rmse of the pixel */
+                                /* record fitted coefficients */
+                                rec_cg[num_fc].coefs[i][k] = fit_cft[i][k]; 
+                                /* record rmse of the pixel */
+                                rec_cg[num_fc].rmse[i] = rmse[i]; 
                         }
-                        rec_cg[num_fc].num_obs = i-i_start+1; /* record number of observations */
-                        rec_cg[num_fc].category = v_qa + update_num_c; /* record fit category */
+                        /* record number of observations */
+                        rec_cg[num_fc].num_obs = i-i_start+1; 
+                        /* record fit category */
+                        rec_cg[num_fc].category = v_qa + update_num_c; 
 
                         /* IDs that haven't been updated */
                         for (k = i_start; k < i; k++)
