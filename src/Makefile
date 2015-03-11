@@ -12,7 +12,7 @@ NCFLAGS = $(EXTRA) $(INCDIR)
 
 # Define the source code and object files
 SRC = input.c 2d_array.c ccdc.c utilities.c date.c \
-      misc.c output.c
+      misc.c 
 OBJ = $(SRC:.c=.o)
 
 # Define the object libraries

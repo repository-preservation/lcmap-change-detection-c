@@ -4,6 +4,20 @@
 
 #include <math.h>
 
+typedef signed short int16;
+typedef unsigned char uint8;
+typedef signed char int8;
+
+#ifndef min
+    #define min(a,b) (((a) < (b)) ? (a) : (b))
+#endif
+
+
+#ifndef max
+    #define max(a,b) (((a) > (b)) ? (a) : (b))
+#endif
+
+#define TOTAL_BANDS 8
 
 #define TWO_PI (2.0 * PI)
 #define HALF_PI (PI / 2.0)
