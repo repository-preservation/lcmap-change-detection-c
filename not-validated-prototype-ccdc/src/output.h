@@ -10,7 +10,7 @@
 #include "date.h"
 
 #define FILL_VALUE 255
-#define NUM_COEFFS 5
+#define NUM_COEFFS 8
 #define NUM_BANDS 7
 
 typedef struct {
@@ -24,13 +24,13 @@ typedef struct
     int t_start;           /* time when series model gets started */
     int t_end;             /* time when series model gets ended */
     int t_break;           /* time when the first break (change) is observed */
-    float model_coefs[NUM_BANDS][NUM_COEFFS];
+    float coefs[NUM_BANDS][NUM_COEFFS];
                            /*  coefficients for each time series model for each 
                                spectral band*/    
-    float model_rmse[NUM_BANDS];
+    float rmse[NUM_BANDS];
                            /*  RMSE for each time series model for each 
                                spectral band*/    
-    Position pos;          /* the location of each time series model */
+    Position_t pos;        /* the location of each time series model */
     float change_prob;     /* the probability of a pixel that have undergone 
                               change (between 0 and 100) */
     int num_obs;           /* the number of "good" observations used for model 
@@ -44,19 +44,5 @@ typedef struct
     float magnitude[NUM_BANDS];/* the magnitude of change (difference between model 
                                   prediction and observation for each spectral band)*/
 } Output_t;
-
-
-/* Prototypes */
-Output_t *OpenOutput (Espa_internal_meta_t *in_meta, Input_t *input);
-
-
-bool PutOutput (Output_t *this, unsigned char **final_mask);
-
-
-bool CloseOutput (Output_t *this);
-
-
-bool FreeOutput (Output_t *this);
-
 
 #endif

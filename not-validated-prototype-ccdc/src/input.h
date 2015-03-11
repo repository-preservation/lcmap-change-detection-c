@@ -4,9 +4,11 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <ctype.h>
+#include <string.h>
 #include "date.h"
 //#include "envi_header.h"
 #include "input.h"
+#include "const.h"
 
 #define INPUT_FILL (0)
 #define ANGLE_FILL (-999.0)
@@ -15,10 +17,6 @@
 #define NBAND_THM_MAX 2
 #define CCDC_VERSION "1.0.0"
 #define MINSIGMA 1e-5
-#define MAX_STR_LEN 510
-
-typedef signed short int16;
-typedef unsigned char uint8;
 
 typedef enum
 {
@@ -98,8 +96,7 @@ FILE *open_raw_binary
 (
     char *infile,        /* I: name of the input file to be opened */
     char *access_type    /* I: string for the access type for reading the
-                               input file; use the raw_binary_format array
-                               at the top of this file */
+                               input file */
 );
 
 void close_raw_binary
@@ -131,8 +128,8 @@ int read_raw_binary
 int read_envi_header
 (
     char *scene_name,      /* I: scene name*/
-    Input_metad_t *meta    /* O: saved header file info */
-)
+    Input_meta_t *meta    /* O: saved header file info */
+);
 
 void split_filename 
 (
@@ -153,21 +150,21 @@ int get_args
 (
     int argc,                 /* I: number of cmd-line args */
     char *argv[],             /* I: string of cmd-line args */
-    int row,                  /* I: row number for the pixel */
-    int col,                  /* I: col number for the pixel */
-    float *min_rmse,          /* I: minimum rmse threshold value */
-    float *t_cg,              /* I: chi-square inversed T_cg */
-    float *t_max_cg,          /* I: chi-square inversed T_max_cg for 
+    int *row,                 /* O: row number for the pixel */
+    int *col,                 /* O: col number for the pixel */
+    float *min_rmse,          /* O: minimum rmse threshold value */
+    float *t_cg,              /* O: chi-square inversed T_cg */
+    float *t_max_cg,          /* O: chi-square inversed T_max_cg for 
                                     last step noise removal */
-    int * conse,              /* I: number of points used for change detection */ 
+    int * conse,              /* O: number of points used for change detection */ 
     bool *verbose             /* O: verbose flag */
 );
 
 int create_scene_list
 (
     const char *item,         /* I: string of file items be found */
-    char **scene_list,        /* O: scene_list used for ccdc processing */ 
-    bool *verbose             /* O: verbose flag */
+    int num_scenes,           /* I/O: number of scenes */
+    char **scene_list         /* O: scene_list used for ccdc processing */ 
 );
 
 int convert_year_doy_to_jday_from_0000
@@ -204,10 +201,10 @@ void update_cft
 
 void median_filter
 (
-    int16 *array,      /* I: input array */
+    int16 **array,     /* I: input array */
     int array_len,     /* I: number of elements in input array */
     int n,             /* I: output order N, here is an odd number */
-    int *output_array  /* O: output array */
+    int16 *output_array/* O: output array */
 );
 
 void array_intersection
@@ -237,7 +234,7 @@ void matlab_2d_norm
 
 void square_root_mean
 (
-    float **array,       /* I: input array */
+    int16 **array,       /* I: input array */
     int dim2_number,     /* I: second dimension number used */   
     int array_len1,      /* I: number of input elements */
     float **fit_ctf,     /* I: */
@@ -252,6 +249,14 @@ void matlab_2d_array_mean
     float  *output_mean  /* O: output norm value */
 );
 
+void matlab_2d_int_array_mean
+(
+    int16 **array,       /* I: input array */
+    int dim2_number,     /* I: second dimension number used */   
+    int array_len1,      /* I: number of input elements in 1st dim */
+    float  *output_mean  /* O: output norm value */
+);
+
 void matlab_2d_partial_mean
 (
     float **array,       /* I: input array */
@@ -261,9 +266,18 @@ void matlab_2d_partial_mean
     float  *output_mean  /* O: output norm value */
 );
 
+void matlab_2d_int_partial_mean
+(
+    int16 **array,       /* I: input array */
+    int dim2_number,     /* I: second dimension number used */   
+    int start,           /* I: number of start elements in 1st dim */
+    int end,             /* I: number of end elements in 1st dim */
+    float  *output_mean  /* O: output norm value */
+);
+
 void matlab_2d_partial_square_mean
 (
-    float **array,       /* I: input array */
+    int16 **array,       /* I: input array */
     int dim2_number,     /* I: second dimension number used */   
     int start,           /* I: number of start elements in 1st dim */
     int end,             /* I: number of end elements in 1st dim */
@@ -278,19 +292,18 @@ void matlab_2d_array_norm
     float  *output_norm  /* O: output norm value */
 );
 
-int *get_id_length
+int *get_ids_length
 (
-    int8 *id_array,       /* I: input array */
+    int *id_array,        /* I: input array */
     int array_len         /* I: number of input elements in 1st dim */
 );
 
-
-void quick_sort_index (int arr[], int idx[], int left, int right);
+void quick_sort_index (float arr[], int idx[], int left, int right);
 
 int auto_mask
 (
     int *clrx,
-    int **clry,
+    int16 **clry,
     int start,
     int end,
     float years,
@@ -301,11 +314,12 @@ int auto_mask
 int auto_ts_fit
 (
     int *clrx,
-    int **clry,
+    int16 **clry,
     int iband,
-    int nums,
+    int start,
+    int end,
     int df,
-    float *coefs,
+    float **coefs,
     float *rmse,
     float *v_dif
 );

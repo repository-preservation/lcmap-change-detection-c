@@ -12,13 +12,6 @@
 #include "utilities.h"
 #include "input.h"
 
-#ifndef max
-#define max(a,b) (((a) (b)) ? (a) : (b))
-#endif
-#ifndef min
-#define min(a,b) (((a) < (b)) ? (a) : (b))
-#endif
-
 /******************************************************************************
 MODULE:  get_args
 
@@ -36,11 +29,7 @@ SUCCESS         No errors encountered
 HISTORY:
 Date        Programmer       Reason
 --------    ---------------  -------------------------------------
-1/2/2013    Gail Schmidt     Original Development
-3/15/2013   Song Guo         Changed to support Fmask
-9/13/2013   Song Guo         Changed to use RETURN_ERROR
-2/19/2014   Gail Schmidt     Modified to utilize the ESPA internal raw binary
-                             file format
+1/5/2015    Song Guo         Original Development
 
 NOTES:
   1. Memory is allocated for the input and output files.  All of these should
@@ -53,13 +42,13 @@ int get_args
 (
     int argc,                 /* I: number of cmd-line args */
     char *argv[],             /* I: string of cmd-line args */
-    float *min_rmse,          /* I: minimum rmse threshold value */
-    int *row,                 /* I: row number for the pixel */
-    int *col,                 /* I: col number for the pixel */
-    float *t_cg,              /* I: chi-square inversed T_cg */
-    float *t_max_cg,          /* I: chi-square inversed T_max_cg for 
+    int *row,                 /* O: row number for the pixel */
+    int *col,                 /* O: col number for the pixel */
+    float *min_rmse,          /* O: minimum rmse threshold value */
+    float *t_cg,              /* O: chi-square inversed T_cg */
+    float *t_max_cg,          /* O: chi-square inversed T_max_cg for 
                                     last step noise removal */
-    int * conse,              /* I: number of points used for change detection */ 
+    int * conse,              /* O: number of points used for change detection */ 
     bool *verbose             /* O: verbose flag */
 )
 {
@@ -261,7 +250,7 @@ NOTES:
 int create_scene_list
 (
     const char *item,         /* I: string of file items be found */
-    int num_scenes,           /* O: number of scenes */
+    int num_scenes,           /* I/O: number of scenes */
     char **scene_list,        /* O: scene_list used for ccdc processing */ 
 )
 {
@@ -725,13 +714,13 @@ NOTES: We only handle odd number input N case as it will be 2 * conse + 1
 ******************************************************************************/
 void median_filter
 (
-    int16 *array,      /* I: input array */
-    int array_len,     /* I: number of elements in input array */
-    int n,             /* I: output order N, here is an odd number */
-    int *output_array  /* O: output array */
+    int16 **array,      /* I: input array */
+    int array_len,      /* I: number of elements in input array */
+    int n,              /* I: output order N, here is an odd number */
+    int16 *output_array/* O: output array */
 )
 {
-    int i, j;
+    int i, j, b;
     int16 temp[n];
     int m = n / 2;
 
@@ -740,7 +729,7 @@ void median_filter
         for (j = 0; j < n; j++)
         {
             if (((i + j - m) >= 0) && ((i + j - m) < array_len -1))
-                temp[j] = array[i + j - m];
+                temp[j] = array[i + j - m][1];
             else
                 temp[j] = 0;
         }
@@ -907,7 +896,7 @@ NOTES:
 ******************************************************************************/
 void square_root_mean
 (
-    float **array,       /* I: input array */
+    int16 **array,       /* I: input array */
     int dim2_number,     /* I: second dimension number used */   
     int array_len1,      /* I: number of input elements */
     float **fit_ctf,     /* I: */
@@ -915,15 +904,16 @@ void square_root_mean
 )
 {
     int i;
-    float sum = 0.0;
+    int sum = 0;
+    float rmse_square;
 
     for (i = 0; i < array_len1; i++)
     {
         sum += ((array[i][dim2_number] - fit_ctf[0][dim2_number]) *
             ((array[i][dim2_number] - fit_ctf[0][dim2_number]);
     }
-    sum = sum / (float)array_len1;
-    *rmse = sqrt(sum);
+                rmse_square = (float)sum / (float)array_len1;
+    *rmse = sqrt(rmse_square);
 }
 
 /******************************************************************************
@@ -999,6 +989,43 @@ void matlab_2d_array_mean
 }
 
 /******************************************************************************
+MODULE:  matlab_2d_int_array_mean
+
+PURPOSE:  simulate matlab mean function for 1 dimesion in 2d integer array 
+          cases only
+
+RETURN VALUE:
+Type = void
+Value           Description
+-----           -----------
+
+
+HISTORY:
+Date        Programmer       Reason
+--------    ---------------  -------------------------------------
+2/9/2015   Song Guo         Original Development
+
+NOTES: 
+******************************************************************************/
+void matlab_2d_int_array_mean
+(
+    int16 **array,       /* I: input array */
+    int dim2_number,     /* I: second dimension number used */   
+    int array_len1,      /* I: number of input elements in 1st dim */
+    float  *output_mean  /* O: output norm value */
+)
+{
+    int i;
+    int16 sum = 0;
+
+    for (i = 0; i < array_len1; i++)
+    {
+        sum += array[i][dim2_number];
+    }
+    *output_mean = (float) sum / (float)(array_len1);
+}
+
+/******************************************************************************
 MODULE:  matlab_2d_partial_mean
 
 PURPOSE:  simulate matlab mean function for parital part of 1 dimesion in 2d 
@@ -1037,6 +1064,44 @@ void matlab_2d_partial_mean
 }
 
 /******************************************************************************
+MODULE:  matlab_2d_int_partial_mean
+
+PURPOSE:  simulate matlab mean function for parital part of 1 dimesion in 2d 
+          array cases only
+
+RETURN VALUE:
+Type = void
+Value           Description
+-----           -----------
+
+
+HISTORY:
+Date        Programmer       Reason
+--------    ---------------  -------------------------------------
+2/9/2015   Song Guo         Original Development
+
+NOTES: 
+******************************************************************************/
+void matlab_2d_int_partial_mean
+(
+    int16 **array,       /* I: input array */
+    int dim2_number,     /* I: second dimension number used */   
+    int start,           /* I: number of start elements in 1st dim */
+    int end,             /* I: number of end elements in 1st dim */
+    float  *output_mean  /* O: output norm value */
+)
+{
+    int i;
+    int sum = 0;
+
+    for (i = start; i <= end; i++)
+    {
+        sum += array[i][dim2_number];
+    }
+    *output_mean = (float)sum / (float)(end - start + 1);
+}
+
+/******************************************************************************
 MODULE:  matlab_2d_partial_square_mean
 
 PURPOSE:  simulate matlab square mean function for parital part of 1 dimesion 
@@ -1057,7 +1122,7 @@ NOTES:
 ******************************************************************************/
 void matlab_2d_partial_square_mean
 (
-    float **array,       /* I: input array */
+    int16 **array,       /* I: input array */
     int dim2_number,     /* I: second dimension number used */   
     int start,           /* I: number of start elements in 1st dim */
     int end,             /* I: number of end elements in 1st dim */
@@ -1065,17 +1130,17 @@ void matlab_2d_partial_square_mean
 )
 {
     int i;
-    float sum = 0.0;
+    int sum = 0;
 
     for (i = start; i <= end; i++)
     {
         sum += array[i][dim2_number] * array[i][dim2_number];
     }
-    *output_mean = sum / (float)(end - start + 1);
+    *output_mean = (float)sum / (float)(end - start + 1);
 }
 
 /******************************************************************************
-MODULE:  get_id_length
+MODULE:  get_ids_length
 
 PURPOSE:  get total number of non-zero elements of id array
 
@@ -1092,9 +1157,9 @@ Date        Programmer       Reason
 
 NOTES: 
 ******************************************************************************/
-int *get_id_length
+int *get_ids_length
 (
-    int8 *id_array,       /* I: input array */
+    int *id_array,        /* I: input array */
     int array_len         /* I: number of input elements in 1st dim */
 )
 {
@@ -1127,10 +1192,10 @@ Date        Programmer       Reason
 
 NOTES:
 ******************************************************************************/
-int partition_index (int arr[], int idx[], int left, int right)
+int partition_index (float arr[], int idx[], int left, int right)
 {
     int i = left, j = right;
-    int tmp;
+    float tmp;
     int index;
     int pivot = arr[(left + right) / 2];
 
@@ -1171,7 +1236,7 @@ Date        Programmer       Reason
 
 NOTES:
 ******************************************************************************/
-void quick_sort_index (int arr[], int idx[], int left, int right)
+void quick_sort_index (float arr[], int idx[], int left, int right)
 {
  int index = partition_index (arr, idx, left, right);
 
@@ -1258,7 +1323,7 @@ NOTES:
 int auto_mask
 (
     int *clrx,
-    int **clry,
+    int16 **clry,
     int start,
     int end,
     float years,
@@ -1398,7 +1463,7 @@ NOTES:
 int auto_ts_fit
 (
     int *clrx,
-    int **clry,
+    int16 **clry,
     int iband,
     int start,
     int end,
