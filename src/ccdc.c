@@ -52,7 +52,7 @@ main (int argc, char *argv[])
     int i, k, m, b;
     char **scene_list = NULL;
     FILE *fd;
-    int num_scenes;
+    int num_scenes = MAX_SCENE_LIST;
     int min_num_c = 4;
     int mid_num_c = 6;
     int max_num_c = 8;
@@ -846,7 +846,7 @@ main (int argc, char *argv[])
                         if (v_slope == NULL)
                             RETURN_ERROR ("Allocating v_slope memory", FUNC_NAME, FAILURE);
                         v_dif = malloc(num_detect * sizeof(float));
-                        if (v_dif == NULL)
+                        if (v_dif== NULL)
                             RETURN_ERROR ("Allocating v_dif memory", FUNC_NAME, FAILURE);
  
                         for (b = 0; b < num_detect; b++)
@@ -884,196 +884,197 @@ main (int argc, char *argv[])
                             v_dif[lasso_blist[b]] = fabs(v_slope[lasso_blist[b]]) + 
                                                     fabs(v_start[lasso_blist[b]]) + 
                                                     fabs(v_end[lasso_blist[b]]);
-                       }
-                       matlab_norm(v_dif, LASSO_BANDS, &v_dif_norm);
-                       v_dif_norm *= v_dif_norm; 
+                        }
+                        matlab_norm(v_dif, LASSO_BANDS, &v_dif_norm);
+                        v_dif_norm *= v_dif_norm; 
 
-                       /* free allocated memories */
-                       free(ids);
-                       free(rm_ids);
-                       free(v_start); 
-                       free(v_end);
-                       free(v_slope); 
-                       free(v_dif);
+                        /* free allocated memories */
+                        free(ids);
+                        free(rm_ids);
+                        free(v_start); 
+                        free(v_end);
+                        free(v_slope); 
+                        free(v_dif);
 
-                       /* find stable start for each curve */
-                       if (v_dif_norm > t_cg)
-                       {
-                           /* start from next clear obs */
-                           i_start++;
+                        /* find stable start for each curve */
+                        if (v_dif_norm > t_cg)
+                        {
+                            /* start from next clear obs */
+                            i_start++;
 
-                           /* move forward to the i+1th clear observation */
-                           i++;
+                            /* move forward to the i+1th clear observation */
+                            i++;
 
-                           /* keep all data and move to the next obs */
-                           continue;
-                       }
-                       else
-                       {
-                           /* model ready */
-                           bl_train = 1;
+                            /* keep all data and move to the next obs */
+                            continue;
+                        }
+                        else
+                        {
+                            /* model ready */
+                            bl_train = 1;
 
-                           /* count difference of i for each iteration */
-                           i_count = 0;
+                            /* count difference of i for each iteration */
+                            i_count = 0;
 
-                           /* give new i_start for the new curve */
-                           new_i_start = i_start;
+                            /* give new i_start for the new curve */
+                            new_i_start = i_start;
 
-                           /* model fit at the beginning of time series */
-                           if ((num_fc == rec_fc) && (i_start > 1))
-                           {
-                               /* allocate memory for model_v_dif */ 
-                               v_dif_mag = (float **) allocate_2d_array(i_start-1,
-                                         num_detect, sizeof (float));
-                               if (v_dif_mag == NULL)
-                               {
-                                   RETURN_ERROR ("Allocating v_dif_mag memory", 
-                                                 FUNC_NAME, FAILURE);
-                               }
+                            /* model fit at the beginning of time series */
+                            if ((num_fc == rec_fc) && (i_start > 1))
+                            {
+                                /* allocate memory for model_v_dif */ 
+                                v_dif_mag = (float **) allocate_2d_array(i_start-1,
+                                          num_detect, sizeof (float));
+                                if (v_dif_mag == NULL)
+                                {
+                                    RETURN_ERROR ("Allocating v_dif_mag memory", 
+                                                  FUNC_NAME, FAILURE);
+                                }
 
-                               /* allocate memory for v_diff */ 
-                               v_diff = (float **) allocate_2d_array(i_start-1,
-                                         num_detect, sizeof (float));
-                               if (v_diff == NULL)
-                               {
-                                   RETURN_ERROR ("Allocating v_diff memory", 
-                                                 FUNC_NAME, FAILURE);
-                               }
+                                /* allocate memory for v_diff */ 
+                                v_diff = (float **) allocate_2d_array(i_start-1,
+                                          num_detect, sizeof (float));
+                                if (v_diff == NULL)
+                                {
+                                    RETURN_ERROR ("Allocating v_diff memory", 
+                                                  FUNC_NAME, FAILURE);
+                                }
 
-                               /* detect change. 
-                                  value of difference for conse obs
-                                  record the magnitude of change */
-                               for (i_conse = 0; i_conse < i_start-1; i++)
-                               {
-                                   for (i_b = 0; i_b < TOTAL_BANDS - 1; i_b++)
-                                   {
-                                       /* absolute differences */
-                                       auto_ts_predict(clrx[i_conse], fit_cft, i_b, 
-                                           &ts_pred_temp);
-                                       v_dif_mag[i_conse][i_b] = clry[i_conse][i_b] - 
-                                           ts_pred_temp;
+                                /* detect change. 
+                                   value of difference for conse obs
+                                   record the magnitude of change */
+                                for (i_conse = 0; i_conse < i_start-1; i++)
+                                {
+                                    for (i_b = 0; i_b < TOTAL_BANDS - 1; i_b++)
+                                    {
+                                        /* absolute differences */
+                                        auto_ts_predict(clrx[i_conse], fit_cft, i_b, 
+                                            &ts_pred_temp);
+                                        v_dif_mag[i_conse][i_b] = clry[i_conse][i_b] - 
+                                            ts_pred_temp;
 
-                                       /* normalize to z-score */
-                                       for (b = 0; b < LASSO_BANDS - 1; b++)
-                                       {
-                                           if (i_b == lasso_blist[b])
-                                           {
-                                               /* calculate mini rmse with mean values & mini */
-                                               mean_v = fit_cft[0][i_b] + fit_cft[1][i_b] * 
-                                                   (float)(clrx[i_start] + clrx[i]) / 2.0;
-                                               mini_rmse = max(mean_v * p_min, mini[i_b]);
+                                        /* normalize to z-score */
+                                        for (b = 0; b < LASSO_BANDS - 1; b++)
+                                        {
+                                            if (i_b == lasso_blist[b])
+                                            {
+                                                /* calculate mini rmse with mean values & mini */
+                                                mean_v = fit_cft[0][i_b] + fit_cft[1][i_b] * 
+                                                    (float)(clrx[i_start] + clrx[i]) / 2.0;
+                                                mini_rmse = max(mean_v * p_min, mini[i_b]);
 
-                                               /* minimum rmse */ 
-                                               mini_rmse = max(mini_rmse, rmse[i_b]);
+                                                /* minimum rmse */ 
+                                                mini_rmse = max(mini_rmse, rmse[i_b]);
  
-                                               /* z-scores */
-                                               v_diff[i_conse][i_b] = abs(v_dif_mag[i_conse][i_b]) 
-                                                                      / mini_rmse;
-                                           }
-                                       }
-                                   }
-                                   matlab_2d_norm(v_diff, i_start-1, LASSO_BANDS, &v_dif_norm);
-                                   vec_mag[i_conse] *= v_dif_norm; 
+                                                /* z-scores */
+                                                v_diff[i_conse][i_b] = abs(v_dif_mag[i_conse][i_b]) 
+                                                                       / mini_rmse;
+                                            }
+                                        }
+                                    }
+                                    matlab_2d_norm(v_diff, i_start-1, LASSO_BANDS, &v_dif_norm);
+                                    vec_mag[i_conse] *= v_dif_norm; 
 
-                                   if (vec_mag[i_conse] <= t_cg)
-                                   {
-                                       new_i_start = i_conse;
-                                       break;
-                                   }
-                               }
+                                    if (vec_mag[i_conse] <= t_cg)
+                                    {
+                                        new_i_start = i_conse;
+                                        break;
+                                    }
+                                }
 
-                               if (new_i_start > conse)
-                               {
-                                   /* defining computed variables */
-                                   for (i_b = 0; i_b < TOTAL_BANDS -1; i_b++)
-                                   {
-                                       status = auto_ts_fit(clrx, clry, i_b, 0, new_i_start-1, 
-                                                min_num_c, fit_cft, &rmse[i_b], &v_dif_temp); 
-                                       if (status != SUCCESS)  
-                                           RETURN_ERROR ("Calling auto_ts_fit5\n", 
-                                               FUNC_NAME, EXIT_FAILURE);
-                                       /* record time of curve start */
-                                       rec_cg[num_fc].t_start = clrx[0]; 
-                                       /* record time of curve end */
-                                       rec_cg[num_fc].t_end = clrx[new_i_start-1]; 
-                                       /* no break at the moment */
-                                       rec_cg[num_fc].t_break = new_i_start; 
-                                       /* record postion of the pixel */
-                                       rec_cg[num_fc].pos.row = row; 
-                                       /* record postion of the pixel */
-                                       rec_cg[num_fc].pos.col = col; 
-                                       for (k = 0; k < update_num_c; k++)
-                                           /* record fitted coefficients */
-                                           rec_cg[num_fc].coefs[i_b][k] = fit_cft[i_b][k]; 
-                                       /* record rmse of the pixel */                         
-                                       rec_cg[num_fc].rmse[i_b] = rmse[i_b]; 
-                                       
-                                       /* record change probability */
-                                       rec_cg[num_fc].change_prob = 1.0; 
-                                       /* record number of observations */
-                                       rec_cg[num_fc].num_obs = new_i_start-1; 
-                                       /* record fit category */
-                                       rec_cg[num_fc].category = v_qa + min_num_c; 
-                                       /* record change magnitude */
-                                       matlab_2d_array_mean(v_dif_mag, i_b, conse, 
-                                                            &v_dif_mean);  
-                                       rec_cg[num_fc].magnitude[i_b] = -v_dif_mean; 
+                                if (new_i_start > conse)
+                                {
+                                    /* defining computed variables */
+                                    for (i_b = 0; i_b < TOTAL_BANDS -1; i_b++)
+                                    {
+                                        status = auto_ts_fit(clrx, clry, i_b, 0, new_i_start-1, 
+                                                 min_num_c, fit_cft, &rmse[i_b], &v_dif_temp); 
+                                        if (status != SUCCESS)  
+                                            RETURN_ERROR ("Calling auto_ts_fit5\n", 
+                                                FUNC_NAME, EXIT_FAILURE);
+                                        /* record time of curve start */
+                                        rec_cg[num_fc].t_start = clrx[0]; 
+                                        /* record time of curve end */
+                                        rec_cg[num_fc].t_end = clrx[new_i_start-1]; 
+                                        /* no break at the moment */
+                                        rec_cg[num_fc].t_break = new_i_start; 
+                                        /* record postion of the pixel */
+                                        rec_cg[num_fc].pos.row = row; 
+                                        /* record postion of the pixel */
+                                        rec_cg[num_fc].pos.col = col; 
+                                        for (k = 0; k < update_num_c; k++)
+                                            /* record fitted coefficients */
+                                            rec_cg[num_fc].coefs[i_b][k] = fit_cft[i_b][k]; 
+                                        /* record rmse of the pixel */                         
+                                        rec_cg[num_fc].rmse[i_b] = rmse[i_b]; 
+                                        
+                                        /* record change probability */
+                                        rec_cg[num_fc].change_prob = 1.0; 
+                                        /* record number of observations */
+                                        rec_cg[num_fc].num_obs = new_i_start-1; 
+                                        /* record fit category */
+                                        rec_cg[num_fc].category = v_qa + min_num_c; 
+                                        /* record change magnitude */
+                                        matlab_2d_array_mean(v_dif_mag, i_b, conse, 
+                                                             &v_dif_mean);  
+                                        rec_cg[num_fc].magnitude[i_b] = -v_dif_mean; 
 
-                                       /* identified and move on for the next functional curve */
-                                       num_fc++;  
-                                 }
-                                 status = free_2d_array ((void **) v_dif_mag);
-                                 if (status != SUCCESS)
-                                     RETURN_ERROR ("Freeing memory: v_dif_mag\n", 
-                                          FUNC_NAME, EXIT_FAILURE);
-                                 status = free_2d_array ((void **) v_diff);
-                                 if (status != SUCCESS)
-                                     RETURN_ERROR ("Freeing memory: v_diff\n", 
-                                            FUNC_NAME, EXIT_FAILURE);
+                                        /* identified and move on for the next functional curve */
+                                        num_fc++;  
+                                    }
+                                    status = free_2d_array ((void **) v_dif_mag);
+                                    if (status != SUCCESS)
+                                        RETURN_ERROR ("Freeing memory: v_dif_mag\n", 
+                                             FUNC_NAME, EXIT_FAILURE);
+                                    status = free_2d_array ((void **) v_diff);
+                                    if (status != SUCCESS)
+                                         RETURN_ERROR ("Freeing memory: v_diff\n", 
+                                             FUNC_NAME, EXIT_FAILURE);
 
-                           }
-                           else if (new_i_start > 1)
-                           {
-                               /* median value fit for the rest of the pixels < conse */
-                               for (i_b = 0; i< TOTAL_BANDS - 1; i++)
-                               {
-                                   matlab_2d_int_array_mean(clry, i_b, new_i_start-1, &fit_cft[0][i_b]);
-                                   square_root_mean(clry, i_b, new_i_start-1, fit_cft, &rmse[i_b]);
-                               }
-                               /* record time of curve start */
-                               rec_cg[num_fc].t_start = clrx[0]; 
-                               /* record time of curve end */  
-                               rec_cg[num_fc].t_end = clrx[new_i_start-1]; 
-                               /* no break at the moment */
-                               rec_cg[num_fc].t_break = clrx[new_i_start]; 
-                               /* record fitted coefficients */
-                               rec_cg[num_fc].pos.row = row; 
-                               /* record fitted coefficients */
-                               rec_cg[num_fc].pos.col = col; 
-                               for (i = 0; i < TOTAL_BANDS - 1; i++)
-                               {
-                                   for (k = 0; k < update_num_c; k++)
-                                       /* record fitted coefficients */
-                                       rec_cg[num_fc].coefs[i][k] = fit_cft[i][k]; 
-                                       /* record rmse of the pixel */
-                                   rec_cg[num_fc].rmse[i] = rmse[i]; 
-                               }
-                               /* record change probability */
-                               rec_cg[num_fc].change_prob = -(new_i_start-1)/conse; 
-                               /* record number of observations */
-                               rec_cg[num_fc].num_obs = new_i_start-1; 
-                               /* record fit category */
-                               rec_cg[num_fc].category = v_qa + 1; /* record fit category */
-                               for (i = 0; i < TOTAL_BANDS - 1; i++)
-                               {
-                                   matlab_2d_array_mean(v_dif_mag, i, conse, &v_dif_mean);
-                                   /* record change magnitude */ 
-                                   rec_cg[num_fc].magnitude[i] = -v_dif_mean; 
-                               }
-                               /* NUM of Fitted Curves (num_fc) */
-                               num_fc++;    
-                           }
-                       }
+                                }
+                                else if (new_i_start > 1)
+                                {
+                                    /* median value fit for the rest of the pixels < conse */
+                                    for (i_b = 0; i< TOTAL_BANDS - 1; i++)
+                                    {
+                                        matlab_2d_int_array_mean(clry, i_b, new_i_start-1, &fit_cft[0][i_b]);
+                                        square_root_mean(clry, i_b, new_i_start-1, fit_cft, &rmse[i_b]);
+                                    }
+                                    /* record time of curve start */
+                                    rec_cg[num_fc].t_start = clrx[0]; 
+                                    /* record time of curve end */  
+                                    rec_cg[num_fc].t_end = clrx[new_i_start-1]; 
+                                    /* no break at the moment */
+                                    rec_cg[num_fc].t_break = clrx[new_i_start]; 
+                                    /* record fitted coefficients */
+                                    rec_cg[num_fc].pos.row = row; 
+                                    /* record fitted coefficients */
+                                    rec_cg[num_fc].pos.col = col; 
+                                    for (i = 0; i < TOTAL_BANDS - 1; i++)
+                                    {
+                                        for (k = 0; k < update_num_c; k++)
+                                            /* record fitted coefficients */
+                                            rec_cg[num_fc].coefs[i][k] = fit_cft[i][k]; 
+                                        /* record rmse of the pixel */
+                                        rec_cg[num_fc].rmse[i] = rmse[i]; 
+                                    }
+                                    /* record change probability */
+                                    rec_cg[num_fc].change_prob = -(new_i_start-1)/conse; 
+                                    /* record number of observations */
+                                    rec_cg[num_fc].num_obs = new_i_start-1; 
+                                    /* record fit category */
+                                    rec_cg[num_fc].category = v_qa + 1; /* record fit category */
+                                    for (i = 0; i < TOTAL_BANDS - 1; i++)
+                                    {
+                                        matlab_2d_array_mean(v_dif_mag, i, conse, &v_dif_mean);
+                                        /* record change magnitude */ 
+                                        rec_cg[num_fc].magnitude[i] = -v_dif_mean; 
+                                    }
+                                    /* NUM of Fitted Curves (num_fc) */
+                                    num_fc++;
+                                }    
+                            }
+                        }
                     }              
                 } /* end of "if (v_dif > t_cg)" */  
             } /* end of initializing model */
@@ -1668,27 +1669,42 @@ Date        Programmer       Reason
 void
 usage ()
 {
-    printf ("Landsat Surface Temperature\n");
+    printf ("Continuous Change Detection and Classification\n");
     printf ("\n");
-    printf ("usage: scene_based_lst"
-            " --xml=input_xml_filename"
-            " --dem=input_dem_filename"
-            " --emi=input_emissivity_filename" " [--verbose]\n");
+    printf ("usage: ccdc"
+            " --row=input row number"
+            " --col=input col number"
+            " --mini_rmse=input minimum rmse value"
+            " --t_cg=chi-square inversed T_cg value" 
+            " --t_max_cg=chi-square inversed T_max_cg for " 
+                         "last step noise removal"
+            " --conse = number of points used for change detection" 
+            " [--verbose]\n");
 
     printf ("\n");
     printf ("where the following parameters are required:\n");
-    printf ("    -xml: name of the input XML file\n");
+    printf ("    -row: input row number\n");
+    printf ("    --col=input col number\n");
+    printf ("    --mini_rmse=input minimum rmse value\n");
+    printf ("    --t_cg=chi-square inversed T_cg value\n");
+    printf ("    --t_max_cg=chi-square inversed T_max_cg for " 
+                         "last step noise removal\n");
+    printf ("    --conse = number of points used for change detection\n");
     printf ("\n");
     printf ("where the following parameters are optional:\n");
     printf ("    -verbose: should intermediate messages be printed?"
             " (default is false)\n");
     printf ("\n");
-    printf ("scene_based_lst --help will print the usage statement\n");
+    printf ("ccdc --help will print the usage statement\n");
     printf ("\n");
-    printf ("Example: scene_based_lst"
-            " --xml=LE70390032010263EDC00.xml"
-            " --dem=17_30_DEM.tif"
-            " --emi=AG100B.v003.-20.122.0001.bin" " --verbose\n");
-    printf ("Note: The scene_based_lst must run from the directory"
+    printf ("Example: ccdc"
+            " --row=3845"
+            " --col=2918"
+            " --mini_rmse=0.5"
+            " --t_cg=15.0863"
+            " --t_max_cg=35.8882"
+            " --conse=6"
+            " --verbose\n");
+    printf ("Note: The ccdc must run from the directory"
             " where the input data are located.\n\n");
 }
