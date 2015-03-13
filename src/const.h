@@ -19,6 +19,7 @@ typedef signed char int8;
 
 #define TOTAL_BANDS 8
 
+#define PI 3.1415926535897935
 #define TWO_PI (2.0 * PI)
 #define HALF_PI (PI / 2.0)
 
@@ -34,6 +35,14 @@ typedef signed char int8;
 
 #ifndef FAILURE
     #define FAILURE 1
+#endif
+
+#ifndef TRUE
+    #define TRUE 1
+#endif
+
+#ifndef FALSE
+    #define FALSE 1
 #endif
 
 

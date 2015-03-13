@@ -7,7 +7,9 @@
 #include <fnmatch.h>
 #include <string.h>
 #include <limits.h>
+#include <errno.h>
 
+#include "2d_array.h"
 #include "const.h"
 #include "utilities.h"
 #include "input.h"
@@ -152,8 +154,8 @@ int get_args
 
     if (*verbose)
     {
-        printf ("row = %f\n", *row);
-        printf ("col = %f\n", *col);
+        printf ("row = %d\n", *row);
+        printf ("col = %d\n", *col);
         printf ("min_rmse = %f\n", *min_rmse);
         printf ("t_cg = %f\n", *t_cg);
         printf ("t_max_cg = %f\n", *t_max_cg);
@@ -251,7 +253,7 @@ int create_scene_list
 (
     const char *item,         /* I: string of file items be found */
     int num_scenes,           /* I/O: number of scenes */
-    char **scene_list,        /* O: scene_list used for ccdc processing */ 
+    char **scene_list         /* O: scene_list used for ccdc processing */ 
 )
 {
     DIR *dirp;
@@ -278,7 +280,7 @@ int create_scene_list
         errno = 0;
         if ((dp = readdir(dirp)) != NULL) 
         {
-            if(fnmatch(arg, dp->d_name, 0) == 0)
+            if(fnmatch(item, dp->d_name, 0) == 0)
             {               
                 get_scenename(dp->d_name,directory,scene_name,appendix);
                 fprintf(fd, "%s\n", scene_name);
@@ -499,21 +501,22 @@ int convert_jday_from_0000_to_year_doy
 )
 {
     char FUNC_NAME[] = "convert_jday_from_0000_to_year_doy";
-    int i;
     int status;
+    int local_year;
 
     /* 12-31-1972 is 720624 in julian day since year 0000 */
     jday -= 720624;
-    *year = 1973;
+    local_year = 1973;
 
     if (jday < 0)
     {
         RETURN_ERROR ("Landsat data starts from 1973", FUNC_NAME, EXIT_FAILURE);
     }
 
-    while((is_leap_year(year) && jday > 366) || (!is_leap_year(year) && jday > 365))
+    while((is_leap_year(local_year) && jday > 366) || 
+          (!is_leap_year(local_year) && jday > 365))
     {
-        status = is_leap_year(year);
+        status = is_leap_year(local_year);
         if (status == true)
         {
             jday -= 366;  
@@ -522,9 +525,10 @@ int convert_jday_from_0000_to_year_doy
         {
             jday -= 365;  
         }
-        *year++;
-        *day = jday;
+        local_year++;
     }
+    *year = local_year;
+    *doy = jday;
 
     return SUCCESS;
 }
@@ -617,13 +621,128 @@ void update_cft
     int *update_number_c
 )
 {
+    /* start with 4 coefficients model */ 
     if (i_span < mid_num_c * n_times)
-        update_num_c = min(min_num_c, num_c);  /* start with 4 coefficients model */ 
+        *update_number_c = min(min_num_c, num_c); 
+    /* start with 6 coefficients model */
     else if (i_span < max_num_c * n_times) 
-        update_num_c = min(mid_num_c, num_c);  /* start with 6 coefficients model */ 
+        *update_number_c = min(mid_num_c, num_c);  
+    /* start with 8 coefficients model */ 
     else
-        update_num_c = min(max_num_c, num_c);  /* start with 8 coefficients model */ 
+        *update_number_c = min(max_num_c, num_c); 
 
+}
+
+/******************************************************************************
+MODULE:  partition_int16
+
+PURPOSE:  partition the sorted list
+
+RETURN VALUE:
+Type = int
+Value           Description
+-----           -----------
+i               partitioned value   
+
+HISTORY:
+Date        Programmer       Reason
+--------    ---------------  -------------------------------------
+1/23/2015   Song Guo         Original Development
+
+NOTES:
+******************************************************************************/
+int partition_int16 (int16 arr[], int left, int right)
+{
+    int i = left, j = right;
+    int tmp;
+    int pivot = arr[(left + right) / 2];
+
+    while (i <= j)
+    {
+        while (arr[i] < pivot)
+            i++;
+        while (arr[j] > pivot)
+            j--;
+        if (i <= j)
+        {
+            tmp = arr[i];
+            arr[i] = arr[j];
+            arr[j] = tmp;
+            i++;
+            j--;
+        }
+    }
+
+    return i;
+}
+
+/******************************************************************************
+MODULE:  quick_sort_int16
+
+PURPOSE:  sort the scene_list based on yeardoy string
+
+RETURN VALUE: None
+
+HISTORY:
+Date        Programmer       Reason
+--------    ---------------  -------------------------------------
+1/23/2015   Song Guo         Original Development
+
+NOTES:
+******************************************************************************/
+void quick_sort_int16 (int16 arr[], int left, int right)
+{
+    int index = partition_int16 (arr, left, right);
+
+    if (left < index - 1)
+        quick_sort_int16 (arr, left, index - 1);
+    if (index < right)
+        quick_sort_int16 (arr, index, right);
+}
+
+/******************************************************************************
+MODULE:  median_filter
+
+PURPOSE:  simulate matlab medfilt1 function for odd number cases only
+
+RETURN VALUE:
+Type = void
+Value           Description
+-----           -----------
+
+
+HISTORY:
+Date        Programmer       Reason
+--------    ---------------  -------------------------------------
+2/3/2015   Song Guo         Original Development
+
+NOTES: We only handle odd number input N case as it will be 2 * conse + 1 
+       for CCDC run, if needed, we can add in even number case later
+******************************************************************************/
+void median_filter
+(
+    int16 **array,      /* I: input array */
+    int array_len,      /* I: number of elements in input array */
+    int n,              /* I: output order N, here is an odd number */
+    int16 *output_array/* O: output array */
+)
+{
+    int i, j;
+    int16 temp[n];
+    int m = n / 2;
+
+    for (i = 0; i < array_len; i++)
+    {
+        for (j = 0; j < n; j++)
+        {
+            if (((i + j - m) >= 0) && ((i + j - m) < array_len -1))
+                temp[j] = array[i + j - m][1];
+            else
+                temp[j] = 0;
+        }
+        quick_sort_int16(temp, 0, n - 1); 
+        output_array[i] = temp[m+1];
+    }
 }
 
 /******************************************************************************
@@ -691,51 +810,6 @@ void quick_sort_int (int arr[], int left, int right)
         quick_sort_int (arr, left, index - 1);
     if (index < right)
         quick_sort_int (arr, index, right);
-}
-
-/******************************************************************************
-MODULE:  median_filter
-
-PURPOSE:  simulate matlab medfilt1 function for odd number cases only
-
-RETURN VALUE:
-Type = void
-Value           Description
------           -----------
-
-
-HISTORY:
-Date        Programmer       Reason
---------    ---------------  -------------------------------------
-2/3/2015   Song Guo         Original Development
-
-NOTES: We only handle odd number input N case as it will be 2 * conse + 1 
-       for CCDC run, if needed, we can add in even number case later
-******************************************************************************/
-void median_filter
-(
-    int16 **array,      /* I: input array */
-    int array_len,      /* I: number of elements in input array */
-    int n,              /* I: output order N, here is an odd number */
-    int16 *output_array/* O: output array */
-)
-{
-    int i, j, b;
-    int16 temp[n];
-    int m = n / 2;
-
-    for (i = 0; i < array_len; i++)
-    {
-        for (j = 0; j < n; j++)
-        {
-            if (((i + j - m) >= 0) && ((i + j - m) < array_len -1))
-                temp[j] = array[i + j - m][1];
-            else
-                temp[j] = 0;
-        }
-        quick_sort_int(temp, 0, n - 1); 
-        output_array[i] = temp[m+1];
-    }
 }
 
 /******************************************************************************
@@ -910,9 +984,9 @@ void square_root_mean
     for (i = 0; i < array_len1; i++)
     {
         sum += ((array[i][dim2_number] - fit_ctf[0][dim2_number]) *
-            ((array[i][dim2_number] - fit_ctf[0][dim2_number]);
+                (array[i][dim2_number] - fit_ctf[0][dim2_number]));
     }
-                rmse_square = (float)sum / (float)array_len1;
+    rmse_square = (float)sum / (float)array_len1;
     *rmse = sqrt(rmse_square);
 }
 
@@ -1264,7 +1338,7 @@ NOTES:
 int auto_robust_fit
 (
     float **x,
-    int **clry,
+    int16 **clry,
     int nums,
     int iband,
     float *coefs
@@ -1273,6 +1347,7 @@ int auto_robust_fit
     char FUNC_NAME[] = "auto_robust_fit";
     int i;
     FILE *fd;
+    int status;
 
     /* Save the inputs for robust fitting */
     fd = fopen("robust_fit.txt", "w");
@@ -1280,8 +1355,8 @@ int auto_robust_fit
         RETURN_ERROR("ERROR opening temporary file", FUNC_NAME, FAILURE);
     for (i = 0; i < nums; i++)
     {
-        if (fprintf (fd, "%f,%f,%f,%f,%d", &x[0][i], &x[1][i],
-                 &x[2][i], &x[3][i], &clry[i][iband-1]) == EOF)
+        if (fprintf (fd, "%f,%f,%f,%f,%d", x[0][i], x[1][i],
+                 x[2][i], x[3][i], clry[i][iband-1]) == EOF)
         {
             RETURN_ERROR ("End of file (EOF) is met before nums"
                           " lines", FUNC_NAME, FAILURE);
@@ -1336,26 +1411,26 @@ int auto_mask
     float w, w2;
     float *coefs, *coefs2;
     int i;
-    float **x4;
+    float **x;
     int status;
     float *pred_b2, *pred_b5;
-    int num;
+    int nums;
 
-    num = end - start + 1;
+    nums = end - start + 1;
     /* Allocate memory */
-    x = (float *)allocate_2d_array(4, nums, sizeof(float));
+    x = (float **)allocate_2d_array(4, nums, sizeof(float));
     if (x == NULL)
         RETURN_ERROR("ERROR allocating x memory", FUNC_NAME, FAILURE);
-    coefs = (float *)malloc(5 * sizeof(floata));
+    coefs = (float *)malloc(5 * sizeof(float));
     if (coefs == NULL)
         RETURN_ERROR("ERROR allocating coefs memory", FUNC_NAME, FAILURE);
-    coefs2 = (float *)malloc(5 * sizeof(floata));
+    coefs2 = (float *)malloc(5 * sizeof(float));
     if (coefs2 == NULL)
         RETURN_ERROR("ERROR allocating coefs2 memory", FUNC_NAME, FAILURE);
-    pred_b2 = (float *)malloc(nums * sizeof(floata));
+    pred_b2 = (float *)malloc(nums * sizeof(float));
     if (pred_b2 == NULL)
         RETURN_ERROR("ERROR allocating pred_b2 memory", FUNC_NAME, FAILURE);
-    pred_b5 = (float *)malloc(nums * sizeof(floata));
+    pred_b5 = (float *)malloc(nums * sizeof(float));
     if (pred_b5 == NULL)
         RETURN_ERROR("ERROR allocating pred_b5 memory", FUNC_NAME, FAILURE);
 
@@ -1432,17 +1507,16 @@ void auto_ts_predict
     float *pred_y
 )
 {
-    char FUNC_NAME[] = "auto_ts_predict";
     float w, w2, w3;
     w = TWO_PI / 365.25;
     w2 = 2 * w;
     w3 = 3 * w;
 
-    *pred_y = coefs[0][iband-1] + coefs[1][iband-1] * clri[i] + coefs[2][iband-1] * 
-              cos(clrx[i] * w ) + coefs[3][iband-1] * sin(clrx[i] * w ) + 
-              coefs[4][iband-1] * cos(clrx[i] * w2 ) + coefs[5][iband-1] * 
-              sin(clrx[i] * w2) + coefs[6][iband-1] * cos(clrx[i] * w3 ) + 
-              coefs[7][iband-1] * sin(clrx[i] * w3);
+    *pred_y = coefs[0][iband-1] + coefs[1][iband-1] * clrx + coefs[2][iband-1] * 
+              cos(clrx * w ) + coefs[3][iband-1] * sin(clrx * w ) + 
+              coefs[4][iband-1] * cos(clrx * w2 ) + coefs[5][iband-1] * 
+              sin(clrx * w2) + coefs[6][iband-1] * cos(clrx * w3 ) + 
+              coefs[7][iband-1] * sin(clrx * w3);
 }
 
 /******************************************************************************
@@ -1480,11 +1554,13 @@ int auto_ts_fit
     int status;
     float *yhat;
     float v_dif_norm;
+    int nums;
+    FILE *fd;
 
     nums = end - start + 1;
     w = TWO_PI / 365.25;
     /* Allocate memory */
-    x = (float *)allocate_2d_array(8, nums, sizeof(float));
+    x = (float **)allocate_2d_array(8, nums, sizeof(float));
     if (x == NULL)
         RETURN_ERROR("ERROR allocating x memory", FUNC_NAME, FAILURE);
 
@@ -1521,7 +1597,7 @@ int auto_ts_fit
     {
         if (df == 2)
         {
-            if (fprintf (fd, "%f,%d", &x[0][i], &clry[i][iband-1]) == EOF)
+            if (fprintf (fd, "%f,%d", x[0][i], clry[i][iband-1]) == EOF)
             {
                 RETURN_ERROR ("End of file (EOF) is met before nums"
                               " lines", FUNC_NAME, FAILURE);
@@ -1541,8 +1617,8 @@ int auto_ts_fit
         }
         else if (df == 4)
         {
-            if (fprintf (fd, "%f,%f,%f,%d", &x[0][i], &x[1][i], &x[2][i], 
-                         &clry[i][iband-1]) == EOF)
+            if (fprintf (fd, "%f,%f,%f,%d", x[0][i], x[1][i], x[2][i], 
+                         clry[i][iband-1]) == EOF)
             {
                 RETURN_ERROR ("End of file (EOF) is met before nums"
                               " lines", FUNC_NAME, FAILURE);
@@ -1557,14 +1633,14 @@ int auto_ts_fit
             fd = fopen("robust_fit.txt", "r");
             if (fd == NULL)
                 RETURN_ERROR("ERROR opening temporary file", FUNC_NAME, FAILURE);
-            fscanf(fd, "%f,%f", &coefs[0][iband-1], &coefs[1][iband-1], 
+            fscanf(fd, "%f,%f,%f,%f", &coefs[0][iband-1], &coefs[1][iband-1], 
                    &coefs[2][iband-1], &coefs[3][iband-1]);
             fclose(fd);
         }
         else if (df == 6)
         {
-            if (fprintf (fd, "%f,%f,%f,%f,%f,%d", &x[0][i], &x[1][i], &x[2][i], 
-                         &x[3][i], &x[4][i], &clry[i][iband-1]) == EOF)
+            if (fprintf (fd, "%f,%f,%f,%f,%f,%d", x[0][i], x[1][i], x[2][i], 
+                         x[3][i], x[4][i], clry[i][iband-1]) == EOF)
             {
                 RETURN_ERROR ("End of file (EOF) is met before nums"
                               " lines", FUNC_NAME, FAILURE);
@@ -1579,16 +1655,16 @@ int auto_ts_fit
             fd = fopen("robust_fit.txt", "r");
             if (fd == NULL)
                 RETURN_ERROR("ERROR opening temporary file", FUNC_NAME, FAILURE);
-            fscanf(fd, "%f,%f", &coefs[0][iband-1], &coefs[1][iband-1], 
+            fscanf(fd, "%f,%f,%f,%f,%f,%f", &coefs[0][iband-1], &coefs[1][iband-1], 
                    &coefs[2][iband-1], &coefs[3][iband-1], 
                    &coefs[4][iband-1], &coefs[5][iband-1]);
             fclose(fd);
         }
         else if (df == 8)
         {
-            if (fprintf (fd, "%f,%f,%f,%f,%f,%d", &x[0][i], &x[1][i], &x[2][i], 
-                         &x[3][i], &x[4][i], &x[5][i], &x[6][i], 
-                         &clry[i][iband-1]) == EOF)
+            if (fprintf (fd, "%f,%f,%f,%f,%f,%f,%f,%d", x[0][i], x[1][i], x[2][i], 
+                         x[3][i], x[4][i], x[5][i], x[6][i],
+                         clry[i][iband-1]) == EOF)
             {
                 RETURN_ERROR ("End of file (EOF) is met before nums"
                               " lines", FUNC_NAME, FAILURE);
@@ -1603,7 +1679,7 @@ int auto_ts_fit
             fd = fopen("robust_fit.txt", "r");
             if (fd == NULL)
                 RETURN_ERROR("ERROR opening temporary file", FUNC_NAME, FAILURE);
-            fscanf(fd, "%f,%f", &coefs[0][iband-1], &coefs[1][iband-1], 
+            fscanf(fd, "%f,%f,%f,%f,%f,%f,%f,%f", &coefs[0][iband-1], &coefs[1][iband-1], 
                    &coefs[2][iband-1], &coefs[3][iband-1], &coefs[4][iband-1], 
                    &coefs[5][iband-1], &coefs[6][iband-1], &coefs[7][iband-1]);
             fclose(fd);
@@ -1616,8 +1692,8 @@ int auto_ts_fit
     /* predict lasso model results */
     for (i = 0; i < nums; i++)
     {
-        auto_ts_pred(clrx[i+start], coefs, yhat[i]);
-        v_dif[i] = clryclry[i][iband-1] - yhat[i];
+     auto_ts_predict(clrx[i+start], coefs, i, &yhat[i]);
+        v_dif[i] = clry[i][iband-1] - yhat[i];
     }
     matlab_norm(v_dif, nums, &v_dif_norm);
     *rmse = v_dif_norm / sqrt(nums - df);

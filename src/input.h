@@ -324,7 +324,7 @@ int auto_ts_fit
     float *v_dif
 );
 
-int auto_ts_predict
+void auto_ts_predict
 (
     int clrx,
     float **coefs,
