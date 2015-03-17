@@ -188,12 +188,9 @@ main (int argc, char *argv[])
     for (i = 0; i < num_scenes; i++)
     {
         if (fscanf(fd, "%s", scene_list[i]) == EOF)
-        {
-            RETURN_ERROR("Reading scene_list file", FUNC_NAME, FAILURE);
-            num_scenes = i;
             break;
-        }
     }
+    num_scenes = i;
 
     /* Allocate memory */
     sdate = malloc(num_scenes * sizeof(int));
@@ -454,13 +451,13 @@ main (int argc, char *argv[])
             rec_cg[num_fc].pos.row = row;
             /* record postion of the pixel */
             rec_cg[num_fc].pos.col = col;
-            for (i = 0; i < TOTAL_BANDS - 1; i++)
+            for (i_b = 0; i_b < TOTAL_BANDS - 1; i_b++)
             {
                 for (k = 0; k < update_num_c; k++)
                     /* record postion of the pixel */
-                    rec_cg[num_fc].coefs[i][k] = fit_cft[i][k]; 
+                    rec_cg[num_fc].coefs[i_b][k] = fit_cft[i_b][k]; 
                 /* record rmse of the pixel */
-                rec_cg[num_fc].rmse[i] = rmse[i]; 
+                rec_cg[num_fc].rmse[i_b] = rmse[i]; 
             }
             /* record change probability */            
             rec_cg[num_fc].change_prob = 0.0;
@@ -562,11 +559,11 @@ main (int argc, char *argv[])
             rec_cg[num_fc].pos.row = row; 
             /* record postion of the pixel */
             rec_cg[num_fc].pos.col = col; 
-            for (i = 0; i < TOTAL_BANDS - 1; i++)
+            for (i_b = 0; i_b < TOTAL_BANDS - 1; i_b++)
             {
                 for (k = 0; k < update_num_c; k++)
                     /* record fitted coefficients */
-                    rec_cg[num_fc].coefs[i][k] = fit_cft[i][k];
+                    rec_cg[num_fc].coefs[i_b][k] = fit_cft[i_b][k];
                 /* record rmse of the pixel */
                 rec_cg[num_fc].rmse[i] = rmse[i]; 
             }
@@ -713,12 +710,12 @@ main (int argc, char *argv[])
                 }
 
                 /* Allocate memory for ids, rm_ids */
-                ids = (int *)calloc(i-i_start, sizeof(int));
+                ids = (int *)calloc(i, sizeof(int));
                 if (ids == NULL)
                     RETURN_ERROR("ERROR allocating ids memory", 
                                   FUNC_NAME, FAILURE);
 
-                rm_ids = (int *)calloc(i-i_start, sizeof(int));
+                rm_ids = (int *)calloc(i-i_start+1, sizeof(int));
                 if (rm_ids == NULL)
                     RETURN_ERROR("ERROR allocating rm_ids memory", 
                                   FUNC_NAME, FAILURE);
@@ -730,7 +727,7 @@ main (int argc, char *argv[])
                     RETURN_ERROR("ERROR calling auto_mask routine", 
                                   FUNC_NAME, FAILURE);
   
-                for (k = i_start; k < i; k++)
+                for (k = i_start; k <= i; k++)
                     ids[k] = k;
                 m= 0;
                 for (k = 0; k < end-conse; k++)
@@ -1050,13 +1047,13 @@ main (int argc, char *argv[])
                                     rec_cg[num_fc].pos.row = row; 
                                     /* record fitted coefficients */
                                     rec_cg[num_fc].pos.col = col; 
-                                    for (i = 0; i < TOTAL_BANDS - 1; i++)
+                                    for (i_b = 0; i_b < TOTAL_BANDS - 1; i++)
                                     {
                                         for (k = 0; k < update_num_c; k++)
                                             /* record fitted coefficients */
-                                            rec_cg[num_fc].coefs[i][k] = fit_cft[i][k]; 
+                                            rec_cg[num_fc].coefs[i_b][k] = fit_cft[i_b][k]; 
                                         /* record rmse of the pixel */
-                                        rec_cg[num_fc].rmse[i] = rmse[i]; 
+                                        rec_cg[num_fc].rmse[i_b] = rmse[i_b]; 
                                     }
                                     /* record change probability */
                                     rec_cg[num_fc].change_prob = -(new_i_start-1)/conse; 
@@ -1064,11 +1061,11 @@ main (int argc, char *argv[])
                                     rec_cg[num_fc].num_obs = new_i_start-1; 
                                     /* record fit category */
                                     rec_cg[num_fc].category = v_qa + 1; /* record fit category */
-                                    for (i = 0; i < TOTAL_BANDS - 1; i++)
+                                    for (i_b = 0; i_b < TOTAL_BANDS - 1; i_b++)
                                     {
-                                        matlab_2d_array_mean(v_dif_mag, i, conse, &v_dif_mean);
+                                        matlab_2d_array_mean(v_dif_mag, i_b, conse, &v_dif_mean);
                                         /* record change magnitude */ 
-                                        rec_cg[num_fc].magnitude[i] = -v_dif_mean; 
+                                        rec_cg[num_fc].magnitude[i_b] = -v_dif_mean; 
                                     }
                                     /* NUM of Fitted Curves (num_fc) */
                                     num_fc++;
@@ -1426,6 +1423,7 @@ main (int argc, char *argv[])
             i++;
         }
 
+        end = num_scenes;
         /* Two ways for processing the end of the time series */ 
         if (bl_train == 1)
         {
@@ -1458,8 +1456,8 @@ main (int argc, char *argv[])
                 /* update time of the probable change */
                 rec_cg[num_fc].t_break = clrx[end-conse+id_last+1];
                 /* update magnitude of change */
-                for (i = 0; i < TOTAL_BANDS - 1; i++)
-                    matlab_2d_partial_mean(v_dif_mag, i, id_last, conse-1, 
+                for (i_b = 0; i_b < TOTAL_BANDS - 1; i_b++)
+                    matlab_2d_partial_mean(v_dif_mag, i_b, id_last, conse-1, 
                                          &rec_cg[num_fc].magnitude[i]);
 
                 /* median of the last < conse pixels */
@@ -1481,11 +1479,11 @@ main (int argc, char *argv[])
                 rec_cg[num_fc].pos.row = row;
                 rec_cg[num_fc].pos.col = col;
                 /* record fitted coefficients */
-                for (i = 0; i < TOTAL_BANDS - 1; i++)
+                for (i_b = 0; i_b < TOTAL_BANDS - 1; i_b++)
                 {
                     for (k = 0; k < update_num_c; k++)
-                        rec_cg[num_fc].coefs[i][k] = fit_cft[i][k];
-                    rec_cg[num_fc].rmse[i] = rmse[i];
+                        rec_cg[num_fc].coefs[i_b][k] = fit_cft[i_b][k];
+                    rec_cg[num_fc].rmse[i_b] = rmse[i_b];
                 }
                 /* record change probability */
                 rec_cg[num_fc].change_prob = 0.0;
@@ -1494,8 +1492,8 @@ main (int argc, char *argv[])
                 /* record fit category */
                 rec_cg[num_fc].category = v_qa + 1; /* mean value fit at the end */
                 /* record change magnitude */
-                for (i = 0; i < TOTAL_BANDS - 1; i++)
-                rec_cg[num_fc].magnitude[i] = 0.0; /* record change magnitude */
+                for (i_b = 0; i_b < TOTAL_BANDS - 1; i_b++)
+                rec_cg[num_fc].magnitude[i_b] = 0.0; /* record change magnitude */
                 num_fc++;   
             }
         }
@@ -1519,7 +1517,7 @@ main (int argc, char *argv[])
             }
 
             /* Allocate memory for ids, rm_ids */
-            ids = (int *)calloc(i+conse-1-i_start, sizeof(int));
+            ids = (int *)calloc(i+conse-1, sizeof(int));
             if (ids == NULL)
                 RETURN_ERROR("ERROR allocating ids memory", 
                               FUNC_NAME, FAILURE);
@@ -1529,7 +1527,7 @@ main (int argc, char *argv[])
                 RETURN_ERROR("ERROR allocating rm_ids memory", 
                               FUNC_NAME, FAILURE);
 
-            for (m = i_start; m < i + conse -1; m++)
+            for (m = i_start; m <= i + conse - 1; m++)
             {
                 ids[m] = m;
             }
@@ -1580,11 +1578,11 @@ main (int argc, char *argv[])
             rec_cg[num_fc].pos.row = row;
             rec_cg[num_fc].pos.col = col;
             /* record fitted coefficients */
-            for (i = 0; i < TOTAL_BANDS - 1; i++)
+            for (i_b = 0; i_b < TOTAL_BANDS - 1; i_b++)
             {
                 for (k = 0; k < update_num_c; k++)
-                    rec_cg[num_fc].coefs[i][k] = fit_cft[i][k];
-                rec_cg[num_fc].rmse[i] = rmse[i];
+                    rec_cg[num_fc].coefs[i_b][k] = fit_cft[i_b][k];
+                rec_cg[num_fc].rmse[i_b] = rmse[i_b];
             }
             /* record change probability */
             rec_cg[num_fc].change_prob = 0.0;
@@ -1593,8 +1591,8 @@ main (int argc, char *argv[])
             /* record fit category */
             rec_cg[num_fc].category = v_qa + min_num_c; /* simple model fit at the end */
             /* record change magnitude */
-            for (i = 0; i < TOTAL_BANDS - 1; i++)
-                rec_cg[num_fc].magnitude[i] = 0.0; /* record change magnitude */
+            for (i_b = 0; i_b < TOTAL_BANDS - 1; i_b++)
+                rec_cg[num_fc].magnitude[i_b] = 0.0; /* record change magnitude */
             num_fc++;   
         }
     }
@@ -1674,7 +1672,7 @@ usage ()
     printf ("usage: ccdc"
             " --row=input row number"
             " --col=input col number"
-            " --mini_rmse=input minimum rmse value"
+            " --min_rmse=input minimum rmse value"
             " --t_cg=chi-square inversed T_cg value" 
             " --t_max_cg=chi-square inversed T_max_cg for " 
                          "last step noise removal"
@@ -1685,7 +1683,7 @@ usage ()
     printf ("where the following parameters are required:\n");
     printf ("    -row: input row number\n");
     printf ("    --col=input col number\n");
-    printf ("    --mini_rmse=input minimum rmse value\n");
+    printf ("    --min_rmse=input minimum rmse value\n");
     printf ("    --t_cg=chi-square inversed T_cg value\n");
     printf ("    --t_max_cg=chi-square inversed T_max_cg for " 
                          "last step noise removal\n");
@@ -1700,7 +1698,7 @@ usage ()
     printf ("Example: ccdc"
             " --row=3845"
             " --col=2918"
-            " --mini_rmse=0.5"
+            " --min_rmse=0.5"
             " --t_cg=15.0863"
             " --t_max_cg=35.8882"
             " --conse=6"
