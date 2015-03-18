@@ -352,10 +352,10 @@ Date        Programmer       Reason
 
 NOTES:
 ******************************************************************************/
-int partition (int arr[], char *brr[], int left, int right)
+int partition (int arr[], char *brr[], int crr[], int left, int right)
 {
     int i = left, j = right;
-    int tmp;
+    int tmp, tmp2;
     char temp[MAX_STR_LEN];
     int pivot = arr[(left + right) / 2];
 
@@ -369,10 +369,13 @@ int partition (int arr[], char *brr[], int left, int right)
         {
             tmp = arr[i];
             strcpy(&temp[0], brr[i]);
+            tmp2 = crr[i];
             arr[i] = arr[j];
             strcpy(brr[i], brr[j]);
+            crr[i] = crr[j];
             arr[j] = tmp;
             strcpy(brr[j],&temp[0]);
+            crr[j] = tmp2;
             i++;
             j--;
         }
@@ -384,7 +387,7 @@ int partition (int arr[], char *brr[], int left, int right)
 /******************************************************************************
 MODULE:  quick_sort
 
-PURPOSE:  sort the scene_list based on yeardoy string
+PURPOSE:  sort the scene_list & sdate based on yeardoy string
 
 RETURN VALUE: None
 
@@ -395,14 +398,14 @@ Date        Programmer       Reason
 
 NOTES:
 ******************************************************************************/
-void quick_sort (int arr[], char *brr[], int left, int right)
+void quick_sort (int arr[], char *brr[], int crr[], int left, int right)
 {
-    int index = partition (arr, brr, left, right);
+ int index = partition (arr, brr, crr, left, right);
 
     if (left < index - 1)
-        quick_sort (arr, brr, left, index - 1);
+        quick_sort (arr, brr, crr, left, index - 1);
     if (index < right)
-        quick_sort (arr, brr, index, right);
+        quick_sort (arr, brr, crr, index, right);
 }
 
 /************************************************************************
@@ -582,8 +585,8 @@ int sort_scene_based_on_year_doy
         }
     }
 
-    /* Sort the scene_list based on yeardoy */
-    quick_sort(yeardoy, scene_list, 0, num_scenes - 1);
+    /* Sort the scene_list & sdate based on yeardoy */
+    quick_sort(yeardoy, scene_list, sdate, 0, num_scenes - 1);
 
     /* Free memory */
     free(yeardoy);
