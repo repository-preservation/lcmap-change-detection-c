@@ -315,21 +315,17 @@ main (int argc, char *argv[])
             if (k != TOTAL_BANDS-1)
             {
                 fseek(fp_bin[i][k], (row * meta->samples + col)*sizeof(short int), SEEK_SET);
-                if (read_raw_binary(fp_bin[i][k], meta->lines, meta->samples,
+                if (read_raw_binary(fp_bin[i][k], 1, 1,
                     sizeof(short int), &buf[i][k]) != 0)
                     printf("error reading %d scene, %d bands\n",i, k+1);
-                printf("scene_number,band_number,buf[i][k] = %d, %d, %d\n",
-                   i,k+1,buf[i][k]);
             }
             else
             {
                 fseek(fp_bin[i][k], (row * meta->samples + col)*sizeof(unsigned char), 
                     SEEK_SET);
-                if (read_raw_binary(fp_bin[i][k], meta->lines, meta->samples,
+                if (read_raw_binary(fp_bin[i][k], 1, 1,
                     sizeof(unsigned char), &fmask_buf[i]) != 0)
                     printf("error reading %d scene, %d bands\n",i, k+1);
-                printf("scene_number,band_number,buf[i][k] = %d, %d, %d\n",
-                       i,k+1,fmask_buf[i]);
             }
             close_raw_binary(fp_bin[i][k]);
         }
@@ -431,7 +427,7 @@ main (int argc, char *argv[])
             update_cft(i_span, n_times, min_num_c, mid_num_c, max_num_c, num_c,
                        &update_num_c);
 
-            for (k = 0; k < TOTAL_BANDS - 2; k++)
+            for (k = 0; k < TOTAL_BANDS - 1; k++)
             {
                  status = auto_ts_fit(clrx, clry, k, 0, end-1, update_num_c, fit_cft, 
                                   &rmse[k], &v_dif_temp); 
@@ -1353,7 +1349,7 @@ main (int argc, char *argv[])
                     for (i_b = 0; i_b < TOTAL_BANDS - 1; i_b++)
                     {
                         /* absolute difference for all bands */
-                        auto_ts_predict(clrx[i+conse],fit_cft, i_b, &ts_pred_temp);
+                        auto_ts_predict(clrx[i+conse], fit_cft, i_b, &ts_pred_temp);
                         v_dif_mag[conse][i_b] = clry[i+conse][i_b] - ts_pred_temp;
 
                         /* normalized to z-scores */

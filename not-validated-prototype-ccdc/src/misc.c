@@ -1589,7 +1589,7 @@ int auto_ts_fit
         }
     }
 
-    /* Save the inputs for robust fitting */
+    /* Save the inputs for lasso fitting */
     fd = fopen("glmnet_fit.txt", "w");
     if (fd == NULL)
         RETURN_ERROR("ERROR opening temporary file", FUNC_NAME, FAILURE);
@@ -1603,13 +1603,13 @@ int auto_ts_fit
                               " lines", FUNC_NAME, FAILURE);
             }
 
-            /* Call R script to do Robust fitting */
+            /* Call R script to do lasso fitting */
             status = system("R CMD BATCH glmnet_fit_fd2.r");
             if (status != SUCCESS)
                 RETURN_ERROR ("Running glmnet fit R scripts", FUNC_NAME, FAILURE);
 
-            /* Read out the robust fit coefficients */
-            fd = fopen("robust_fit.txt", "r");
+            /* Read out the lasso fit coefficients */
+            fd = fopen("glmnet_fit.txt", "r");
             if (fd == NULL)
                 RETURN_ERROR("ERROR opening temporary file", FUNC_NAME, FAILURE);
             fscanf(fd, "%f,%f", &coefs[0][iband-1], &coefs[1][iband-1]);
@@ -1624,13 +1624,13 @@ int auto_ts_fit
                               " lines", FUNC_NAME, FAILURE);
             }
 
-            /* Call R script to do Robust fitting */
+            /* Call R script to do lasso fitting */
             status = system("R CMD BATCH glmnet_fit_fd4.r");
             if (status != SUCCESS)
                 RETURN_ERROR ("Running glmnet fit R scripts", FUNC_NAME, FAILURE);
 
-            /* Read out the robust fit coefficients */
-            fd = fopen("robust_fit.txt", "r");
+            /* Read out the lasso fit coefficients */
+            fd = fopen("glmnet_fit.txt", "r");
             if (fd == NULL)
                 RETURN_ERROR("ERROR opening temporary file", FUNC_NAME, FAILURE);
             fscanf(fd, "%f,%f,%f,%f", &coefs[0][iband-1], &coefs[1][iband-1], 
@@ -1646,13 +1646,13 @@ int auto_ts_fit
                               " lines", FUNC_NAME, FAILURE);
             }
 
-            /* Call R script to do Robust fitting */
+            /* Call R script to do lasso fitting */
             status = system("R CMD BATCH glmnet_fit_fd6.r");
             if (status != SUCCESS)
                 RETURN_ERROR ("Running glmnet fit R scripts", FUNC_NAME, FAILURE);
 
-            /* Read out the robust fit coefficients */
-            fd = fopen("robust_fit.txt", "r");
+            /* Read out the lasso fit coefficients */
+            fd = fopen("glmnet_fit.txt", "r");
             if (fd == NULL)
                 RETURN_ERROR("ERROR opening temporary file", FUNC_NAME, FAILURE);
             fscanf(fd, "%f,%f,%f,%f,%f,%f", &coefs[0][iband-1], &coefs[1][iband-1], 
@@ -1670,13 +1670,13 @@ int auto_ts_fit
                               " lines", FUNC_NAME, FAILURE);
             }
 
-            /* Call R script to do Robust fitting */
+            /* Call R script to do lasso fitting */
             status = system("R CMD BATCH glmnet_fit_fd8.r");
             if (status != SUCCESS)
                 RETURN_ERROR ("Running glmnet fit R scripts", FUNC_NAME, FAILURE);
 
-            /* Read out the robust fit coefficients */
-            fd = fopen("robust_fit.txt", "r");
+            /* Read out the lasso fit coefficients */
+            fd = fopen("glmnet_fit.txt", "r");
             if (fd == NULL)
                 RETURN_ERROR("ERROR opening temporary file", FUNC_NAME, FAILURE);
             fscanf(fd, "%f,%f,%f,%f,%f,%f,%f,%f", &coefs[0][iband-1], &coefs[1][iband-1], 
