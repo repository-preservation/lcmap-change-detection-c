@@ -205,6 +205,10 @@ main (int argc, char *argv[])
     if (id_range == NULL)
         RETURN_ERROR("ERROR allocating id_range memory", FUNC_NAME, FAILURE);
 
+    ids = (int *)calloc(num_scenes, sizeof(int));
+    if (ids == NULL)
+        RETURN_ERROR("ERROR allocating ids_old memory", FUNC_NAME, FAILURE);
+
     ids_old = (int *)calloc(num_scenes, sizeof(int));
     if (ids_old == NULL)
         RETURN_ERROR("ERROR allocating ids_old memory", FUNC_NAME, FAILURE);
@@ -260,7 +264,7 @@ main (int argc, char *argv[])
     status = read_envi_header(scene_list[0], meta);
     if (status != SUCCESS)
     {
-        RETURN_ERROR ("Calling sort_scene_based_on_year_jday", 
+        RETURN_ERROR ("Calling read_envi_header", 
                       FUNC_NAME, EXIT_FAILURE);
     }
 
@@ -343,8 +347,8 @@ main (int argc, char *argv[])
     }
     else
     {
-        printf("Clear-sky pixel percentage = %f7.2\n", 
-            (float)(fmask_sum / num_scenes));
+        printf("Clear-sky pixel percentage = %f\n", 
+               (float)fmask_sum / (float)num_scenes);
     }
 
     /* pixel value ranges should follow physical rules */
@@ -705,12 +709,7 @@ main (int argc, char *argv[])
                     bl_tmask = 1;
                 }
 
-                /* Allocate memory for ids, rm_ids */
-                ids = (int *)calloc(i, sizeof(int));
-                if (ids == NULL)
-                    RETURN_ERROR("ERROR allocating ids memory", 
-                                  FUNC_NAME, FAILURE);
-
+                /* Allocate memory for rm_ids */
                 rm_ids = (int *)calloc(i-i_start+1, sizeof(int));
                 if (rm_ids == NULL)
                     RETURN_ERROR("ERROR allocating rm_ids memory", 
@@ -882,7 +881,6 @@ main (int argc, char *argv[])
                         v_dif_norm *= v_dif_norm; 
 
                         /* free allocated memories */
-                        free(ids);
                         free(rm_ids);
                         free(v_start); 
                         free(v_end);
@@ -1548,9 +1546,9 @@ main (int argc, char *argv[])
             {
                 for (k = rm_ids[m]; k < end - 1; k++)
                 {
-                    cpx[k] = cpx[k+1];
+                    clrx[k] = clrx[k+1];
                     for (b = 0; b < TOTAL_BANDS - 1; b++)
-                        cpy[k][b] = cpy[k][b];
+                        clry[k][b] = clry[k][b];
                 }
                 end--;
             }
@@ -1589,7 +1587,10 @@ main (int argc, char *argv[])
             /* record change magnitude */
             for (i_b = 0; i_b < TOTAL_BANDS - 1; i_b++)
                 rec_cg[num_fc].magnitude[i_b] = 0.0; /* record change magnitude */
-            num_fc++;   
+            num_fc++;
+
+            /* free rm_ids memory */
+            free(rm_ids);   
         }
     }
 
@@ -1597,6 +1598,8 @@ main (int argc, char *argv[])
     free(sdate);
     free(clrx);
     free(rmse);
+    free(ids);
+    free(ids_old);
     free(bl_ids);
     free(clr_ids);
     free(vec_mag);
