@@ -1353,7 +1353,7 @@ int auto_robust_fit
     int status;
 
     /* Save the inputs for robust fitting */
-    fd = fopen("robust_fit.txt", "w");
+    fd = fopen("robust_fit_inputs.txt", "w");
     if (fd == NULL)
         RETURN_ERROR("ERROR opening temporary file", FUNC_NAME, FAILURE);
     for (i = 0; i < nums; i++)
@@ -1373,7 +1373,7 @@ int auto_robust_fit
         RETURN_ERROR ("Running robust fit R scripts", FUNC_NAME, FAILURE);
 
     /* Read out the robust fit coefficients */
-    fd = fopen("robust_fit.txt", "r");
+    fd = fopen("robust_fit_outputs.txt", "r");
     if (fd == NULL)
         RETURN_ERROR("ERROR opening temporary file", FUNC_NAME, FAILURE);
     fscanf(fd, "%f,%f,%f,%f,%f", &coefs[0], &coefs[1],
@@ -1480,9 +1480,12 @@ int auto_mask
         RETURN_ERROR ("Freeing memory: x\n", FUNC_NAME, FAILURE);
 
     /* Remove the temporary file */
-    status = system("rm robust_fit.txt");
+    status = system("rm robust_fit_inputs.txt");
     if (status != SUCCESS)
-        RETURN_ERROR ("Deleting robust_fit.txt file", FUNC_NAME, FAILURE);
+        RETURN_ERROR ("Deleting robust_fit_inputs.txt file", FUNC_NAME, FAILURE);
+    status = system("rm robust_fit_outputs.txt");
+    if (status != SUCCESS)
+        RETURN_ERROR ("Deleting robust_fit_outputs.txt file", FUNC_NAME, FAILURE);
 
     return SUCCESS;
 }
@@ -1558,7 +1561,7 @@ int auto_ts_fit
     float *yhat;
     float v_dif_norm;
     int nums;
-    FILE *fd;
+    FILE *fd, *fd2;
 
     nums = end - start + 1;
     w = TWO_PI / 365.25;
@@ -1593,9 +1596,12 @@ int auto_ts_fit
     }
 
     /* Save the inputs for lasso fitting */
-    fd = fopen("glmnet_fit.txt", "w");
+    fd = fopen("glmnet_fit_inputs.txt", "w");
     if (fd == NULL)
-        RETURN_ERROR("ERROR opening temporary file", FUNC_NAME, FAILURE);
+        RETURN_ERROR("ERROR opening temporary file1", FUNC_NAME, FAILURE);
+    fd2 = fopen("glmnet_fit_outputs.txt", "w");
+    if (fd == NULL)
+        RETURN_ERROR("ERROR opening temporary file2", FUNC_NAME, FAILURE);
     for (i = 0; i < nums; i++)
     {
         if (df == 2)
@@ -1633,12 +1639,8 @@ int auto_ts_fit
                 RETURN_ERROR ("Running glmnet fit R scripts", FUNC_NAME, FAILURE);
 
             /* Read out the lasso fit coefficients */
-            fd = fopen("glmnet_fit.txt", "r");
-            if (fd == NULL)
-                RETURN_ERROR("ERROR opening temporary file", FUNC_NAME, FAILURE);
-            fscanf(fd, "%f,%f,%f,%f", &coefs[0][iband-1], &coefs[1][iband-1], 
+            fscanf(fd2, "%f,%f,%f,%f", &coefs[0][iband-1], &coefs[1][iband-1], 
                    &coefs[2][iband-1], &coefs[3][iband-1]);
-            fclose(fd);
         }
         else if (df == 6)
         {
@@ -1655,13 +1657,9 @@ int auto_ts_fit
                 RETURN_ERROR ("Running glmnet fit R scripts", FUNC_NAME, FAILURE);
 
             /* Read out the lasso fit coefficients */
-            fd = fopen("glmnet_fit.txt", "r");
-            if (fd == NULL)
-                RETURN_ERROR("ERROR opening temporary file", FUNC_NAME, FAILURE);
             fscanf(fd, "%f,%f,%f,%f,%f,%f", &coefs[0][iband-1], &coefs[1][iband-1], 
                    &coefs[2][iband-1], &coefs[3][iband-1], 
                    &coefs[4][iband-1], &coefs[5][iband-1]);
-            fclose(fd);
         }
         else if (df == 8)
         {
@@ -1679,23 +1677,20 @@ int auto_ts_fit
                 RETURN_ERROR ("Running glmnet fit R scripts", FUNC_NAME, FAILURE);
 
             /* Read out the lasso fit coefficients */
-            fd = fopen("glmnet_fit.txt", "r");
-            if (fd == NULL)
-                RETURN_ERROR("ERROR opening temporary file", FUNC_NAME, FAILURE);
             fscanf(fd, "%f,%f,%f,%f,%f,%f,%f,%f", &coefs[0][iband-1], &coefs[1][iband-1], 
                    &coefs[2][iband-1], &coefs[3][iband-1], &coefs[4][iband-1], 
                    &coefs[5][iband-1], &coefs[6][iband-1], &coefs[7][iband-1]);
-            fclose(fd);
         }
         else
             RETURN_ERROR("Incorrect df value", FUNC_NAME, FAILURE);
     }
     fclose(fd);
+    fclose(fd2);
 
     /* predict lasso model results */
     for (i = 0; i < nums; i++)
     {
-     auto_ts_predict(clrx[i+start], coefs, i, &yhat[i]);
+        auto_ts_predict(clrx[i+start], coefs, i, &yhat[i]);
         v_dif[i] = clry[i][iband-1] - yhat[i];
     }
     matlab_norm(v_dif, nums, &v_dif_norm);
@@ -1707,9 +1702,12 @@ int auto_ts_fit
         RETURN_ERROR ("Freeing memory: x\n", FUNC_NAME, FAILURE);
 
     /* Remove the temporary file */
-    status = system("rm glmnet_fit.txt");
+    status = system("rm glmnet_fit_inputs.txt");
     if (status != SUCCESS)
-        RETURN_ERROR ("Deleting robust_fit.txt file", FUNC_NAME, FAILURE);
+        RETURN_ERROR ("Deleting robust_fit_inputs.txt file", FUNC_NAME, FAILURE);
+    status = system("rm glmnet_fit_outputs.txt");
+    if (status != SUCCESS)
+        RETURN_ERROR ("Deleting robust_fit_outputs.txt file", FUNC_NAME, FAILURE);
 
     return SUCCESS;
 }
