@@ -207,7 +207,7 @@ main (int argc, char *argv[])
 
     ids = (int *)calloc(num_scenes, sizeof(int));
     if (ids == NULL)
-        RETURN_ERROR("ERROR allocating ids_old memory", FUNC_NAME, FAILURE);
+        RETURN_ERROR("ERROR allocating ids memory", FUNC_NAME, FAILURE);
 
     ids_old = (int *)calloc(num_scenes, sizeof(int));
     if (ids_old == NULL)
@@ -216,6 +216,10 @@ main (int argc, char *argv[])
     bl_ids = (int *)calloc(num_scenes, sizeof(int));
     if (bl_ids == NULL)
         RETURN_ERROR("ERROR allocating bl_ids memory", FUNC_NAME, FAILURE);
+
+    rm_ids = (int *)calloc(num_scenes, sizeof(int));
+    if (rm_ids == NULL)
+        RETURN_ERROR("ERROR allocating rm_ids memory", FUNC_NAME, FAILURE);
 
     clr_ids = (int *)calloc(num_scenes, sizeof(int));
     if (clr_ids == NULL)
@@ -709,12 +713,6 @@ main (int argc, char *argv[])
                     bl_tmask = 1;
                 }
 
-                /* Allocate memory for rm_ids */
-                rm_ids = (int *)calloc(i-i_start+1, sizeof(int));
-                if (rm_ids == NULL)
-                    RETURN_ERROR("ERROR allocating rm_ids memory", 
-                                  FUNC_NAME, FAILURE);
-
                 /* step 1: noise removal */ 
                 status = auto_mask(clrx, clry, i_start, i+conse,
                                    (clrx[i+conse]-clrx[i_start])/num_yrs, t_const, bl_ids);
@@ -881,7 +879,6 @@ main (int argc, char *argv[])
                         v_dif_norm *= v_dif_norm; 
 
                         /* free allocated memories */
-                        free(rm_ids);
                         free(v_start); 
                         free(v_end);
                         free(v_slope); 
@@ -1510,17 +1507,6 @@ main (int argc, char *argv[])
                     i_span++;
             }
 
-            /* Allocate memory for ids, rm_ids */
-            ids = (int *)calloc(i+conse-1, sizeof(int));
-            if (ids == NULL)
-                RETURN_ERROR("ERROR allocating ids memory", 
-                              FUNC_NAME, FAILURE);
-
-            rm_ids = (int *)calloc(i+conse-1-i_start, sizeof(int));
-            if (rm_ids == NULL)
-                RETURN_ERROR("ERROR allocating rm_ids memory", 
-                              FUNC_NAME, FAILURE);
-
             for (m = i_start; m <= i + conse - 1; m++)
             {
                 ids[m] = m;
@@ -1588,9 +1574,6 @@ main (int argc, char *argv[])
             for (i_b = 0; i_b < TOTAL_BANDS - 1; i_b++)
                 rec_cg[num_fc].magnitude[i_b] = 0.0; /* record change magnitude */
             num_fc++;
-
-            /* free rm_ids memory */
-            free(rm_ids);   
         }
     }
 
@@ -1601,6 +1584,7 @@ main (int argc, char *argv[])
     free(ids);
     free(ids_old);
     free(bl_ids);
+    free(rm_ids);
     free(clr_ids);
     free(vec_mag);
     status = free_2d_array ((void **) scene_list);
