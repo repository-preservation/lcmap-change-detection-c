@@ -1444,9 +1444,9 @@ int auto_mask
     for (i = 0; i < nums; i++)
     {
         x[0][i] = cos(w * (float)clrx[i+start]);
-        x[1][i] = cos(w * (float)clrx[i+start]);
+        x[1][i] = sin(w * (float)clrx[i+start]);
         x[2][i] = cos(w2 * (float)clrx[i+start]);
-        x[3][i] = cos(w2 * (float)clrx[i+start]);
+        x[3][i] = sin(w2 * (float)clrx[i+start]);
     }
 
     /* Do robust fitting for band 2 */
@@ -1578,17 +1578,17 @@ int auto_ts_fit
         if (df >= 4)
         {
             x[1][i] = cos(w * (float)clrx[i+start]);
-            x[2][i] = cos(w * (float)clrx[i+start]);
+            x[2][i] = sin(w * (float)clrx[i+start]);
         }
         if (df >= 6)
         {
             x[3][i] = cos(2 * w * (float)clrx[i+start]);
-            x[4][i] = cos(2 * w * (float)clrx[i+start]);
+            x[4][i] = sin(2 * w * (float)clrx[i+start]);
         }
         if (df >= 8)
         {
             x[5][i] = cos(3 * w * (float)clrx[i+start]);
-            x[6][i] = cos(3 * w * (float)clrx[i+start]);
+            x[6][i] = sin(3 * w * (float)clrx[i+start]);
         }
     }
 
