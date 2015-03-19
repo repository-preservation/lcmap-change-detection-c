@@ -1368,7 +1368,7 @@ int auto_robust_fit
     fclose(fd);
 
     /* Call R script to do Robust fitting */
-    status = system("R CMD BATCH robust_fit_read.r");
+    status = system("R CMD BATCH robust_fit.r");
     if (status != SUCCESS)
         RETURN_ERROR ("Running robust fit R scripts", FUNC_NAME, FAILURE);
 
@@ -1607,7 +1607,7 @@ int auto_ts_fit
             }
 
             /* Call R script to do lasso fitting */
-            status = system("R CMD BATCH glmnet_fit_fd2.r");
+            status = system("R CMD BATCH glmnet_fit_df2.r");
             if (status != SUCCESS)
                 RETURN_ERROR ("Running glmnet fit R scripts", FUNC_NAME, FAILURE);
 
@@ -1628,7 +1628,7 @@ int auto_ts_fit
             }
 
             /* Call R script to do lasso fitting */
-            status = system("R CMD BATCH glmnet_fit_fd4.r");
+            status = system("R CMD BATCH glmnet_fit_df4.r");
             if (status != SUCCESS)
                 RETURN_ERROR ("Running glmnet fit R scripts", FUNC_NAME, FAILURE);
 
@@ -1650,7 +1650,7 @@ int auto_ts_fit
             }
 
             /* Call R script to do lasso fitting */
-            status = system("R CMD BATCH glmnet_fit_fd6.r");
+            status = system("R CMD BATCH glmnet_fit_df6.r");
             if (status != SUCCESS)
                 RETURN_ERROR ("Running glmnet fit R scripts", FUNC_NAME, FAILURE);
 
@@ -1674,7 +1674,7 @@ int auto_ts_fit
             }
 
             /* Call R script to do lasso fitting */
-            status = system("R CMD BATCH glmnet_fit_fd8.r");
+            status = system("R CMD BATCH glmnet_fit_df8.r");
             if (status != SUCCESS)
                 RETURN_ERROR ("Running glmnet fit R scripts", FUNC_NAME, FAILURE);
 
