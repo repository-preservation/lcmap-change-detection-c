@@ -715,7 +715,8 @@ main (int argc, char *argv[])
 
                 /* step 1: noise removal */ 
                 status = auto_mask(clrx, clry, i_start, i+conse,
-                                   (clrx[i+conse]-clrx[i_start])/num_yrs, t_const, bl_ids);
+                                   (float)(clrx[i+conse]-clrx[i_start])/num_yrs, 
+                                   t_const, bl_ids);
                 if (status != SUCCESS)
                     RETURN_ERROR("ERROR calling auto_mask routine", 
                                   FUNC_NAME, FAILURE);
