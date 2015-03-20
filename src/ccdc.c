@@ -843,8 +843,8 @@ main (int argc, char *argv[])
                         for (b = 0; b < num_detect; b++)
                         { 
                             /* Initial model fit */
-                            status = auto_ts_fit(clrx, clry, k, i_start, i, min_num_c, fit_cft, 
-                                     &rmse[k], &v_dif[k]); 
+                            status = auto_ts_fit(clrx, clry, b, i_start, i, min_num_c, fit_cft, 
+                                     &rmse[b], &v_dif[b]); 
                             if (status != SUCCESS)  
                                 RETURN_ERROR ("Calling auto_ts_fit4\n", 
                                      FUNC_NAME, EXIT_FAILURE);
