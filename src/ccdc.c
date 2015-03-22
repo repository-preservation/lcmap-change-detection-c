@@ -135,7 +135,7 @@ main (int argc, char *argv[])
     FILE *fp_bin_out;
     int *id_csc;
     float min_rmse;
-    int *ids_old_len;
+    int ids_old_len;
     int *d_yr_idx;
 
     time_t now;
@@ -779,7 +779,7 @@ main (int argc, char *argv[])
                         {
                             cpx[k] = cpx[k+1];
                             for (b = 0; b < TOTAL_BANDS - 1; b++)
-                                cpy[k][b] = cpy[k][b];
+                                cpy[k][b] = cpy[k+1][b];
                         }
                         end--;
                     }
@@ -1263,12 +1263,12 @@ main (int argc, char *argv[])
                     /* record time of curve end */
                     rec_cg[num_fc].t_end = clrx[i]; /* record time of curve end */
 
-                    ids_old_len = get_ids_length(ids_old, k);
+                    get_ids_length(ids_old, k, &ids_old_len);
                     /* use temporally-adjusted RMSE */
-                    if (*ids_old_len <= n_times * max_num_c)
+                    if (ids_old_len <= n_times * max_num_c)
                     {
                         /* number of observations for calculating RMSE */
-                        n_rmse = *ids_old_len;
+                        n_rmse = ids_old_len;
                         for (b = 0; b < TOTAL_BANDS-1; b++)
                             tmpcg_rmse[b] = rmse[b];
                     }
@@ -1279,21 +1279,21 @@ main (int argc, char *argv[])
 
                         /* better days counting for RMSE calculating */
                         /* relative days distance */
-                        d_yr = malloc(*ids_old_len * sizeof(float));
+                        d_yr = malloc(ids_old_len * sizeof(float));
                         if (d_yr == NULL)
                             RETURN_ERROR ("Allocating d_yr memory", 
                                           FUNC_NAME, FAILURE);
-                        d_yr_idx = malloc(*ids_old_len * sizeof(int));
+                        d_yr_idx = malloc(ids_old_len * sizeof(int));
                         if (d_yr == NULL)
                             RETURN_ERROR ("Allocating d_yr_idx memory", 
                                           FUNC_NAME, FAILURE);
-                        rec_v_dif_temp = (float **)allocate_2d_array(*ids_old_len,  
+                        rec_v_dif_temp = (float **)allocate_2d_array(ids_old_len,  
                                           TOTAL_BANDS - 1, sizeof(float));
                         if (rec_v_dif_temp == NULL)
                             RETURN_ERROR ("Allocating rec_v_dif_temp memory", 
                                           FUNC_NAME, FAILURE);
  
-                        for(m = 0; m < *ids_old_len; m++)
+                        for(m = 0; m < ids_old_len; m++)
                         {
                             d_rt = clrx[m] - clrx[i+conse]; 
                             d_yr[m] = fabs(round((float)(d_rt/num_yrs)*num_yrs - d_rt));
@@ -1301,9 +1301,9 @@ main (int argc, char *argv[])
                         }
 
                         /* sort the d_yr */
-                        quick_sort_index(d_yr, d_yr_idx, 0, *ids_old_len-1);
+                        quick_sort_index(d_yr, d_yr_idx, 0, ids_old_len-1);
 
-                        for(m = 0; m < *ids_old_len; m++)
+                        for(m = 0; m < ids_old_len; m++)
                         {
                             for (b = 0; b < TOTAL_BANDS - 1; b++)
                             {
@@ -1314,7 +1314,7 @@ main (int argc, char *argv[])
                         /* temporarily changing RMSE */
                         for (b = 0; b < TOTAL_BANDS-1; b++)
                         {
-                            matlab_2d_array_norm(rec_v_dif_temp, b, *ids_old_len, 
+                            matlab_2d_array_norm(rec_v_dif_temp, b, ids_old_len, 
                                                  &tmpcg_rmse[b]);
                             tmpcg_rmse[b] /= sqrt(n_rmse - update_num_c);  
                         }
@@ -1491,11 +1491,14 @@ main (int argc, char *argv[])
         }
         else if (bl_train == 0)
         {
+            get_array_length(clrx, num_scenes, &end);
+            printf("end=%d\n",end);
             /* if break find close to the end of the time series 
                Use [conse,min_num_c*n_times+conse) to fit curve */
             /* multitemporal cloud mask */
             status = auto_mask(clrx, clry, i_start, end,
-                               (clrx[end]-clrx[i_start])/num_yrs, t_const, bl_ids);
+                               (clrx[end]-clrx[i_start])/num_yrs, 
+                                t_const, bl_ids);
             if (status != SUCCESS)
                 RETURN_ERROR("ERROR calling auto_mask routine", 
                                   FUNC_NAME, FAILURE);
@@ -1535,7 +1538,7 @@ main (int argc, char *argv[])
                 {
                     clrx[k] = clrx[k+1];
                     for (b = 0; b < TOTAL_BANDS - 1; b++)
-                        clry[k][b] = clry[k][b];
+                        clry[k][b] = clry[k+1][b];
                 }
                 end--;
             }
