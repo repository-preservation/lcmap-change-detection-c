@@ -1,4 +1,3 @@
-
 #include <string.h>
 #include <stdarg.h>
 #include <math.h>
@@ -1234,10 +1233,11 @@ Date        Programmer       Reason
 
 NOTES: 
 ******************************************************************************/
-int *get_ids_length
+void get_ids_length
 (
     int *id_array,        /* I: input array */
-    int array_len         /* I: number of input elements in 1st dim */
+    int array_len,        /* I: number of input elements in 1st dim */
+    int *id_len           /* O: number of non-zero number in the array */
 )
 {
     int i;
@@ -1248,7 +1248,44 @@ int *get_ids_length
         sum += id_array[i];
     }
 
-    return &sum;
+    *id_len = sum;
+}
+
+/******************************************************************************
+MODULE:  get_array_length
+
+PURPOSE:  get total number of non-zero elements of an array
+
+RETURN VALUE:
+Type = int *
+Value           Description
+-----           -----------
+total number of non-zero elements
+
+HISTORY:
+Date        Programmer       Reason
+--------    ---------------  -------------------------------------
+2/11/2015   Song Guo         Original Development
+
+NOTES: 
+******************************************************************************/
+void get_array_length
+(
+    int *array,           /* I: input array */
+    int array_len,        /* I: number of input elements in 1st dim */
+    int *id_len           /* O: number of non-zero number in the array */
+)
+{
+    int i;
+    static int sum = 0;
+
+    for (i = 0; i < array_len; i++)
+    {
+        if (array[i] != 0)
+           sum ++;
+    }
+
+    *id_len = sum;
 }
 
 /******************************************************************************
@@ -1621,11 +1658,7 @@ int auto_ts_fit
             RETURN_ERROR ("Running glmnet fit R scripts", FUNC_NAME, FAILURE);
 
         /* Read out the lasso fit coefficients */
-        fd = fopen("glmnet_fit.txt", "r");
-        if (fd == NULL)
-            RETURN_ERROR("ERROR opening temporary file", FUNC_NAME, FAILURE);
-        fscanf(fd, "%f %f", &coefs[0][iband], &coefs[1][iband]);
-        fclose(fd);
+        fscanf(fd2, "%f %f", &coefs[0][iband], &coefs[1][iband]);
     }
     else if (df == 4)
     {
@@ -1667,7 +1700,7 @@ int auto_ts_fit
             RETURN_ERROR ("Running glmnet fit R scripts", FUNC_NAME, FAILURE);
 
         /* Read out the lasso fit coefficients */
-        fscanf(fd, "%f %f %f %f %f %f", &coefs[0][iband], &coefs[1][iband], 
+        fscanf(fd2, "%f %f %f %f %f %f", &coefs[0][iband], &coefs[1][iband], 
                &coefs[2][iband], &coefs[3][iband], 
                &coefs[4][iband], &coefs[5][iband]);
     }
@@ -1690,7 +1723,7 @@ int auto_ts_fit
             RETURN_ERROR ("Running glmnet fit R scripts", FUNC_NAME, FAILURE);
 
         /* Read out the lasso fit coefficients */
-        fscanf(fd, "%f %f %f %f %f %f %f %f", &coefs[0][iband], &coefs[1][iband], 
+        fscanf(fd2, "%f %f %f %f %f %f %f %f", &coefs[0][iband], &coefs[1][iband], 
                &coefs[2][iband], &coefs[3][iband], &coefs[4][iband], 
                &coefs[5][iband], &coefs[6][iband], &coefs[7][iband]);
     }

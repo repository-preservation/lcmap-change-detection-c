@@ -292,10 +292,18 @@ void matlab_2d_array_norm
     float  *output_norm  /* O: output norm value */
 );
 
-int *get_ids_length
+void get_ids_length
 (
     int *id_array,        /* I: input array */
-    int array_len         /* I: number of input elements in 1st dim */
+    int array_len,        /* I: number of input elements in 1st dim */
+    int *id_len           /* O: number of non-zero number in the array */
+);
+
+void get_array_length
+(
+    int *array,           /* I: input array */
+    int array_len,        /* I: number of input elements in 1st dim */
+    int *id_len           /* O: number of non-zero number in the array */
 );
 
 void quick_sort_index (float arr[], int idx[], int left, int right);
