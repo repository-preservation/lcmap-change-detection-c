@@ -1621,6 +1621,29 @@ main (int argc, char *argv[])
     fwrite(rec_cg, sizeof(Output_t), 1, fp_bin_out);
     fclose(fp_bin_out);   
 
+    if (verbose)
+    {
+        for (i = 0; i < num_fc; i++)
+        {
+            printf("i=%d\n",i);
+            printf("rec_cg[i].t_start=%d\n",rec_cg[i].t_start);
+            printf("rec_cg[i].t_end=%d\n",rec_cg[i].t_end);
+            printf("rec_cg[i].t_start=%d\n",rec_cg[i].t_start);
+            printf("rec_cg[i].pos.row=%d\n",rec_cg[i].pos.row);
+            printf("rec_cg[i].pos.col=%d\n",rec_cg[i].pos.col);
+            printf("rec_cg[i].num_obs=%d\n",rec_cg[i].num_obs);
+            printf("rec_cg[i].category=%d\n",rec_cg[i].category);
+            for (i_b = 0; i_b < TOTAL_BANDS - 1; i_b++)
+            {
+                for (k = 0; k < update_num_c; k++)
+                    printf("i_b,k,rec_cg[i].coefs[i_b][k] = %d,%d,%f\n", 
+                         i_b,k,rec_cg[i].coefs[i_b][k]); 
+                printf("rec_cg[i].rmse[i_b] = %f\n",rec_cg[i].rmse[i_b]);
+                printf("rec_cg[i].magnitude[i_b]=%f\n",rec_cg[i].magnitude[i_b]); 
+            }
+        }
+    }
+
     /* Free rec_cg memory*/
     free(rec_cg);
 

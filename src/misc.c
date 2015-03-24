@@ -1654,7 +1654,7 @@ int auto_ts_fit
 
         /* Call R script to do lasso fitting */
         status = system("R CMD BATCH glmnet_fit_df2.r");
-        if (status != SUCCESS)
+        if (status == ERROR)
             RETURN_ERROR ("Running glmnet fit R scripts", FUNC_NAME, FAILURE);
 
         /* Read out the lasso fit coefficients */
@@ -1674,8 +1674,9 @@ int auto_ts_fit
 
         /* Call R script to do lasso fitting */
         status = system("R CMD BATCH glmnet_fit_df4.r");
-        if (status != SUCCESS)
+        if (status == ERROR)
             RETURN_ERROR ("Running glmnet fit R scripts", FUNC_NAME, FAILURE);
+
 
         /* Read out the lasso fit coefficients */
         fscanf(fd2, "%f %f %f %f", &coefs[0][iband], &coefs[1][iband], 
@@ -1696,7 +1697,7 @@ int auto_ts_fit
 
         /* Call R script to do lasso fitting */
         status = system("R CMD BATCH glmnet_fit_df6.r");
-        if (status != SUCCESS)
+        if (status == ERROR)
             RETURN_ERROR ("Running glmnet fit R scripts", FUNC_NAME, FAILURE);
 
         /* Read out the lasso fit coefficients */
@@ -1719,7 +1720,7 @@ int auto_ts_fit
 
         /* Call R script to do lasso fitting */
         status = system("R CMD BATCH glmnet_fit_df8.r");
-        if (status != SUCCESS)
+        if (status == ERROR)
             RETURN_ERROR ("Running glmnet fit R scripts", FUNC_NAME, FAILURE);
 
         /* Read out the lasso fit coefficients */
