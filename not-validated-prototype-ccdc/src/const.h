@@ -32,6 +32,10 @@ typedef signed char int8;
     #define SUCCESS  0
 #endif
 
+#ifndef ERROR
+    #define ERROR -1
+#endif
+
 
 #ifndef FAILURE
     #define FAILURE 1
