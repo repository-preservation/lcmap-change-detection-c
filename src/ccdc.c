@@ -116,6 +116,7 @@ main (int argc, char *argv[])
     float **v_dif_mag;
     int i_conse, i_b;
     float *vec_mag;
+    float *vec_magg;
     float v_dif_mean;
     float **rec_v_dif;
     float **rec_v_dif_temp;
@@ -401,7 +402,7 @@ main (int argc, char *argv[])
 
 
     /* fit only water pixels (permanet water) */
-    if (ws_pct > t_ws)
+    if (ws_pct > t_ws && clear_water_sum > snow_sum)
     {
         for (i = 0; i < num_scenes; i++)
         { 
@@ -432,9 +433,11 @@ main (int argc, char *argv[])
 
             /* use all water and snow values to fit */
             i_span = n_ws;
+            update_num_c = min_num_c;
+#if 0
             update_cft(i_span, n_times, min_num_c, mid_num_c, max_num_c, num_c,
                        &update_num_c);
-
+#endif
             for (k = 0; k < TOTAL_BANDS - 1; k++)
             {
                  status = auto_ts_fit(clrx, clry, k, 0, end-1, update_num_c, fit_cft, 
@@ -515,23 +518,22 @@ main (int argc, char *argv[])
                     {
                         if (clry[i][k] > 0 && clry[i][k] < 10000)
                             i_span++;
-                        if (i_span < min_num_c * n_times)
-                            fit_cft[i][k] = 10000; /* fixed value for saturated
-                                                       pixels */
-                        else
-                        {
-                            update_cft(i_span, n_times, min_num_c, mid_num_c, 
-                                       max_num_c, num_c, &update_num_c);
+                    }
 
-                            for (k = 0; k < TOTAL_BANDS - 1; k++)
-                            {
-                                status = auto_ts_fit(clrx, clry, k, 0, i_span-1, update_num_c, 
-                                         fit_cft, &rmse[k], &v_dif_temp); 
-                                if (status != SUCCESS)  
-                                    RETURN_ERROR ("Calling auto_ts_fit2\n", 
-                                           FUNC_NAME, EXIT_FAILURE);
-                            }
-                        }
+                    if (i_span < min_num_c * n_times)
+                        fit_cft[i][k] = 10000; /* fixed value for saturated pixels */
+                    else
+                    {
+                        update_num_c = min_num_c;
+#if 0
+                        update_cft(i_span, n_times, min_num_c, mid_num_c, 
+                                   max_num_c, num_c, &update_num_c);
+#endif
+                            status = auto_ts_fit(clrx, clry, k, 0, i_span-1, update_num_c, 
+                                     fit_cft, &rmse[k], &v_dif_temp); 
+                            if (status != SUCCESS)  
+                                RETURN_ERROR ("Calling auto_ts_fit2\n", 
+                                       FUNC_NAME, EXIT_FAILURE);
                     } 
                 }
                 else /* for thermal band */
@@ -540,9 +542,11 @@ main (int argc, char *argv[])
                     {
                         if (clry[i][k] > -9300 && clry[i][k] < 7070)
                             i_span++;
+                            update_num_c = min_num_c;
+#if 0
                         update_cft(i_span, n_times, min_num_c, mid_num_c, 
                                    max_num_c, num_c, &update_num_c);
-
+#endif
                         status = auto_ts_fit(clrx, clry, k, 0, i_span-1, update_num_c, fit_cft, 
                                  &rmse[k], &v_dif_temp); 
                         if (status != SUCCESS)  
@@ -606,6 +610,13 @@ main (int argc, char *argv[])
         else /* Fmask fails in persistent commission */
         {
             /* allocate temporary memory */
+            int *cscx;
+            cscx = (int *)malloc(num_scenes * sizeof (int));
+            if (cscx == NULL)
+            {
+                RETURN_ERROR ("Allocating cscx memory", FUNC_NAME, FAILURE);
+            }
+
             int16 **cscy;
             cscy = (int16 **) allocate_2d_array (num_scenes, TOTAL_BANDS - 1, 
                                      sizeof (int16));
@@ -632,7 +643,7 @@ main (int argc, char *argv[])
                 if ((fmask_buf[i] == 0 || fmask_buf[i] == 1 ||
                      fmask_buf[i] == 2 || fmask_buf[i] == 4) && (id_range[i] == 1))
                 {
-                    clrx[n_clr] = sdate[i];
+                    cscx[n_clr] = sdate[i];
                     for (k = 0; k < TOTAL_BANDS - 1; k++)
                          cscy[n_clr][k] = buf[i][k];
                     id_csc[i] = 1;
@@ -650,8 +661,9 @@ main (int argc, char *argv[])
                 for (k = 0; k < TOTAL_BANDS - 1; k++)
                 {
                     if ((cscy[i][k] < cscy_fil[i] + 400) || 
-                        (id_csc[i] == 1 && fmask_buf[id_csc[i]] <= 1))
+                        (id_csc[i] == 1 && fmask_buf[id_csc[i]] <= 1)) 
                     {
+                        clrx[i] = cscx[i];
                         clry[i][k] = cscy[i][k];
                         id_range[i] = 1;
                         n_clr_final++;
@@ -670,6 +682,7 @@ main (int argc, char *argv[])
                 RETURN_ERROR ("Freeing memory: cscy\n", FUNC_NAME,
                               EXIT_FAILURE);
             }
+            free(cscx);
             free(cscy_fil);
             free(id_csc);
         }
@@ -690,7 +703,7 @@ main (int argc, char *argv[])
         bl_tmask = 0;
 
         /* while loop - process till the last clear observation - conse */
-        while (i < end - conse)
+        while (i <= end - conse)
         {
             /* span of "i" */
             i_span = i - i_start + 1;
@@ -707,7 +720,7 @@ main (int argc, char *argv[])
                 /* do for the first time */
                 if (bl_tmask == 0)
                 {
-                    for (k = i_start; k < end; k++)
+                    for (k = 0; k < end; k++)
                         clr_ids[k] = 1;
                     /* update BL_tmask value */
                     bl_tmask = 1;
@@ -825,6 +838,9 @@ main (int argc, char *argv[])
                               RETURN_ERROR ("Freeing memory: cpy\n", 
                                         FUNC_NAME, EXIT_FAILURE);
 
+                        /* record the start of Tmask (0=>initial;1=>done) */
+                        bl_tmask = 0;
+
                         /* Step 2: model fitting: initialize model testing variables
                            defining computed variables */
                         v_start = malloc(num_detect * sizeof(float));
@@ -840,7 +856,7 @@ main (int argc, char *argv[])
                         if (v_dif== NULL)
                             RETURN_ERROR ("Allocating v_dif memory", FUNC_NAME, FAILURE);
  
-                        for (b = 0; b < num_detect; b++)
+                        for (b = 0; b < TOTAL_BANDS-1; b++)
                         { 
                             /* Initial model fit */
                             status = auto_ts_fit(clrx, clry, b, i_start, i, min_num_c, fit_cft, 
@@ -848,7 +864,10 @@ main (int argc, char *argv[])
                             if (status != SUCCESS)  
                                 RETURN_ERROR ("Calling auto_ts_fit4\n", 
                                      FUNC_NAME, EXIT_FAILURE);
+                        }
 
+                        for (b = 0; b < num_detect; b++)
+                        {
                             /* calculate mini rmse with mean values & mini */
                             mean_v = fit_cft[0][lasso_blist[b]] + 
                                  fit_cft[1][lasso_blist[b]] * 
@@ -909,11 +928,11 @@ main (int argc, char *argv[])
                             new_i_start = i_start;
 
                             /* model fit at the beginning of time series */
-                            if ((num_fc == rec_fc) && (i_start > 1))
+                            if ((num_fc == rec_fc) && (i_start > 0))
                             {
                                 /* allocate memory for model_v_dif */ 
                                 v_dif_mag = (float **) allocate_2d_array(i_start-1,
-                                          num_detect, sizeof (float));
+                                          TOTAL_BANDS-1, sizeof (float));
                                 if (v_dif_mag == NULL)
                                 {
                                     RETURN_ERROR ("Allocating v_dif_mag memory", 
@@ -926,6 +945,14 @@ main (int argc, char *argv[])
                                 if (v_diff == NULL)
                                 {
                                     RETURN_ERROR ("Allocating v_diff memory", 
+                                                  FUNC_NAME, FAILURE);
+                                }
+
+                                /* allocate memory for vec_magg */ 
+                                vec_magg = (float *) malloc(i_start-1 * sizeof (float));
+                                if (vec_magg == NULL)
+                                {
+                                    RETURN_ERROR ("Allocating vec_magg memory", 
                                                   FUNC_NAME, FAILURE);
                                 }
 
@@ -956,20 +983,31 @@ main (int argc, char *argv[])
                                                 mini_rmse = max(mini_rmse, rmse[i_b]);
  
                                                 /* z-scores */
-                                                v_diff[i_conse][i_b] = abs(v_dif_mag[i_conse][i_b]) 
+                                                v_diff[i_conse][i_b] = fabs(v_dif_mag[i_conse][i_b]) 
                                                                        / mini_rmse;
                                             }
                                         }
                                     }
                                     matlab_2d_norm(v_diff, i_start-1, LASSO_BANDS, &v_dif_norm);
-                                    vec_mag[i_conse] *= v_dif_norm; 
+                                    vec_magg[i_conse] *= v_dif_norm; 
 
-                                    if (vec_mag[i_conse] <= t_cg)
+                                    if (vec_magg[i_conse] <= t_cg)
                                     {
                                         new_i_start = i_conse;
                                         break;
                                     }
                                 }
+
+                                /* free the memory */
+                                free(vec_magg);
+                                status = free_2d_array ((void **) v_dif_mag);
+                                if (status != SUCCESS)
+                                    RETURN_ERROR ("Freeing memory: v_dif_mag\n", 
+                                         FUNC_NAME, EXIT_FAILURE);
+                                status = free_2d_array ((void **) v_diff);
+                                if (status != SUCCESS)
+                                     RETURN_ERROR ("Freeing memory: v_diff\n", 
+                                         FUNC_NAME, EXIT_FAILURE);
 
                                 if (new_i_start > conse)
                                 {
@@ -981,45 +1019,39 @@ main (int argc, char *argv[])
                                         if (status != SUCCESS)  
                                             RETURN_ERROR ("Calling auto_ts_fit5\n", 
                                                 FUNC_NAME, EXIT_FAILURE);
-                                        /* record time of curve start */
-                                        rec_cg[num_fc].t_start = clrx[0]; 
-                                        /* record time of curve end */
-                                        rec_cg[num_fc].t_end = clrx[new_i_start-1]; 
-                                        /* no break at the moment */
-                                        rec_cg[num_fc].t_break = new_i_start; 
-                                        /* record postion of the pixel */
-                                        rec_cg[num_fc].pos.row = row; 
-                                        /* record postion of the pixel */
-                                        rec_cg[num_fc].pos.col = col; 
-                                        for (k = 0; k < update_num_c; k++)
+                                    }
+
+                                    /* record time of curve start */
+                                    rec_cg[num_fc].t_start = clrx[0]; 
+                                    /* record time of curve end */
+                                    rec_cg[num_fc].t_end = clrx[new_i_start-1]; 
+                                    /* no break at the moment */
+                                    rec_cg[num_fc].t_break = new_i_start; 
+                                    /* record postion of the pixel */
+                                    rec_cg[num_fc].pos.row = row; 
+                                    /* record postion of the pixel */
+                                    rec_cg[num_fc].pos.col = col; 
+                                    for (i_b = 0; i_b < TOTAL_BANDS -1; i_b++)
+                                    {
+                                        for (k = 0; k < min_num_c; k++)
                                             /* record fitted coefficients */
                                             rec_cg[num_fc].coefs[i_b][k] = fit_cft[i_b][k]; 
                                         /* record rmse of the pixel */                         
                                         rec_cg[num_fc].rmse[i_b] = rmse[i_b]; 
-                                        
-                                        /* record change probability */
-                                        rec_cg[num_fc].change_prob = 1.0; 
-                                        /* record number of observations */
-                                        rec_cg[num_fc].num_obs = new_i_start-1; 
-                                        /* record fit category */
-                                        rec_cg[num_fc].category = v_qa + min_num_c; 
-                                        /* record change magnitude */
-                                        matlab_2d_array_mean(v_dif_mag, i_b, conse, 
-                                                             &v_dif_mean);  
-                                        rec_cg[num_fc].magnitude[i_b] = -v_dif_mean; 
-
-                                        /* identified and move on for the next functional curve */
-                                        num_fc++;  
                                     }
-                                    status = free_2d_array ((void **) v_dif_mag);
-                                    if (status != SUCCESS)
-                                        RETURN_ERROR ("Freeing memory: v_dif_mag\n", 
-                                             FUNC_NAME, EXIT_FAILURE);
-                                    status = free_2d_array ((void **) v_diff);
-                                    if (status != SUCCESS)
-                                         RETURN_ERROR ("Freeing memory: v_diff\n", 
-                                             FUNC_NAME, EXIT_FAILURE);
+                                    /* record change probability */
+                                    rec_cg[num_fc].change_prob = 1.0; 
+                                    /* record number of observations */
+                                    rec_cg[num_fc].num_obs = new_i_start-1; 
+                                    /* record fit category */
+                                    rec_cg[num_fc].category = v_qa + min_num_c; 
+                                    /* record change magnitude */
+                                    matlab_2d_array_mean(v_dif_mag, i_b, conse, 
+                                                         &v_dif_mean);  
+                                    rec_cg[num_fc].magnitude[i_b] = -v_dif_mean; 
 
+                                    /* identified and move on for the next functional curve */
+                                    num_fc++;                                      
                                 }
                                 else if (new_i_start > 1)
                                 {
@@ -1041,7 +1073,7 @@ main (int argc, char *argv[])
                                     rec_cg[num_fc].pos.col = col; 
                                     for (i_b = 0; i_b < TOTAL_BANDS - 1; i++)
                                     {
-                                        for (k = 0; k < update_num_c; k++)
+                                        for (k = 0; k < max_num_c; k++)
                                             /* record fitted coefficients */
                                             rec_cg[num_fc].coefs[i_b][k] = fit_cft[i_b][k]; 
                                         /* record rmse of the pixel */
@@ -1081,13 +1113,6 @@ main (int argc, char *argv[])
                 /* determine the time series model */
                 update_cft(i_span, n_times, min_num_c, mid_num_c, max_num_c, 
                            num_c, &update_num_c);
-
-                /* defining computed variables */
-                rec_v_dif = (float **)allocate_2d_array(k, TOTAL_BANDS - 1,
-                                                            sizeof (float));
-                if (rec_v_dif == NULL)
-                    RETURN_ERROR ("Allocating rec_v_dif memory", 
-                                  FUNC_NAME, FAILURE);
 
                 /* dynamic model fit when there are not many obs */
                 if (i_count == 0)
@@ -1144,8 +1169,6 @@ main (int argc, char *argv[])
                         /* record change magnitude */
                         rec_cg[num_fc].magnitude[i] = 0.0; 
                     }
-
-                    /* detect change, value of difference for conse obs */
                            
                     /* allocate memory for v_dif_mag */ 
                     v_dif_mag = (float **) allocate_2d_array(conse,
@@ -1165,7 +1188,8 @@ main (int argc, char *argv[])
                                        FUNC_NAME, FAILURE);
                     }
 
-                    for (i_conse = 0; i_conse < i_start-1; i++)
+                    /* detect change, value of difference for conse obs */
+                    for (i_conse = 0; i_conse < conse; i++)
                     {
                         for (i_b = 0; i_b < TOTAL_BANDS - 1; i_b++)
                         {
@@ -1182,7 +1206,7 @@ main (int argc, char *argv[])
                                     mini_rmse = max(rec_adj_mini[i_b], rmse[i_b]);
  
                                     /* z-scores */
-                                    v_diff[i_conse][i_b] = abs(v_dif_mag[i_conse][i_b]) / mini_rmse;
+                                    v_diff[i_conse][i_b] = fabs(v_dif_mag[i_conse][i_b]) / mini_rmse;
                                 }
                             }
                         }
@@ -1193,15 +1217,6 @@ main (int argc, char *argv[])
                     /* IDs that haven't been updated */
                     for (k = i_start; k < i; k++)
                         ids_old[k] = ids[k];
-
-                    status = free_2d_array ((void **) v_dif_mag);
-                    if (status != SUCCESS)
-                        RETURN_ERROR ("Freeing memory: v_dif_mag\n", 
-                               FUNC_NAME, EXIT_FAILURE);
-                    status = free_2d_array ((void **) v_diff);
-                    if (status != SUCCESS)
-                        RETURN_ERROR ("Freeing memory: v_diff\n", 
-                               FUNC_NAME, EXIT_FAILURE);
                 }
                 else
                 {
@@ -1211,7 +1226,7 @@ main (int argc, char *argv[])
                         i_count = clrx[i] - clrx[i_start];
 
                         /* defining computed variables */
-                        rec_v_dif = (float **)allocate_2d_array(b, TOTAL_BANDS - 1,
+                        rec_v_dif = (float **)allocate_2d_array(i_span, TOTAL_BANDS - 1,
                                                             sizeof (float));
                         if (rec_v_dif == NULL)
                         {
@@ -1331,7 +1346,7 @@ main (int argc, char *argv[])
                     /* move the ith col to i-1th col */
                     for (b = 0; b < TOTAL_BANDS-1; b++)
                     {
-                        for (m = 1; m < conse-1; m++)
+                        for (m = 0; m < conse-1; m++)
                         {
                             v_diff[m][b] = v_diff[m+1][b];
                             v_dif_mag[m][b] = v_dif_mag[m+1][b];
@@ -1393,7 +1408,7 @@ main (int argc, char *argv[])
                 else if (vec_mag[0] > t_max_cg)
                 {
                     /* remove noise */
-                    for (m = i; m < num_scenes; m++)
+                    for (m = i + 1; m < num_scenes - 1; m++)
                     {
                         clrx[m] = clrx[m+1];
                         for (b = 0; b < TOTAL_BANDS - 1; b++)
@@ -1410,15 +1425,14 @@ main (int argc, char *argv[])
                     RETURN_ERROR ("Freeing memory: v_dif_mag\n", 
                            FUNC_NAME, EXIT_FAILURE);
             }
-
             /* move forward to the i+1th clear observation */
             i++;
         }
 
-        end = num_scenes;
         /* Two ways for processing the end of the time series */ 
         if (bl_train == 1)
         {
+            end = num_scenes - 1;
             /* if no break find at the end of the time series,
                define probability of change based on conse */
             for (i_conse = conse - 1; i_conse >= 0; i_conse--)
@@ -1440,17 +1454,17 @@ main (int argc, char *argv[])
             /* update change probability */
             rec_cg[num_fc].change_prob = (conse - id_last) / conse; 
             /* update end time of the curve */
-            rec_cg[num_fc].t_end = clrx[end - conse + id_last];
+            rec_cg[num_fc].t_end = clrx[end - conse + id_last - 1];
 
             /* mean value fit for the rest of the pixels < conse & > 1 */
             if (conse > id_last)
             {
                 /* update time of the probable change */
-                rec_cg[num_fc].t_break = clrx[end-conse+id_last+1];
+                rec_cg[num_fc].t_break = clrx[end-conse+id_last];
                 /* update magnitude of change */
                 for (i_b = 0; i_b < TOTAL_BANDS - 1; i_b++)
                     matlab_2d_partial_mean(v_dif_mag, i_b, id_last, conse-1, 
-                                         &rec_cg[num_fc].magnitude[i]);
+                                         &rec_cg[num_fc].magnitude[i_b]);
 
                 /* median of the last < conse pixels */
                 for (i_b = 0; i_b < TOTAL_BANDS - 1; i_b++)
@@ -1462,7 +1476,7 @@ main (int argc, char *argv[])
                 }
                 /* identified and move on for the next functional curve */
                 /* record time of curve start */
-                rec_cg[num_fc].t_start = clrx[end-conse+id_last+1];
+                rec_cg[num_fc].t_start = clrx[end-conse+id_last];
                 /* record time of curve end */
                 rec_cg[num_fc].t_end = clrx[end];
                 /* record break time */
@@ -1492,8 +1506,7 @@ main (int argc, char *argv[])
         else if (bl_train == 0)
         {
             get_array_length(clrx, num_scenes, &end);
-            printf("end=%d\n",end);
-            /* if break find close to the end of the time series 
+            /* if break found close to the end of the time series 
                Use [conse,min_num_c*n_times+conse) to fit curve */
             /* multitemporal cloud mask */
             status = auto_mask(clrx, clry, i_start, end,
