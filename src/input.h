@@ -329,14 +329,16 @@ int auto_ts_fit
     int df,
     float **coefs,
     float *rmse,
-    float *v_dif
+    float **v_dif
 );
 
 void auto_ts_predict
 (
-    int clrx,
+    int *clrx,
     float **coefs,
     int iband,
+    int start,
+    int end,
     float *pred_y
 );
 

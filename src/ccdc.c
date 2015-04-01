@@ -131,7 +131,6 @@ main (int argc, char *argv[])
     float break_mag;
     float max_v_dif;
     int id_last;
-    float v_dif_temp;
     float ts_pred_temp;
     FILE *fp_bin_out;
     int *id_csc;
@@ -438,10 +437,15 @@ main (int argc, char *argv[])
             update_cft(i_span, n_times, min_num_c, mid_num_c, max_num_c, num_c,
                        &update_num_c);
 #endif
+            /* Allocate memory for rec_v_dif */
+            rec_v_dif = (float **)allocate_2d_array(end, TOTAL_BANDS - 1,
+                                                            sizeof (float));
+            if (rec_v_dif == NULL)
+                   RETURN_ERROR ("Allocating rec_v_dif memory",FUNC_NAME, FAILURE);
             for (k = 0; k < TOTAL_BANDS - 1; k++)
             {
                  status = auto_ts_fit(clrx, clry, k, 0, end-1, update_num_c, fit_cft, 
-                                  &rmse[k], &v_dif_temp); 
+                                  &rmse[k], rec_v_dif); 
                  if (status != SUCCESS)  
                      RETURN_ERROR ("Calling auto_ts_fit1\n", 
                           FUNC_NAME, EXIT_FAILURE);
@@ -476,7 +480,12 @@ main (int argc, char *argv[])
                 /* record change magnitude */
                 rec_cg[num_fc].magnitude[i] = 0.0;
             /* NUM of Fitted Curves (num_fc) */
-            num_fc++;   
+            num_fc++;  
+            /* free rec_v_dif memory */
+            status = free_2d_array ((void **) rec_v_dif);
+            if (status != SUCCESS)
+                RETURN_ERROR ("Freeing memory: rec_v_dif\n", FUNC_NAME,
+                          EXIT_FAILURE); 
         }
     }
     else if (sn_pct > t_sn) /* fit only snow pixels (permanet snow) */
@@ -525,15 +534,28 @@ main (int argc, char *argv[])
                     else
                     {
                         update_num_c = min_num_c;
+
+                        /* Allocate memory for rec_v_dif */
+                        rec_v_dif = (float **)allocate_2d_array(i_span, TOTAL_BANDS - 1,
+                                                                sizeof(float));
+                        if (rec_v_dif == NULL)
+                            RETURN_ERROR ("Allocating rec_v_dif memory",
+                                  FUNC_NAME, FAILURE); 
 #if 0
                         update_cft(i_span, n_times, min_num_c, mid_num_c, 
                                    max_num_c, num_c, &update_num_c);
 #endif
                             status = auto_ts_fit(clrx, clry, k, 0, i_span-1, update_num_c, 
-                                     fit_cft, &rmse[k], &v_dif_temp); 
+                                     fit_cft, &rmse[k], rec_v_dif); 
                             if (status != SUCCESS)  
                                 RETURN_ERROR ("Calling auto_ts_fit2\n", 
                                        FUNC_NAME, EXIT_FAILURE);
+
+                        /* free rec_v_dif memory */
+                        status = free_2d_array ((void **) rec_v_dif);
+                        if (status != SUCCESS)
+                            RETURN_ERROR ("Freeing memory: rec_v_dif\n", FUNC_NAME,
+                                          EXIT_FAILURE);
                     } 
                 }
                 else /* for thermal band */
@@ -547,11 +569,22 @@ main (int argc, char *argv[])
                         update_cft(i_span, n_times, min_num_c, mid_num_c, 
                                    max_num_c, num_c, &update_num_c);
 #endif
+                        /* Allocate memory for rec_v_dif */
+                        rec_v_dif = (float **)allocate_2d_array(i_span, TOTAL_BANDS - 1,
+                                                                sizeof(float));
+                        if (rec_v_dif == NULL)
+                            RETURN_ERROR ("Allocating rec_v_dif memory",
+                                  FUNC_NAME, FAILURE); 
                         status = auto_ts_fit(clrx, clry, k, 0, i_span-1, update_num_c, fit_cft, 
-                                 &rmse[k], &v_dif_temp); 
+                                 &rmse[k], rec_v_dif); 
                         if (status != SUCCESS)  
                             RETURN_ERROR ("Calling auto_ts_fit3\n", 
                                  FUNC_NAME, EXIT_FAILURE);
+                        /* free rec_v_dif memory */
+                        status = free_2d_array ((void **) rec_v_dif);
+                        if (status != SUCCESS)
+                            RETURN_ERROR ("Freeing memory: rec_v_dif\n", FUNC_NAME,
+                                          EXIT_FAILURE);
                     }
                 }
             }
@@ -856,11 +889,17 @@ main (int argc, char *argv[])
                         if (v_dif== NULL)
                             RETURN_ERROR ("Allocating v_dif memory", FUNC_NAME, FAILURE);
  
+                        /* Allocate memory for rec_v_dif */
+                        rec_v_dif = (float **)allocate_2d_array(i-i_start+1, TOTAL_BANDS - 1,
+                                                            sizeof (float));
+                        if (rec_v_dif == NULL)
+                             RETURN_ERROR ("Allocating rec_v_dif memory",FUNC_NAME, FAILURE);
+
                         for (b = 0; b < TOTAL_BANDS-1; b++)
                         { 
                             /* Initial model fit */
                             status = auto_ts_fit(clrx, clry, b, i_start, i, min_num_c, fit_cft, 
-                                     &rmse[b], &v_dif[b]); 
+                                     &rmse[b], rec_v_dif); 
                             if (status != SUCCESS)  
                                 RETURN_ERROR ("Calling auto_ts_fit4\n", 
                                      FUNC_NAME, EXIT_FAILURE);
@@ -877,12 +916,12 @@ main (int argc, char *argv[])
                             mini_rmse = max(mini_rmse, rmse[lasso_blist[b]]);
 
                             /* compare the first clear obs */
-                            auto_ts_predict(clrx[i_start], fit_cft, b, &ts_pred_temp);  
+                            auto_ts_predict(clrx, fit_cft, b, i_start, i_start, &ts_pred_temp);  
                             v_start[lasso_blist[b]] = (clry[i_start][lasso_blist[b]] -
                                ts_pred_temp)/mini_rmse;
 
                             /* compare the last clear observation */
-                            auto_ts_predict(clrx[i], fit_cft, b, &ts_pred_temp);
+                            auto_ts_predict(clrx, fit_cft, b, i, i, &ts_pred_temp);
                             v_end[lasso_blist[b]] = (clry[i][lasso_blist[b]]-
                                                      ts_pred_temp)/mini_rmse;
 
@@ -903,6 +942,11 @@ main (int argc, char *argv[])
                         free(v_end);
                         free(v_slope); 
                         free(v_dif);
+
+                        status = free_2d_array ((void **) rec_v_dif);
+                        if (status != SUCCESS)
+                            RETURN_ERROR ("Freeing memory: rec_v_dif\n", FUNC_NAME,
+                                          EXIT_FAILURE);
 
                         /* find stable start for each curve */
                         if (v_dif_norm > t_cg)
@@ -964,8 +1008,8 @@ main (int argc, char *argv[])
                                     for (i_b = 0; i_b < TOTAL_BANDS - 1; i_b++)
                                     {
                                         /* absolute differences */
-                                        auto_ts_predict(clrx[i_conse], fit_cft, i_b, 
-                                            &ts_pred_temp);
+                                        auto_ts_predict(clrx, fit_cft, i_b, i_conse,
+                                                     i_conse, &ts_pred_temp);
                                         v_dif_mag[i_conse][i_b] = clry[i_conse][i_b] - 
                                             ts_pred_temp;
 
@@ -1011,11 +1055,18 @@ main (int argc, char *argv[])
 
                                 if (new_i_start > conse)
                                 {
+                                    /* Allocate memory for rec_v_dif */
+                                    rec_v_dif = (float **)allocate_2d_array(new_i_start, 
+                                             TOTAL_BANDS - 1, sizeof (float));
+                                    if (rec_v_dif == NULL)
+                                        RETURN_ERROR ("Allocating rec_v_dif memory",
+                                                  FUNC_NAME, FAILURE);
+
                                     /* defining computed variables */
                                     for (i_b = 0; i_b < TOTAL_BANDS -1; i_b++)
                                     {
                                         status = auto_ts_fit(clrx, clry, i_b, 0, new_i_start-1, 
-                                                 min_num_c, fit_cft, &rmse[i_b], &v_dif_temp); 
+                                                 min_num_c, fit_cft, &rmse[i_b], rec_v_dif); 
                                         if (status != SUCCESS)  
                                             RETURN_ERROR ("Calling auto_ts_fit5\n", 
                                                 FUNC_NAME, EXIT_FAILURE);
@@ -1052,6 +1103,11 @@ main (int argc, char *argv[])
 
                                     /* identified and move on for the next functional curve */
                                     num_fc++;                                      
+                                    /* free rec_v_dif memory */
+                                    status = free_2d_array ((void **) rec_v_dif);
+                                    if (status != SUCCESS)
+                                        RETURN_ERROR ("Freeing memory: rec_v_dif\n", FUNC_NAME,
+                                               EXIT_FAILURE); 
                                 }
                                 else if (new_i_start > 1)
                                 {
@@ -1120,10 +1176,16 @@ main (int argc, char *argv[])
                     /* update i_count at each interation */
                     i_count = clrx[i] - clrx[i_start];
 
+                    /* Allocate memory for rec_v_dif */
+                    rec_v_dif = (float **)allocate_2d_array(i-i_start+1, TOTAL_BANDS - 1,
+                                                            sizeof (float));
+                    if (rec_v_dif == NULL)
+                        RETURN_ERROR ("Allocating rec_v_dif memory",FUNC_NAME, FAILURE);
+
                     for (i_b = 0; i_b < TOTAL_BANDS - 1; i_b++)
                     {
                         status = auto_ts_fit(clrx, clry, i_b, i_start, i, min_num_c, 
-                                             fit_cft, &rmse[i_b], &v_dif_temp); 
+                                             fit_cft, &rmse[i_b], rec_v_dif); 
                         if (status != SUCCESS)  
                             RETURN_ERROR ("Calling auto_ts_fit6\n", 
                                      FUNC_NAME, EXIT_FAILURE);
@@ -1170,6 +1232,12 @@ main (int argc, char *argv[])
                         rec_cg[num_fc].magnitude[i] = 0.0; 
                     }
                            
+                    /* free rec_v_dif memory */
+                    status = free_2d_array ((void **) rec_v_dif);
+                    if (status != SUCCESS)
+                    RETURN_ERROR ("Freeing memory: rec_v_dif\n", FUNC_NAME,
+                          EXIT_FAILURE); 
+
                     /* allocate memory for v_dif_mag */ 
                     v_dif_mag = (float **) allocate_2d_array(conse,
                                          TOTAL_BANDS - 1, sizeof (float));
@@ -1194,7 +1262,8 @@ main (int argc, char *argv[])
                         for (i_b = 0; i_b < TOTAL_BANDS - 1; i_b++)
                         {
                             /* absolute differences */
-                            auto_ts_predict(clrx[i_conse], fit_cft, i_b, &ts_pred_temp);
+                            auto_ts_predict(clrx, fit_cft, i_b, i+i_conse, i+i_conse, 
+                                &ts_pred_temp);
                             v_dif_mag[i_conse][i_b] = clry[i_conse][i_b] - ts_pred_temp; 
        
                            /* normalize to z-score */
@@ -1226,19 +1295,16 @@ main (int argc, char *argv[])
                         i_count = clrx[i] - clrx[i_start];
 
                         /* defining computed variables */
-                        rec_v_dif = (float **)allocate_2d_array(i_span, TOTAL_BANDS - 1,
+                        rec_v_dif = (float **)allocate_2d_array(i-i_start+1, TOTAL_BANDS - 1,
                                                             sizeof (float));
                         if (rec_v_dif == NULL)
-                        {
                             RETURN_ERROR ("Allocating rec_v_dif memory", 
                                           FUNC_NAME, FAILURE);
-                        }
-
 
                         for (i_b = 0; i_b < TOTAL_BANDS - 1; i_b++)
                         {
                             status = auto_ts_fit(clrx, clry, i_b, i_start, i, min_num_c, 
-                                             fit_cft, &rmse[i_b], &v_dif_temp); 
+                                             fit_cft, &rmse[i_b], rec_v_dif); 
                             if (status != SUCCESS)  
                                 RETURN_ERROR ("Calling auto_ts_fit7\n", 
                                      FUNC_NAME, EXIT_FAILURE);
@@ -1337,6 +1403,10 @@ main (int argc, char *argv[])
                         /* free allocated memories */
                         free(d_yr);
                         free(d_yr_idx);
+                        status = free_2d_array ((void **) rec_v_dif);
+                        if (status != SUCCESS)
+                            RETURN_ERROR ("Freeing memory: rec_v_dif\n", 
+                                  FUNC_NAME, EXIT_FAILURE);
                         status = free_2d_array ((void **) rec_v_dif_temp);
                         if (status != SUCCESS)
                             RETURN_ERROR ("Freeing memory: rec_v_dif_temp\n", 
@@ -1360,7 +1430,8 @@ main (int argc, char *argv[])
                     for (i_b = 0; i_b < TOTAL_BANDS - 1; i_b++)
                     {
                         /* absolute difference for all bands */
-                        auto_ts_predict(clrx[i+conse], fit_cft, i_b, &ts_pred_temp);
+                        auto_ts_predict(clrx, fit_cft, i_b, i+conse, 
+                             i+conse, &ts_pred_temp);
                         v_dif_mag[conse][i_b] = clry[i+conse][i_b] - ts_pred_temp;
 
                         /* normalized to z-scores */
@@ -1556,11 +1627,16 @@ main (int argc, char *argv[])
                 end--;
             }
 
+            /* Allocate memory for rec_v_dif */
+            rec_v_dif = (float **)allocate_2d_array(end-i_start+1, TOTAL_BANDS - 1,
+                                                            sizeof (float));
+            if (rec_v_dif == NULL)
+                   RETURN_ERROR ("Allocating rec_v_dif memory",FUNC_NAME, FAILURE);
             
             for (i_b = 0; i_b < TOTAL_BANDS - 1; i_b++)
             {
                 status = auto_ts_fit(clrx, clry, i_b, i_start, end, min_num_c, 
-                                     fit_cft, &rmse[i_b], &v_dif_temp); 
+                                     fit_cft, &rmse[i_b], rec_v_dif); 
                 if (status != SUCCESS)  
                      RETURN_ERROR ("Calling auto_ts_fit8\n", FUNC_NAME, EXIT_FAILURE);
             }
@@ -1591,6 +1667,11 @@ main (int argc, char *argv[])
             for (i_b = 0; i_b < TOTAL_BANDS - 1; i_b++)
                 rec_cg[num_fc].magnitude[i_b] = 0.0; /* record change magnitude */
             num_fc++;
+            /* free rec_v_dif memory */
+            status = free_2d_array ((void **) rec_v_dif);
+            if (status != SUCCESS)
+                RETURN_ERROR ("Freeing memory: rec_v_dif\n", FUNC_NAME,
+                          EXIT_FAILURE); 
         }
     }
 
