@@ -1546,22 +1546,31 @@ NOTES:
 ******************************************************************************/
 void auto_ts_predict
 (
-    int clrx,
+    int *clrx,
     float **coefs,
     int iband,
+    int start,
+    int end,
     float *pred_y
 )
 {
+    int i;
+    int nums = end - start + 1;
     float w, w2, w3;
     w = TWO_PI / 365.25;
     w2 = 2.0 * w;
     w3 = 3.0 * w;
 
-    *pred_y = coefs[0][iband] + coefs[1][iband] * (float)clrx + coefs[2][iband] * 
-              cos((float)clrx * w ) + coefs[3][iband] * sin((float)clrx * w ) + 
-              coefs[4][iband] * cos((float)clrx * w2 ) + coefs[5][iband] * 
-              sin((float)clrx * w2) + coefs[6][iband] * cos((float)clrx * w3 ) + 
-              coefs[7][iband] * sin((float)clrx * w3);
+    for (i = 0; i < nums; i++)
+    { 
+        pred_y[i]  = coefs[0][iband] + coefs[1][iband] * (float)clrx[i+start] + 
+              coefs[2][iband] * cos((float)clrx[i+start] * w ) + coefs[3][iband] * 
+              sin((float)clrx[i+start] * w ) + coefs[4][iband] * 
+              cos((float)clrx[i+start] * w2 ) + coefs[5][iband] * 
+              sin((float)clrx[i+start] * w2) + coefs[6][iband] * 
+              cos((float)clrx[i+start] * w3 ) +coefs[7][iband] * 
+              sin((float)clrx[i+start] * w3);
+    }
 }
 
 /******************************************************************************
@@ -1589,7 +1598,7 @@ int auto_ts_fit
     int df,
     float **coefs,
     float *rmse,
-    float *v_dif
+    float **v_dif
 )
 {
     char FUNC_NAME[] = "auto_ts_fit";
@@ -1609,32 +1618,32 @@ int auto_ts_fit
     {
         x = (float **)allocate_2d_array(1, nums, sizeof(float));
         if (x == NULL)
-            RETURN_ERROR("ERROR allocating x memory", FUNC_NAME, FAILURE);
+            RETURN_ERROR("Allocating x memory", FUNC_NAME, FAILURE);
     }
     else if (df == 4)
     {
         x = (float **)allocate_2d_array(3, nums, sizeof(float));
         if (x == NULL)
-            RETURN_ERROR("ERROR allocating x memory", FUNC_NAME, FAILURE);
+            RETURN_ERROR("Allocating x memory", FUNC_NAME, FAILURE);
     }
     else if (df == 6)
     {
         x = (float **)allocate_2d_array(5, nums, sizeof(float));
         if (x == NULL)
-            RETURN_ERROR("ERROR allocating x memory", FUNC_NAME, FAILURE);
+            RETURN_ERROR("Allocating x memory", FUNC_NAME, FAILURE);
     }
     else if (df == 8)
     {
         x = (float **)allocate_2d_array(7, nums, sizeof(float));
         if (x == NULL)
-            RETURN_ERROR("ERROR allocating x memory", FUNC_NAME, FAILURE);
+            RETURN_ERROR("Allocating x memory", FUNC_NAME, FAILURE);
     }
     else 
         RETURN_ERROR("Unsupported df value", FUNC_NAME, FAILURE);
 
     yhat = (float *)malloc(nums * sizeof(float));
     if (yhat == NULL)
-        RETURN_ERROR("ERROR allocating x memory", FUNC_NAME, FAILURE);
+        RETURN_ERROR("Allocating yhat memory", FUNC_NAME, FAILURE);
 
     for (i = 0; i < nums; i++)
     {
@@ -1692,11 +1701,8 @@ int auto_ts_fit
 
         /* Call R script to do lasso fitting */
         status = system("R CMD BATCH glmnet_fit_df2.r");
-        if (status != SUCCESS)
-        {
-            printf("status=%d\n",status);
+        if (status == ERROR || WEXITSTATUS(status) != SUCCESS)
             RETURN_ERROR ("Running glmnet fit R scripts", FUNC_NAME, FAILURE);
-        }
 
         /* Read out the lasso fit coefficients */
         fscanf(fd2, "%f %f", &coefs[0][iband], &coefs[1][iband]);
@@ -1705,25 +1711,27 @@ int auto_ts_fit
     {
         for (i = 0; i < nums; i++)
         {
+            printf("i, iband,x[0][i],x[1][i],x[2][i],clry[i][iband]=%d,%d,%f,%f,%f,%d\n",
+                   i,iband,x[0][i],x[1][i],x[2][i],clry[i][iband]);
             if (fprintf (fd, "%f,%f,%f,%d\n", x[0][i], x[1][i], x[2][i], 
                          clry[i][iband]) == EOF)
             {
                 RETURN_ERROR ("End of file (EOF) is met before nums"
                               " lines", FUNC_NAME, FAILURE);
             }
-            printf("i, iband,x[0][i],x[1][i],x[2][i],clry[i][iband]=%d,%d,%f,%f,%f,%d\n",
-                   i,iband,x[0][i],x[1][i],x[2][i],clry[i][iband]);
         }
 
         /* Call R script to do lasso fitting */
         status = system("R CMD BATCH glmnet_fit_df4.r");
-        if (status != SUCCESS)
+          printf("status=%d\n",status);
+        if (status == ERROR)
             RETURN_ERROR ("Running glmnet fit R scripts", FUNC_NAME, FAILURE);
-
 
         /* Read out the lasso fit coefficients */
         fscanf(fd2, "%f %f %f %f", &coefs[0][iband], &coefs[1][iband], 
                &coefs[2][iband], &coefs[3][iband]);
+        printf("coefs[0][iband],coefs[1][iband],coefs[2][iband],coefs[3][iband]=%f,%f,%f,%f\n",
+               coefs[0][iband],coefs[1][iband],coefs[2][iband],coefs[3][iband]);
     }
     else if (df == 6)
     {
@@ -1740,7 +1748,7 @@ int auto_ts_fit
 
         /* Call R script to do lasso fitting */
         status = system("R CMD BATCH glmnet_fit_df6.r");
-        if (status != SUCCESS)
+        if (status == ERROR || WEXITSTATUS(status) != SUCCESS)
             RETURN_ERROR ("Running glmnet fit R scripts", FUNC_NAME, FAILURE);
 
         /* Read out the lasso fit coefficients */
@@ -1763,7 +1771,7 @@ int auto_ts_fit
 
         /* Call R script to do lasso fitting */
         status = system("R CMD BATCH glmnet_fit_df8.r");
-        if (status != SUCCESS)
+        if (status == ERROR || WEXITSTATUS(status) != SUCCESS)
             RETURN_ERROR ("Running glmnet fit R scripts", FUNC_NAME, FAILURE);
 
         /* Read out the lasso fit coefficients */
@@ -1779,13 +1787,11 @@ int auto_ts_fit
     /* predict lasso model results */
     if (df == 2 || df == 4 || df == 6 || df == 8)
     {
+        auto_ts_predict(clrx, coefs, iband, start, end, yhat);
         for (i = 0; i < nums; i++)
-        {
-            auto_ts_predict(clrx[i+start], coefs, i, &yhat[i]);
-            v_dif[i] = (float)clry[i][iband] - yhat[i];
-        }
-        matlab_norm(v_dif, nums, &v_dif_norm);
-        *rmse = v_dif_norm / sqrt(nums - df);
+            v_dif[i][iband] = (float)clry[i][iband] - yhat[i];
+        matlab_2d_array_norm(v_dif, iband, nums, &v_dif_norm);
+        *rmse = v_dif_norm / sqrt((float)(nums - df));
     }
 
     /* Free allocated memory */

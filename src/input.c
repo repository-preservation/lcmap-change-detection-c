@@ -226,4 +226,6 @@ int read_envi_header
         }
     }
     fclose(in);
+
+    return SUCCESS;
 }
