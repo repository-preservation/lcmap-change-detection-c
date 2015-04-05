@@ -64,6 +64,10 @@ main (int argc, char *argv[])
     int t_const = 400;        /* Threshold for cloud, shadow, and snow detection */
     int mini_yrs = 1;         /* minimum year for model intialization */
     int num_detect = LASSO_BANDS;/* number of bands for change detection */
+    float v_start[LASSO_BANDS];
+    float v_end[LASSO_BANDS];
+    float v_slope[LASSO_BANDS];
+    float v_dif[LASSO_BANDS];
     float p_min = 0.1;        /* percent of ref for mini_rmse */
     float t_ws = 0.95;        /* no change detection for permanent water pixels */
     float t_sn = 0.6;         /* no change detection for permanent snow pixels */ 
@@ -104,10 +108,6 @@ main (int argc, char *argv[])
     int *rm_ids;
     int rm_ids_len;
     int i_rec;
-    float *v_start;
-    float *v_end;
-    float *v_slope;
-    float *v_dif;
     float **v_diff;
     float mean_v;
     float v_dif_norm;
@@ -876,19 +876,7 @@ main (int argc, char *argv[])
 
                         /* Step 2: model fitting: initialize model testing variables
                            defining computed variables */
-                        v_start = malloc(num_detect * sizeof(float));
-                        if (v_start == NULL)
-                            RETURN_ERROR ("Allocating v_start memory", FUNC_NAME, FAILURE);
-                        v_end = malloc(num_detect * sizeof(float));
-                        if (v_end == NULL)
-                            RETURN_ERROR ("Allocating v_end memory", FUNC_NAME, FAILURE);
-                        v_slope = malloc(num_detect * sizeof(float));
-                        if (v_slope == NULL)
-                            RETURN_ERROR ("Allocating v_slope memory", FUNC_NAME, FAILURE);
-                        v_dif = malloc(num_detect * sizeof(float));
-                        if (v_dif== NULL)
-                            RETURN_ERROR ("Allocating v_dif memory", FUNC_NAME, FAILURE);
- 
+
                         /* Allocate memory for rec_v_dif */
                         rec_v_dif = (float **)allocate_2d_array(i-i_start+1, TOTAL_BANDS - 1,
                                                             sizeof (float));
@@ -936,12 +924,6 @@ main (int argc, char *argv[])
                         }
                         matlab_norm(v_dif, LASSO_BANDS, &v_dif_norm);
                         v_dif_norm *= v_dif_norm; 
-
-                        /* free allocated memories */
-                        free(v_start); 
-                        free(v_end);
-                        free(v_slope); 
-                        free(v_dif);
 
                         status = free_2d_array ((void **) rec_v_dif);
                         if (status != SUCCESS)

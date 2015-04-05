@@ -1711,8 +1711,8 @@ int auto_ts_fit
     {
         for (i = 0; i < nums; i++)
         {
-            printf("i, iband,x[0][i],x[1][i],x[2][i],clry[i][iband]=%d,%d,%f,%f,%f,%d\n",
-                   i,iband,x[0][i],x[1][i],x[2][i],clry[i][iband]);
+            printf("i, iband,start,x[0][i],x[1][i],x[2][i],clry[i][iband]=%d,%d,%d,%f,%f,%f,%d\n",
+                   i,iband,start,x[0][i],x[1][i],x[2][i],clry[i][iband]);
             if (fprintf (fd, "%f,%f,%f,%d\n", x[0][i], x[1][i], x[2][i], 
                          clry[i][iband]) == EOF)
             {

@@ -2,7 +2,7 @@ library('glmnet')
 
 x=read.table("glmnet_fit_inputs.txt",sep=",",col.names=c("x1","x2","x3","x4","x5","x6","x7","y"))
 output<-as.matrix(data.frame(x$x1,x$x2,x$x3,x$x4,x$x5,x$x6,x$x7))
-fit1<-glmnet(output,x$y,nlambda = 20)
+fit1<-glmnet(output,x$y)
 
 cfs0<-coef(fit1)["(Intercept)",15]
 cfs1<-coef(fit1)["x.x1",15]
