@@ -1704,7 +1704,7 @@ main (int argc, char *argv[])
             printf("i=%d\n",i);
             printf("rec_cg[i].t_start=%d\n",rec_cg[i].t_start);
             printf("rec_cg[i].t_end=%d\n",rec_cg[i].t_end);
-            printf("rec_cg[i].t_start=%d\n",rec_cg[i].t_start);
+            printf("rec_cg[i].t_break=%d\n",rec_cg[i].t_break);
             printf("rec_cg[i].pos.row=%d\n",rec_cg[i].pos.row);
             printf("rec_cg[i].pos.col=%d\n",rec_cg[i].pos.col);
             printf("rec_cg[i].num_obs=%d\n",rec_cg[i].num_obs);
