@@ -1525,9 +1525,9 @@ int auto_mask
     status = system("rm robust_fit_outputs.txt");
     if (status != SUCCESS)
         RETURN_ERROR ("Deleting robust_fit_outputs.txt file", FUNC_NAME, FAILURE);
-    status = system("rm *.Rout");
+    status = system("rm robust_fit.r.Rout");
     if (status != SUCCESS)
-        RETURN_ERROR ("Deleting *.Rout file", FUNC_NAME, FAILURE);
+        RETURN_ERROR ("Deleting robust_fit.r.Rout file", FUNC_NAME, FAILURE);
 #endif
     return SUCCESS;
 }
@@ -1614,7 +1614,6 @@ int auto_ts_fit
     int nums;
     FILE *fd;
 
-    printf("start,end=%d,%d\n",start,end);
     nums = end - start + 1;
     w = TWO_PI / 365.25;
     /* Allocate memory */
@@ -1836,13 +1835,13 @@ int auto_ts_fit
     /* Remove the temporary file */
     status = system("rm glmnet_fit_inputs.txt");
     if (status != SUCCESS)
-        RETURN_ERROR ("Deleting robust_fit_inputs.txt file", FUNC_NAME, FAILURE);
+        RETURN_ERROR ("Deleting glmnet_fit_inputs.txt file", FUNC_NAME, FAILURE);
     status = system("rm glmnet_fit_outputs.txt");
     if (status != SUCCESS)
-        RETURN_ERROR ("Deleting robust_fit_outputs.txt file", FUNC_NAME, FAILURE);
-    status = system("rm *.Rout");
+        RETURN_ERROR ("Deleting glmnet_fit_outputs.txt file", FUNC_NAME, FAILURE);
+    status = system("rm glmnet_fit_*.r.Rout");
     if (status != SUCCESS)
-        RETURN_ERROR ("Deleting *.Rout file", FUNC_NAME, FAILURE);
+        RETURN_ERROR ("Deleting glmnet_fit_*.r.Rout file", FUNC_NAME, FAILURE);
 #endif
     return SUCCESS;
 }

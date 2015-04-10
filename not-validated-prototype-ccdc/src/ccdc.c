@@ -37,12 +37,11 @@ Date        Programmer       Reason
 
 NOTES: type ./ccdc --help for information to run the code
 ******************************************************************************/
-int
-main (int argc, char *argv[])
+int main (int argc, char *argv[])
 {
     char FUNC_NAME[] = "main";
     char msg_str[MAX_STR_LEN];  /* input data scene name */
-    char filename[MAX_STR_LEN];         /* input binary filenames */
+    //    char filename[MAX_STR_LEN];         /* input binary filenames */
     float t_cg;
     float t_max_cg;
     int conse;
@@ -50,7 +49,7 @@ main (int argc, char *argv[])
     Output_t *rec_cg = NULL;    /* output structure and metadata */
     bool verbose;               /* verbose flag for printing messages */
     int i, k, m, b;
-    char **scene_list = NULL;
+    //    char **scene_list = NULL;
     FILE *fd;
     int num_scenes = MAX_SCENE_LIST;
     int min_num_c = 4;
@@ -75,7 +74,7 @@ main (int argc, char *argv[])
     int *sdate;
     Input_meta_t *meta;
     int row, col;
-    int landsat_number;
+    //    int landsat_number;
     int fmask_sum = 0;
     int clear_water_sum = 0;
     int clear_land_sum = 0;
@@ -157,7 +156,7 @@ main (int argc, char *argv[])
     for (i = 0; i < TOTAL_BANDS - 2; i++) 
         mini[i] = 100.0 * min_rmse;     
     mini[TOTAL_BANDS-1] = 400.0 * min_rmse;
-
+#if 0
     /* allocate memory for scene_list */
     scene_list = (char **) allocate_2d_array (MAX_SCENE_LIST, MAX_STR_LEN,
                                          sizeof (char));
@@ -191,7 +190,9 @@ main (int argc, char *argv[])
             break;
     }
     num_scenes = i;
+#endif
 
+    num_scenes = 486;
     /* Allocate memory */
     sdate = malloc(num_scenes * sizeof(int));
     if (sdate == NULL)
@@ -250,7 +251,7 @@ main (int argc, char *argv[])
     {
         RETURN_ERROR ("Allocating vec_mag memory", FUNC_NAME, FAILURE);
     }
-
+#if 0
     /* sort scene_list based on year & julian_day */
     status = sort_scene_based_on_year_doy(scene_list, num_scenes, sdate);
     if (status != SUCCESS)
@@ -258,14 +259,15 @@ main (int argc, char *argv[])
         RETURN_ERROR ("Calling sort_scene_based_on_year_jday", 
                       FUNC_NAME, EXIT_FAILURE);
     }
-
+#endif
     /* Create the Input metadata structure */
     meta = (Input_meta_t *)malloc(sizeof(Input_meta_t));
     if (meta == NULL) 
         RETURN_ERROR("allocating Input data structure", FUNC_NAME, FAILURE);
 
     /* Get the metadata, all scene metadata are the same for stacked scenes */
-    status = read_envi_header(scene_list[0], meta);
+    //    status = read_envi_header(scene_list[0], meta);
+    status = read_envi_header("LE70450301999195EDC00", meta);
     if (status != SUCCESS)
     {
         RETURN_ERROR ("Calling read_envi_header", 
@@ -285,7 +287,7 @@ main (int argc, char *argv[])
         printf ("DEBUG: Pixel size: %d\n", meta->pixel_size);
         printf ("DEBUG: Envi save format: %s\n", meta->interleave);
     }
-
+#if 0
     /* Open input files */
     FILE *fp_bin[num_scenes][TOTAL_BANDS];
     short int buf[num_scenes][TOTAL_BANDS-1];
@@ -336,6 +338,45 @@ main (int argc, char *argv[])
                     printf("error reading %d scene, %d bands\n",i, k+1);
             }
             close_raw_binary(fp_bin[i][k]);
+        }
+    }
+#endif
+    /* Temporary code for testing purpose */
+    unsigned char fmask_buf[num_scenes];
+    int buf[num_scenes][TOTAL_BANDS+1];
+    fd = fopen("pixel_inputs.txt","r");
+    if (fd == NULL)
+        RETURN_ERROR ("Open input file", FUNC_NAME, EXIT_FAILURE);
+
+    for (i = 0; i < num_scenes; i++)
+    {
+        for (i_b = 0; i_b < TOTAL_BANDS+1; i_b++)
+        {
+            if (i_b == 0)
+            {
+                fscanf(fd, "%d", &buf[i][i_b]);
+                clrx[i] = buf[i][i_b];
+            }
+            else if (i_b == 8)
+            {
+                fscanf(fd, "%d\n", &buf[i][i_b]);
+                fmask_buf[i] = (unsigned char)buf[i][i_b];
+            }
+            else if (i_b == 6)
+            {
+                fscanf(fd,"%d", &buf[i][i_b+1]);
+                clry[i][i_b] = (int16)buf[i][i_b+1];
+            }
+            else if (i_b == 7)
+            {
+                fscanf(fd,"%d", &buf[i][i_b-1]);
+                clry[i][i_b-2] = (int16)buf[i][i_b-1];
+            }
+            else
+            {
+                fscanf(fd,"%d", &buf[i][i_b]);
+                clry[i][i_b-1] = (int16)buf[i][i_b];
+            }
         }
     }
 
@@ -393,12 +434,10 @@ main (int argc, char *argv[])
     /* percent of cloud and cloud shadow pixels */
     cs_pct = (float)cloud_and_shadow_sum / (float)fmask_sum;  
 
-
     /* Allocate memory for rec_cg */ 
     rec_cg = malloc(MAX_NUM_FC * sizeof(Output_t));
     if (rec_cg == NULL)
         RETURN_ERROR("ERROR allocating rec_cg memory", FUNC_NAME, FAILURE);
-
 
     /* fit only water pixels (permanet water) */
     if (ws_pct > t_ws && clear_water_sum > snow_sum)
@@ -455,7 +494,7 @@ main (int argc, char *argv[])
             /* record time of curve start */
             rec_cg[num_fc].t_start = clrx[i_start];
             /* record time of curve end */
-            rec_cg[num_fc].t_end = clrx[end];
+            rec_cg[num_fc].t_end = clrx[end-1];
             /* no break at the moment */
             rec_cg[num_fc].t_break = 0;
             /* record postion of the pixel */
@@ -593,7 +632,7 @@ main (int argc, char *argv[])
             /* record time of curve start */
             rec_cg[num_fc].t_start = clrx[i_start]; 
             /* record time of curve end */
-            rec_cg[num_fc].t_end = clrx[end]; 
+            rec_cg[num_fc].t_end = clrx[end-1]; 
             /* no break at the moment */
             rec_cg[num_fc].t_break = 0; 
             /* record postion of the pixel */
@@ -639,6 +678,11 @@ main (int argc, char *argv[])
             }
             end = n_clr;
             v_qa = 40; /* QA var for normal procedure */
+
+            for( i = 0; i < end; i++)
+             {
+                    printf("i,clrx[i]=%d,%d\n",i,clrx[i]);
+             }
         }
         else /* Fmask fails in persistent commission */
         {
@@ -736,10 +780,12 @@ main (int argc, char *argv[])
         bl_tmask = 0;
 
         /* while loop - process till the last clear observation - conse */
-        while (i <= end - conse)
+        while (i <= end - conse -1)
         {
             /* span of "i" */
-            i_span = i - i_start + 1;
+            i_span = i - i_start;
+
+            //            printf("i_start,i,i_span=%d,%d,%d\n",i_start,i,i_span);
 
             /* span of time (num of years) */
             time_span = (float)(clrx[i] - clrx[i_start]) / num_yrs;
@@ -760,8 +806,8 @@ main (int argc, char *argv[])
                 }
 
                 /* step 1: noise removal */ 
-                status = auto_mask(clrx, clry, i_start, i+conse,
-                                   (float)(clrx[i+conse]-clrx[i_start])/num_yrs, 
+                status = auto_mask(clrx, clry, i_start, i+conse-1,
+                                   (float)(clrx[i+conse-1]-clrx[i_start])/num_yrs, 
                                    t_const, bl_ids);
                 if (status != SUCCESS)
                     RETURN_ERROR("ERROR calling auto_mask routine", 
@@ -786,7 +832,7 @@ main (int argc, char *argv[])
 
                 rm_ids_len = m;
                 /* update i_span after noise removal */
-                i_span = i - i_start + 1 - rm_ids_len;
+                i_span = i - i_start - rm_ids_len;
 
                 /* check if there is enough observation */
                 if (i_span < n_times * min_num_c)
@@ -837,7 +883,7 @@ main (int argc, char *argv[])
                     i_rec=i;
 
                     /* update i afer noise removal (i_start stays the same) */
-                    i=i_start + i_span - 1;
+                    i=i_start + i_span;
 
                     /* update span of time (num of years) */
                     time_span=(cpx[i] - cpx[i_start]) / num_yrs;
@@ -929,6 +975,8 @@ main (int argc, char *argv[])
                         if (status != SUCCESS)
                             RETURN_ERROR ("Freeing memory: rec_v_dif\n", FUNC_NAME,
                                           EXIT_FAILURE);
+
+                        //                        printf("v_dif_norm=%f\n",v_dif_norm);
 
                         /* find stable start for each curve */
                         if (v_dif_norm > t_cg)
@@ -1425,12 +1473,12 @@ main (int argc, char *argv[])
                                 mini_rmse = max(rec_adj_mini[i_b], tmpcg_rmse[i_b]);
 
                                 /* z-score */
-                                v_diff[end][i_b] = (v_dif_mag[end][i_b]) / mini_rmse;
+                                v_diff[end-1][i_b] = (v_dif_mag[end-1][i_b]) / mini_rmse;
                             }
                         }
 
                     }
-                    matlab_norm(v_diff[end], LASSO_BANDS, &vec_mag[conse]);
+                    matlab_norm(v_diff[end-1], LASSO_BANDS, &vec_mag[conse]);
                     vec_mag[conse] *= vec_mag[conse];
                 }
                 break_mag = 0.0;
@@ -1562,8 +1610,8 @@ main (int argc, char *argv[])
             /* if break found close to the end of the time series 
                Use [conse,min_num_c*n_times+conse) to fit curve */
             /* multitemporal cloud mask */
-            status = auto_mask(clrx, clry, i_start, end,
-                               (clrx[end]-clrx[i_start])/num_yrs, 
+            status = auto_mask(clrx, clry, i_start, end-1,
+                               (clrx[end-1]-clrx[i_start])/num_yrs, 
                                 t_const, bl_ids);
             if (status != SUCCESS)
                 RETURN_ERROR("ERROR calling auto_mask routine", 
@@ -1667,13 +1715,14 @@ main (int argc, char *argv[])
     free(rm_ids);
     free(clr_ids);
     free(vec_mag);
+#if 0
     status = free_2d_array ((void **) scene_list);
     if (status != SUCCESS)
     {
         RETURN_ERROR ("Freeing memory: scene_list\n", FUNC_NAME,
                       EXIT_FAILURE);
     }
-
+#endif
     status = free_2d_array ((void **) clry);
     if (status != SUCCESS)
     {
