@@ -1380,7 +1380,7 @@ int auto_robust_fit
     float **x,
     int16 **clry,
     int nums,
-    int iband,
+    int band_index,
     float *coefs
 )
 {
@@ -1396,11 +1396,15 @@ int auto_robust_fit
     for (i = 0; i < nums; i++)
     {
         if (fprintf (fd, "%f,%f,%f,%f,%d\n", x[0][i], x[1][i],
-                 x[2][i], x[3][i], clry[i][iband]) == EOF)
+                 x[2][i], x[3][i], clry[i][band_index]) == EOF)
         {
             RETURN_ERROR ("End of file (EOF) is met before nums"
                           " lines", FUNC_NAME, FAILURE);
         }
+#if 0
+        printf("%f,%f,%f,%f,%d\n",x[0][i], x[1][i],
+               x[2][i], x[3][i], clry[i][band_index]);
+#endif
     }
     fclose(fd);
 
@@ -1487,12 +1491,17 @@ int auto_mask
     }
 
     /* Do robust fitting for band 2 */
-    status = auto_robust_fit(x, clry, nums, 2, coefs);
-
+    status = auto_robust_fit(x, clry, nums, 1, coefs);
+#if 0
+    printf("coefs[i]=%f,%f,%f,%f,%f\n",coefs[0],coefs[1],coefs[2],coefs[3],coefs[4]);
+#endif
     /* Do robust fitting for band 5 */
-    status = auto_robust_fit(x, clry, nums, 5, coefs2);
-
-    /* predict band 2 * band 5 refs */
+    status = auto_robust_fit(x, clry, nums, 4, coefs2);
+#if 0
+    printf("coefs2[i]=%f,%f,%f,%f,%f\n",coefs2[0],coefs2[1],coefs2[2],coefs2[3],coefs2[4]);
+#endif
+    /* predict band 2 * band 5 refs, bl_ids value of 0 is clear and 
+       1 otherwise */
     for (i = 0; i < nums; i++)
     {
         pred_b2[i] = coefs[0] + coefs[1] * cos((float)clrx[i+start] * w ) + 
@@ -1551,7 +1560,7 @@ void auto_ts_predict
 (
     int *clrx,
     float **coefs,
-    int iband,
+    int band_index,
     int start,
     int end,
     float *pred_y
@@ -1566,12 +1575,12 @@ void auto_ts_predict
 
     for (i = 0; i < nums; i++)
     { 
-        pred_y[i]  = coefs[0][iband] + coefs[1][iband] * (float)clrx[i+start] + 
-              coefs[2][iband] * cos((float)clrx[i+start] * w ) + coefs[3][iband] * 
-              sin((float)clrx[i+start] * w ) + coefs[4][iband] * 
-              cos((float)clrx[i+start] * w2 ) + coefs[5][iband] * 
-              sin((float)clrx[i+start] * w2) + coefs[6][iband] * 
-              cos((float)clrx[i+start] * w3 ) +coefs[7][iband] * 
+        pred_y[i]  = coefs[0][band_index] + coefs[1][band_index] * (float)clrx[i+start] + 
+              coefs[2][band_index] * cos((float)clrx[i+start] * w ) + coefs[3][band_index] * 
+              sin((float)clrx[i+start] * w ) + coefs[4][band_index] * 
+              cos((float)clrx[i+start] * w2 ) + coefs[5][band_index] * 
+              sin((float)clrx[i+start] * w2) + coefs[6][band_index] * 
+              cos((float)clrx[i+start] * w3 ) +coefs[7][band_index] * 
               sin((float)clrx[i+start] * w3);
     }
 }
@@ -1595,7 +1604,7 @@ int auto_ts_fit
 (
     int *clrx,
     int16 **clry,
-    int iband,
+    int band_index,
     int start,
     int end,
     int df,
@@ -1692,7 +1701,7 @@ int auto_ts_fit
 
         for (i = 0; i < nums; i++)
         {
-            if (fprintf (fd, "%f,%d\n", x[0][i], clry[i][iband]) == EOF)
+            if (fprintf (fd, "%f,%d\n", x[0][i], clry[i][band_index]) == EOF)
             {
                 RETURN_ERROR ("End of file (EOF) is met before nums"
                               " lines", FUNC_NAME, FAILURE);
@@ -1711,7 +1720,7 @@ int auto_ts_fit
             RETURN_ERROR("ERROR opening temporary file2", FUNC_NAME, FAILURE);
 
         /* Read out the lasso fit coefficients */
-        fscanf(fd, "%f %f", &coefs[0][iband], &coefs[1][iband]);
+        fscanf(fd, "%f %f", &coefs[0][band_index], &coefs[1][band_index]);
         fclose(fd);
     }
     else if (df == 4)
@@ -1723,7 +1732,7 @@ int auto_ts_fit
         for (i = 0; i < nums; i++)
         {
             if (fprintf (fd, "%f,%f,%f,%d\n", x[0][i], x[1][i], x[2][i], 
-                         clry[i][iband]) == EOF)
+                         clry[i][band_index]) == EOF)
             {
                 RETURN_ERROR ("End of file (EOF) is met before nums"
                               " lines", FUNC_NAME, FAILURE);
@@ -1741,8 +1750,8 @@ int auto_ts_fit
             RETURN_ERROR("ERROR opening temporary file2", FUNC_NAME, FAILURE);
 
         /* Read out the lasso fit coefficients */
-        fscanf(fd, "%f %f %f %f", &coefs[0][iband], &coefs[1][iband], 
-               &coefs[2][iband], &coefs[3][iband]);
+        fscanf(fd, "%f %f %f %f", &coefs[0][band_index], &coefs[1][band_index], 
+               &coefs[2][band_index], &coefs[3][band_index]);
         fclose(fd);
     }
     else if (df == 6)
@@ -1754,7 +1763,7 @@ int auto_ts_fit
         for (i = 0; i < nums; i++)
         {
             if (fprintf (fd, "%f,%f,%f,%f,%f,%d\n", x[0][i], x[1][i], x[2][i], 
-                         x[3][i], x[4][i], clry[i][iband]) == EOF)
+                         x[3][i], x[4][i], clry[i][band_index]) == EOF)
             {
                 RETURN_ERROR ("End of file (EOF) is met before nums"
                               " lines", FUNC_NAME, FAILURE);
@@ -1773,9 +1782,9 @@ int auto_ts_fit
             RETURN_ERROR("ERROR opening temporary file2", FUNC_NAME, FAILURE);
 
         /* Read out the lasso fit coefficients */
-        fscanf(fd, "%f %f %f %f %f %f", &coefs[0][iband], &coefs[1][iband], 
-               &coefs[2][iband], &coefs[3][iband], 
-               &coefs[4][iband], &coefs[5][iband]);
+        fscanf(fd, "%f %f %f %f %f %f", &coefs[0][band_index], &coefs[1][band_index], 
+               &coefs[2][band_index], &coefs[3][band_index], 
+               &coefs[4][band_index], &coefs[5][band_index]);
         fclose(fd);
     }
     else if (df == 8)
@@ -1788,7 +1797,7 @@ int auto_ts_fit
         {
             if (fprintf (fd, "%f,%f,%f,%f,%f,%f,%f,%d\n", x[0][i], x[1][i], x[2][i], 
                          x[3][i], x[4][i], x[5][i], x[6][i],
-                         clry[i][iband]) == EOF)
+                         clry[i][band_index]) == EOF)
             {
                 RETURN_ERROR ("End of file (EOF) is met before nums"
                               " lines", FUNC_NAME, FAILURE);
@@ -1806,9 +1815,9 @@ int auto_ts_fit
             RETURN_ERROR("ERROR opening temporary file2", FUNC_NAME, FAILURE);
 
         /* Read out the lasso fit coefficients */
-        fscanf(fd, "%f %f %f %f %f %f %f %f", &coefs[0][iband], &coefs[1][iband], 
-               &coefs[2][iband], &coefs[3][iband], &coefs[4][iband], 
-               &coefs[5][iband], &coefs[6][iband], &coefs[7][iband]);
+        fscanf(fd, "%f %f %f %f %f %f %f %f", &coefs[0][band_index], &coefs[1][band_index], 
+               &coefs[2][band_index], &coefs[3][band_index], &coefs[4][band_index], 
+               &coefs[5][band_index], &coefs[6][band_index], &coefs[7][band_index]);
         fclose(fd);
     }
     else
@@ -1817,10 +1826,10 @@ int auto_ts_fit
     /* predict lasso model results */
     if (df == 2 || df == 4 || df == 6 || df == 8)
     {
-        auto_ts_predict(clrx, coefs, iband, start, end, yhat);
+        auto_ts_predict(clrx, coefs, band_index, start, end, yhat);
         for (i = 0; i < nums; i++)
-            v_dif[i][iband] = (float)clry[i][iband] - yhat[i];
-        matlab_2d_array_norm(v_dif, iband, nums, &v_dif_norm);
+            v_dif[i][band_index] = (float)clry[i][band_index] - yhat[i];
+        matlab_2d_array_norm(v_dif, band_index, nums, &v_dif_norm);
         *rmse = v_dif_norm / sqrt((float)(nums - df));
     }
 

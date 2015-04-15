@@ -323,7 +323,7 @@ int auto_ts_fit
 (
     int *clrx,
     int16 **clry,
-    int iband,
+    int band_index,
     int start,
     int end,
     int df,
@@ -336,7 +336,7 @@ void auto_ts_predict
 (
     int *clrx,
     float **coefs,
-    int iband,
+    int band_index,
     int start,
     int end,
     float *pred_y
