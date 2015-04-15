@@ -356,6 +356,7 @@ int main (int argc, char *argv[])
             {
                 fscanf(fd, "%d", &buf[i][i_b]);
                 clrx[i] = buf[i][i_b];
+                sdate[i] = clrx[i];  //Changed
             }
             else if (i_b == 8)
             {
@@ -396,16 +397,19 @@ int main (int argc, char *argv[])
                (float)fmask_sum / (float)num_scenes);
     }
 
+    /* CHANGE: need change back to 0-6 from 1-7 if original 
+       inputs are used */
+
     /* pixel value ranges should follow physical rules */
     for (i = 0; i < num_scenes; i++)
     { 
-        if ((buf[i][0] > 0) && (buf[i][0] < 10000) &&
-            (buf[i][1] > 0) && (buf[i][1] < 10000) &&
+        if ((buf[i][1] > 0) && (buf[i][1] < 10000) &&
             (buf[i][2] > 0) && (buf[i][2] < 10000) &&
             (buf[i][3] > 0) && (buf[i][3] < 10000) &&
             (buf[i][4] > 0) && (buf[i][4] < 10000) &&
-            (buf[i][5] > -9320) && (buf[i][5] < 7070) &&
-            (buf[i][6] > 0) && (buf[i][6] < 10000))
+            (buf[i][5] > 0) && (buf[i][5] < 10000) &&
+            (buf[i][6] > -9320) && (buf[i][6] < 7070) &&
+            (buf[i][7] > 0) && (buf[i][7] < 10000))
             id_range[i] = 1;
         else
             id_range[i] = 0;
@@ -664,7 +668,7 @@ int main (int argc, char *argv[])
     {
         printf("Land pixel (water/snow) = %f/%f\n", 100.0 * ws_pct, 100.0 * sn_pct);
 
-        if (cs_pct < t_cs)  /* Fmask works */
+        if ((cs_pct - t_cs) < MINSIGMA)  /* Fmask works */
         {
             for (i = 0; i < num_scenes; i++)
             { 
@@ -672,17 +676,12 @@ int main (int argc, char *argv[])
                 {
                     clrx[n_clr] = sdate[i];
                     for (k = 0; k < TOTAL_BANDS - 1; k++)
-                         clry[n_clr][k] = buf[i][k];
+                         clry[n_clr][k] = clry[i][k];
                     n_clr++;
                 }   
             }
             end = n_clr;
             v_qa = 40; /* QA var for normal procedure */
-
-            for( i = 0; i < end; i++)
-             {
-                    printf("i,clrx[i]=%d,%d\n",i,clrx[i]);
-             }
         }
         else /* Fmask fails in persistent commission */
         {
@@ -785,7 +784,7 @@ int main (int argc, char *argv[])
             /* span of "i" */
             i_span = i - i_start;
 
-            //            printf("i_start,i,i_span=%d,%d,%d\n",i_start,i,i_span);
+            printf("i_start,i,i_span=%d,%d,%d\n",i_start,i,i_span);
 
             /* span of time (num of years) */
             time_span = (float)(clrx[i] - clrx[i_start]) / num_yrs;
@@ -799,8 +798,9 @@ int main (int argc, char *argv[])
                 /* do for the first time */
                 if (bl_tmask == 0)
                 {
+                    /* clr_ids is reversed to original matlab code */
                     for (k = 0; k < end; k++)
-                        clr_ids[k] = 1;
+                        clr_ids[k] = 0;
                     /* update BL_tmask value */
                     bl_tmask = 1;
                 }
@@ -812,8 +812,11 @@ int main (int argc, char *argv[])
                 if (status != SUCCESS)
                     RETURN_ERROR("ERROR calling auto_mask routine", 
                                   FUNC_NAME, FAILURE);
-  
-                for (k = i_start; k <= i; k++)
+#if 0
+                for(k = i_start; k < i+conse; k++)
+                     printf("k,bl_ids[k]=%d,%d\n",k,bl_ids[k]);
+#endif
+                for (k = i_start; k < i; k++)
                     ids[k] = k;
                 m= 0;
                 for (k = 0; k < end-conse; k++)
