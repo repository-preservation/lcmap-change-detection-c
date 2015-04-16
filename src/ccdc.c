@@ -783,9 +783,9 @@ int main (int argc, char *argv[])
         {
             /* span of "i" */
             i_span = i - i_start;
-
+#if 0
             printf("i_start,i,i_span=%d,%d,%d\n",i_start,i,i_span);
-
+#endif
             /* span of time (num of years) */
             time_span = (float)(clrx[i] - clrx[i_start]) / num_yrs;
 
