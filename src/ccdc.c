@@ -783,9 +783,10 @@ int main (int argc, char *argv[])
         {
             /* span of "i" */
             i_span = i - i_start;
-#if 0
+
+            printf("end,conse=%d,%d\n",end,conse);
             printf("i_start,i,i_span=%d,%d,%d\n",i_start,i,i_span);
-#endif
+
             /* span of time (num of years) */
             time_span = (float)(clrx[i] - clrx[i_start]) / num_yrs;
 
@@ -829,6 +830,7 @@ int main (int argc, char *argv[])
                     {
                         clr_ids[k] = 0;
                         rm_ids[m] = ids[k];
+                        printf("m,rm_ids[m]=%d,%d\n",m,rm_ids[m]);
                         m++;
                     }
                 }
@@ -867,6 +869,7 @@ int main (int argc, char *argv[])
                             cpy[k][m] = clry[k][m];
                     }
 
+                    printf("end1=%d\n",end);
                     /* remove noise pixels between i_start & i */
                     for (m = 0; m < rm_ids_len; m++)
                     {
@@ -879,6 +882,7 @@ int main (int argc, char *argv[])
                         end--;
                     }
 
+                    printf("end2=%d\n",end);
                     /* record i before noise removal 
                        This is very important as if model is not initialized 
                        the multitemporal masking shall be done again instead 
@@ -940,6 +944,8 @@ int main (int argc, char *argv[])
                             if (status != SUCCESS)  
                                 RETURN_ERROR ("Calling auto_ts_fit4\n", 
                                      FUNC_NAME, EXIT_FAILURE);
+                            for(k = 0; k < NUM_COEFFS; k++)
+                             printf("b,k,fit_cft[k][b],rmse[b]=%d,%d,%f,%f\n",b,k,fit_cft[k][b],rmse[b]);
                         }
 
                         for (b = 0; b < num_detect; b++)
