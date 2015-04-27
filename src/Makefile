@@ -7,7 +7,7 @@ EXTRA = -Wall -g
 # Define the include files
 INC = input.h 2d_array.h ccdc.h output.h utilities.h \
 	date.h
-INCDIR  = -I. -I$(XML2INC) -I$(ESPAINC)
+INCDIR  = -I. -I$(XML2INC) -I$(ESPAINC) -I$(GSL_SCI_INC)
 NCFLAGS = $(EXTRA) $(INCDIR)
 
 # Define the source code and object files
@@ -16,7 +16,7 @@ SRC = input.c 2d_array.c ccdc.c utilities.c date.c \
 OBJ = $(SRC:.c=.o)
 
 # Define the object libraries
-LIB = -lz -lpthread -lrt -lm
+LIB = -L$(GSL_SCI_LIB) -lz -lpthread -lrt -lgsl -lgslcblas -lm
 
 # Define the executable
 EXE = ccdc

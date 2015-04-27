@@ -12,6 +12,8 @@
 #include "const.h"
 #include "utilities.h"
 #include "input.h"
+#include <gsl/gsl_multifit.h>
+#include <gsl/gsl_randist.h>
 
 /******************************************************************************
 MODULE:  get_args
@@ -1375,20 +1377,80 @@ Date        Programmer       Reason
 
 NOTES:
 ******************************************************************************/
+int dofit(const gsl_multifit_robust_type *T,
+      const gsl_matrix *X, const gsl_vector *y,
+      gsl_vector *c, gsl_matrix *cov)
+{
+  int s;
+  gsl_multifit_robust_workspace * work 
+    = gsl_multifit_robust_alloc (T, X->size1, X->size2);
+
+  s = gsl_multifit_robust (X, y, c, cov, work);
+  gsl_multifit_robust_free (work);
+
+  return s;
+}
+
 int auto_robust_fit
 (
-    float **x,
+    float **clrx,
     int16 **clry,
     int nums,
     int band_index,
     float *coefs
 )
 {
-    char FUNC_NAME[] = "auto_robust_fit";
-    int i;
-    FILE *fd;
-    int status;
+    int i, j;
+    const size_t p = 5; /* linear fit */
+    gsl_matrix *x, *cov;
+    gsl_vector *y, *c;
 
+    /* Defines the inputs/outputs for robust fitting */
+    x = gsl_matrix_alloc (nums, p);
+    y = gsl_vector_alloc (nums);
+
+    c = gsl_vector_alloc (p);
+    cov = gsl_matrix_alloc (p, p);
+
+    /* construct design matrix x for linear fit */
+    for (i = 0; i < nums; ++i)
+    {
+        for (j = 0; j < p; j++)
+        {
+            if (j == 0)
+                gsl_matrix_set (x, i, j, 1.0);
+            else
+                gsl_matrix_set (x, i, j, clrx[j-1][i]);
+        }
+        gsl_vector_set(y,i,clry[i][band_index]);
+    }
+
+    for (i = 0; i < nums; i++)
+    {
+        for (j = 0; j < p; j++)
+        {
+            if (j == p-1)
+                printf ("x(%d,%d) = %g\n", i, j, gsl_matrix_get (x, i, j));
+            else
+                printf ("x(%d,%d) = %g, ", i, j, gsl_matrix_get (x, i, j));
+        }
+        printf ("y_%d = %g\n", i, gsl_vector_get (y, i));
+    }
+
+    /* perform robust fit */
+    dofit(gsl_multifit_robust_bisquare, x, y, c, cov);
+
+    for (j = 0; j < c->size; j++)
+    {
+        coefs[j] = gsl_vector_get(c, j);
+    }
+
+    /* Free the memories */
+    gsl_matrix_free (x);
+    gsl_vector_free (y);
+    gsl_vector_free (c);
+    gsl_matrix_free (cov);
+#if 0
     /* Save the inputs for robust fitting */
     fd = fopen("robust_fit_inputs.txt", "w");
     if (fd == NULL)
@@ -1401,10 +1463,6 @@ int auto_robust_fit
             RETURN_ERROR ("End of file (EOF) is met before nums"
                           " lines", FUNC_NAME, FAILURE);
         }
-#if 0
-        printf("%f,%f,%f,%f,%d\n",x[0][i], x[1][i],
-               x[2][i], x[3][i], clry[i][band_index]);
-#endif
     }
     fclose(fd);
 
@@ -1420,6 +1478,7 @@ int auto_robust_fit
     fscanf(fd, "%f %f %f %f %f", &coefs[0], &coefs[1],
             &coefs[2], &coefs[3], &coefs[4]);
     fclose(fd);
+#endif
 
     return SUCCESS;
 }
@@ -1492,14 +1551,14 @@ int auto_mask
 
     /* Do robust fitting for band 2 */
     status = auto_robust_fit(x, clry, nums, 1, coefs);
-#if 0
+
     printf("coefs[i]=%f,%f,%f,%f,%f\n",coefs[0],coefs[1],coefs[2],coefs[3],coefs[4]);
-#endif
+
     /* Do robust fitting for band 5 */
     status = auto_robust_fit(x, clry, nums, 4, coefs2);
-#if 0
+
     printf("coefs2[i]=%f,%f,%f,%f,%f\n",coefs2[0],coefs2[1],coefs2[2],coefs2[3],coefs2[4]);
-#endif
+
     /* predict band 2 * band 5 refs, bl_ids value of 0 is clear and 
        1 otherwise */
     for (i = 0; i < nums; i++)
@@ -1575,8 +1634,9 @@ void auto_ts_predict
 
     for (i = 0; i < nums; i++)
     { 
-        pred_y[i]  = coefs[0][band_index] + coefs[1][band_index] * (float)clrx[i+start] + 
-              coefs[2][band_index] * cos((float)clrx[i+start] * w ) + coefs[3][band_index] * 
+        pred_y[i]  = coefs[0][band_index] + coefs[1][band_index] * 
+              (float)clrx[i+start] + coefs[2][band_index] * 
+              cos((float)clrx[i+start] * w ) + coefs[3][band_index] * 
               sin((float)clrx[i+start] * w ) + coefs[4][band_index] * 
               cos((float)clrx[i+start] * w2 ) + coefs[5][band_index] * 
               sin((float)clrx[i+start] * w2) + coefs[6][band_index] * 
@@ -1828,9 +1888,13 @@ int auto_ts_fit
     {
         auto_ts_predict(clrx, coefs, band_index, start, end, yhat);
         for (i = 0; i < nums; i++)
+         {
+        printf("yhat[i]=%f\n",yhat[i]);
             v_dif[i][band_index] = (float)clry[i][band_index] - yhat[i];
+         }
         matlab_2d_array_norm(v_dif, band_index, nums, &v_dif_norm);
         *rmse = v_dif_norm / sqrt((float)(nums - df));
+        printf("*rmse=%f\n",*rmse);
     }
 
     /* Free allocated memory */
