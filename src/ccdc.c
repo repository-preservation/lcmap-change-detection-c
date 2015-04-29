@@ -944,8 +944,10 @@ int main (int argc, char *argv[])
                             if (status != SUCCESS)  
                                 RETURN_ERROR ("Calling auto_ts_fit4\n", 
                                      FUNC_NAME, EXIT_FAILURE);
+#if 0
                             for(k = 0; k < NUM_COEFFS; k++)
                              printf("b,k,fit_cft[k][b],rmse[b]=%d,%d,%f,%f\n",b,k,fit_cft[k][b],rmse[b]);
+#endif
                         }
 
                         for (b = 0; b < num_detect; b++)
@@ -995,6 +997,7 @@ int main (int argc, char *argv[])
 
                             /* move forward to the i+1th clear observation */
                             i++;
+                            printf("i++=%d\n",i++);
 
                             /* keep all data and move to the next obs */
                             continue;
@@ -1296,11 +1299,12 @@ int main (int argc, char *argv[])
                     }
 
                     /* detect change, value of difference for conse obs */
-                    for (i_conse = 0; i_conse < conse; i++)
+                    for (i_conse = 0; i_conse < conse; i_conse++)
                     {
                         for (i_b = 0; i_b < TOTAL_BANDS - 1; i_b++)
                         {
                             /* absolute differences */
+                         printf("iiiii=%d\n",i);
                             auto_ts_predict(clrx, fit_cft, i_b, i+i_conse, i+i_conse, 
                                 &ts_pred_temp);
                             v_dif_mag[i_conse][i_b] = clry[i_conse][i_b] - ts_pred_temp; 
