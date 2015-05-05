@@ -1424,7 +1424,8 @@ int auto_robust_fit
         }
         gsl_vector_set(y,i,clry[i][band_index]);
     }
-#if 0
+
+    printf("nums=%d\n",nums);
     for (i = 0; i < nums; i++)
     {
         for (j = 0; j < p; j++)
@@ -1436,7 +1437,7 @@ int auto_robust_fit
         }
         printf ("y_%d = %g\n", i, gsl_vector_get (y, i));
     }
-#endif
+
     /* perform robust fit */
     dofit(gsl_multifit_robust_bisquare, x, y, c, cov);
 
@@ -1893,7 +1894,7 @@ int auto_ts_fit
          }
         matlab_2d_array_norm(v_dif, band_index, nums, &v_dif_norm);
         *rmse = v_dif_norm / sqrt((float)(nums - df));
-        printf("*rmse=%f\n",*rmse);
+        //        printf("*rmse=%f\n",*rmse);
     }
 
     /* Free allocated memory */
