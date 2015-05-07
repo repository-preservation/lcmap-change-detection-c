@@ -874,6 +874,8 @@ int main (int argc, char *argv[])
                     /* remove noise pixels between i_start & i */
                     for (m = 0; m < rm_ids_len; m++)
                     {
+                        if (m != 0)
+                            rm_ids[m]--;
                         for (k = rm_ids[m]; k < end-1; k++)
                         {
                             cpx[k] = cpx[k+1];
@@ -938,6 +940,8 @@ int main (int argc, char *argv[])
                         if (rec_v_dif == NULL)
                              RETURN_ERROR ("Allocating rec_v_dif memory",FUNC_NAME, FAILURE);
 
+                        printf("i_start4=%d\n",i_start);
+
                         for (b = 0; b < TOTAL_BANDS-1; b++)
                         { 
                             /* Initial model fit */
@@ -952,6 +956,7 @@ int main (int argc, char *argv[])
 #endif
                         }
 
+                        printf("i_start44=%d\n",i_start);
                         for (b = 0; b < num_detect; b++)
                         {
                             /* calculate mini rmse with mean values & mini */
@@ -989,7 +994,7 @@ int main (int argc, char *argv[])
                             RETURN_ERROR ("Freeing memory: rec_v_dif\n", FUNC_NAME,
                                           EXIT_FAILURE);
 
-                        //                        printf("v_dif_norm=%f\n",v_dif_norm);
+                        printf("v_dif_norm=%f\n",v_dif_norm);
 
                         /* find stable start for each curve */
                         if (v_dif_norm > t_cg)
