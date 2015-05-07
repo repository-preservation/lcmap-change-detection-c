@@ -1426,6 +1426,7 @@ int auto_robust_fit
     }
 
     printf("nums=%d\n",nums);
+
     for (i = 0; i < nums; i++)
     {
         for (j = 0; j < p; j++)
