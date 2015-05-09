@@ -806,6 +806,7 @@ int main (int argc, char *argv[])
                     bl_tmask = 1;
                 }
 
+                printf("i_start4=%d\n",i_start);
                 /* step 1: noise removal */ 
                 status = auto_mask(clrx, clry, i_start-1, i+conse-1,
                                    (float)(clrx[i+conse-1]-clrx[i_start-1])/num_yrs, 
@@ -874,6 +875,7 @@ int main (int argc, char *argv[])
                     /* remove noise pixels between i_start & i */
                     for (m = 0; m < rm_ids_len; m++)
                     {
+                        printf("rm_ids[m]=%d\n",rm_ids[m]);
                         if (m != 0)
                             rm_ids[m]--;
                         for (k = rm_ids[m]; k < end-1; k++)
@@ -940,8 +942,6 @@ int main (int argc, char *argv[])
                         if (rec_v_dif == NULL)
                              RETURN_ERROR ("Allocating rec_v_dif memory",FUNC_NAME, FAILURE);
 
-                        printf("i_start4=%d\n",i_start);
-
                         for (b = 0; b < TOTAL_BANDS-1; b++)
                         { 
                             /* Initial model fit */
@@ -956,7 +956,6 @@ int main (int argc, char *argv[])
 #endif
                         }
 
-                        printf("i_start44=%d\n",i_start);
                         for (b = 0; b < num_detect; b++)
                         {
                             /* calculate mini rmse with mean values & mini */
