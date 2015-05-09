@@ -1396,6 +1396,7 @@ int auto_robust_fit
     float **clrx,
     int16 **clry,
     int nums,
+    int start,
     int band_index,
     float *coefs
 )
@@ -1422,7 +1423,7 @@ int auto_robust_fit
             else
                 gsl_matrix_set (x, i, j, clrx[j-1][i]);
         }
-        gsl_vector_set(y,i,clry[i][band_index]);
+        gsl_vector_set(y,i,clry[i+start][band_index]);
     }
 
     printf("nums=%d\n",nums);
@@ -1543,6 +1544,7 @@ int auto_mask
     w = TWO_PI / 365.25;
     w2 = w / (float)year;
 
+    printf("start=%d\n",start);
     for (i = 0; i < nums; i++)
     {
         x[0][i] = cos(w * (float)clrx[i+start]);
@@ -1552,12 +1554,12 @@ int auto_mask
     }
 
     /* Do robust fitting for band 2 */
-    status = auto_robust_fit(x, clry, nums, 1, coefs);
+    status = auto_robust_fit(x, clry, nums, start, 1, coefs);
 
     printf("coefs[i]=%f,%f,%f,%f,%f\n",coefs[0],coefs[1],coefs[2],coefs[3],coefs[4]);
 
     /* Do robust fitting for band 5 */
-    status = auto_robust_fit(x, clry, nums, 4, coefs2);
+    status = auto_robust_fit(x, clry, nums, start, 4, coefs2);
 
     printf("coefs2[i]=%f,%f,%f,%f,%f\n",coefs2[0],coefs2[1],coefs2[2],coefs2[3],coefs2[4]);
 
