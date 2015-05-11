@@ -1427,7 +1427,7 @@ int auto_robust_fit
     }
 
     printf("nums=%d\n",nums);
-
+#if 0
     for (i = 0; i < nums; i++)
     {
         for (j = 0; j < p; j++)
@@ -1439,7 +1439,7 @@ int auto_robust_fit
         }
         printf ("y_%d = %g\n", i, gsl_vector_get (y, i));
     }
-
+#endif
     /* perform robust fit */
     dofit(gsl_multifit_robust_bisquare, x, y, c, cov);
 
@@ -1575,8 +1575,8 @@ int auto_mask
                   coefs2[2] * sin((float)clrx[i+start] * w ) + coefs2[3] * 
                   cos((float)clrx[i+start] * w2 ) 
                   + coefs2[4] * sin((float)clrx[i+start] * w2);
-        if ((((float)clry[i][1]-pred_b2[i]) > (float)t_times) || 
-            (((float)clry[i][4]-pred_b5[i]) < (float)-t_times))
+        if ((((float)clry[i+start][1]-pred_b2[i]) > (float)t_times) || 
+            (((float)clry[i+start][4]-pred_b5[i]) < (float)-t_times))
             bl_ids[i] = 1;
         else
             bl_ids[i] = 0;
