@@ -1555,14 +1555,14 @@ int auto_mask
 
     /* Do robust fitting for band 2 */
     status = auto_robust_fit(x, clry, nums, start, 1, coefs);
-
+#if 0
     printf("coefs[i]=%f,%f,%f,%f,%f\n",coefs[0],coefs[1],coefs[2],coefs[3],coefs[4]);
-
+#endif
     /* Do robust fitting for band 5 */
     status = auto_robust_fit(x, clry, nums, start, 4, coefs2);
-
+#if 0
     printf("coefs2[i]=%f,%f,%f,%f,%f\n",coefs2[0],coefs2[1],coefs2[2],coefs2[3],coefs2[4]);
-
+#endif
     /* predict band 2 * band 5 refs, bl_ids value of 0 is clear and 
        1 otherwise */
     for (i = 0; i < nums; i++)
@@ -1765,7 +1765,7 @@ int auto_ts_fit
 
         for (i = 0; i < nums; i++)
         {
-            if (fprintf (fd, "%f,%d\n", x[0][i], clry[i][band_index]) == EOF)
+            if (fprintf (fd, "%f,%d\n", x[0][i], clry[i+start][band_index]) == EOF)
             {
                 RETURN_ERROR ("End of file (EOF) is met before nums"
                               " lines", FUNC_NAME, FAILURE);
@@ -1796,7 +1796,7 @@ int auto_ts_fit
         for (i = 0; i < nums; i++)
         {
             if (fprintf (fd, "%f,%f,%f,%d\n", x[0][i], x[1][i], x[2][i], 
-                         clry[i][band_index]) == EOF)
+                         clry[i+start][band_index]) == EOF)
             {
                 RETURN_ERROR ("End of file (EOF) is met before nums"
                               " lines", FUNC_NAME, FAILURE);
@@ -1827,7 +1827,7 @@ int auto_ts_fit
         for (i = 0; i < nums; i++)
         {
             if (fprintf (fd, "%f,%f,%f,%f,%f,%d\n", x[0][i], x[1][i], x[2][i], 
-                         x[3][i], x[4][i], clry[i][band_index]) == EOF)
+                         x[3][i], x[4][i], clry[i+start][band_index]) == EOF)
             {
                 RETURN_ERROR ("End of file (EOF) is met before nums"
                               " lines", FUNC_NAME, FAILURE);
@@ -1861,7 +1861,7 @@ int auto_ts_fit
         {
             if (fprintf (fd, "%f,%f,%f,%f,%f,%f,%f,%d\n", x[0][i], x[1][i], x[2][i], 
                          x[3][i], x[4][i], x[5][i], x[6][i],
-                         clry[i][band_index]) == EOF)
+                         clry[i+start][band_index]) == EOF)
             {
                 RETURN_ERROR ("End of file (EOF) is met before nums"
                               " lines", FUNC_NAME, FAILURE);
@@ -1893,7 +1893,7 @@ int auto_ts_fit
         auto_ts_predict(clrx, coefs, band_index, start, end, yhat);
         for (i = 0; i < nums; i++)
          {
-            v_dif[i][band_index] = (float)clry[i][band_index] - yhat[i];
+            v_dif[i][band_index] = (float)clry[i+start][band_index] - yhat[i];
          }
         matlab_2d_array_norm(v_dif, band_index, nums, &v_dif_norm);
         *rmse = v_dif_norm / sqrt((float)(nums - df));

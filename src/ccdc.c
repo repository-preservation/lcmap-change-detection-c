@@ -806,7 +806,6 @@ int main (int argc, char *argv[])
                     bl_tmask = 1;
                 }
 
-                printf("i_start4=%d\n",i_start);
                 /* step 1: noise removal */ 
                 status = auto_mask(clrx, clry, i_start-1, i+conse-1,
                                    (float)(clrx[i+conse-1]-clrx[i_start-1])/num_yrs, 
@@ -942,22 +941,18 @@ int main (int argc, char *argv[])
                         if (rec_v_dif == NULL)
                              RETURN_ERROR ("Allocating rec_v_dif memory",FUNC_NAME, FAILURE);
 
-                        for (b = 0; b < TOTAL_BANDS-1; b++)
-                        { 
+                        for (b = 0; b < num_detect; b++)
+                        {
                             /* Initial model fit */
-                            status = auto_ts_fit(clrx, clry, b, i_start-1, i-1, min_num_c, fit_cft, 
-                                     &rmse[b], rec_v_dif); 
+                            status = auto_ts_fit(clrx, clry, lasso_blist[b], i_start-1, i-1, 
+                                     min_num_c, fit_cft, &rmse[lasso_blist[b]], rec_v_dif); 
                             if (status != SUCCESS)  
                                 RETURN_ERROR ("Calling auto_ts_fit4\n", 
                                      FUNC_NAME, EXIT_FAILURE);
-#if 0
+
                             for(k = 0; k < NUM_COEFFS; k++)
                              printf("b,k,fit_cft[k][b],rmse[b]=%d,%d,%f,%f\n",b,k,fit_cft[k][b],rmse[b]);
-#endif
-                        }
 
-                        for (b = 0; b < num_detect; b++)
-                        {
                             /* calculate mini rmse with mean values & mini */
                             mean_v = fit_cft[0][lasso_blist[b]] + 
                                  fit_cft[1][lasso_blist[b]] * 
