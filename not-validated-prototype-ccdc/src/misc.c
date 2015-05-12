@@ -916,45 +916,6 @@ void matlab_norm
 }
 
 /******************************************************************************
-MODULE:  matlab_2d_norm
-
-PURPOSE:  simulate matlab norm function for 2d array cases only
-
-RETURN VALUE:
-Type = void
-Value           Description
------           -----------
-
-
-HISTORY:
-Date        Programmer       Reason
---------    ---------------  -------------------------------------
-2/9/2015   Song Guo         Original Development
-
-NOTES: 
-******************************************************************************/
-void matlab_2d_norm
-(
-    float **array,        /* I: input array */
-    int array_dim1,      /* I: number of input elements in 1st dim */
-    int array_dim2,      /* I: number of input elements in 2nd dim */
-    float  *output_norm  /* O: output norm value */
-)
-{
-    int i, j;
-    float sum = 0.0;
-
-    for (i = 0; i < array_dim1; i++)
-    {
-        for (j = 0; j < array_dim2; j++)
-        {
-            sum += array[i][j] * array[i][j];
-        }
-    }
-    *output_norm = sqrt(sum);
-}
-
-/******************************************************************************
 MODULE:  square_root_mean
 
 PURPOSE:  simulate square root mean function
@@ -1801,6 +1762,10 @@ int auto_ts_fit
                 RETURN_ERROR ("End of file (EOF) is met before nums"
                               " lines", FUNC_NAME, FAILURE);
             }
+#if 0
+            printf("i,start,x[0][i], x[1][i], x[2][i],clry[i+start][band_index]=%d,%d,%f,%f,%f,%d\n",
+                   i,start,x[0][i], x[1][i], x[2][i],clry[i+start][band_index]);
+#endif
         }
         fclose(fd);
 
