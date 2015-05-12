@@ -13,7 +13,7 @@
 #define NUM_LASSO_BANDS 5
 #define LASSO_BANDS 5
 #define MAX_NUM_FC 10 /* Values change with number of pixels run */
-int lasso_blist[LASSO_BANDS] = {2, 3, 4, 5, 7};
+int lasso_blist[LASSO_BANDS] = {1, 2, 3, 4, 6}; /* This is band index */
 
 /******************************************************************************
 METHOD:  ccdc
@@ -941,6 +941,7 @@ int main (int argc, char *argv[])
                         if (rec_v_dif == NULL)
                              RETURN_ERROR ("Allocating rec_v_dif memory",FUNC_NAME, FAILURE);
 
+                        v_dif_norm = 0.0;
                         for (b = 0; b < num_detect; b++)
                         {
                             /* Initial model fit */
@@ -949,10 +950,10 @@ int main (int argc, char *argv[])
                             if (status != SUCCESS)  
                                 RETURN_ERROR ("Calling auto_ts_fit4\n", 
                                      FUNC_NAME, EXIT_FAILURE);
-
+#if 0
                             for(k = 0; k < NUM_COEFFS; k++)
-                             printf("b,k,fit_cft[k][b],rmse[b]=%d,%d,%f,%f\n",b,k,fit_cft[k][b],rmse[b]);
-
+                             printf("lasso_blist[b],k,fit_cft[k][lasso_blist[b]],rmse[lasso_blist[b-1]]=%d,%d,%f,%f\n",lasso_blist[b],k,fit_cft[k][lasso_blist[b]],rmse[lasso_blist[b]]);
+#endif
                             /* calculate mini rmse with mean values & mini */
                             mean_v = fit_cft[0][lasso_blist[b]] + 
                                  fit_cft[1][lasso_blist[b]] * 
@@ -962,12 +963,13 @@ int main (int argc, char *argv[])
                             mini_rmse = max(mini_rmse, rmse[lasso_blist[b]]);
 
                             /* compare the first clear obs */
-                            auto_ts_predict(clrx, fit_cft, b, i_start-1, i_start-1, &ts_pred_temp);  
+                            auto_ts_predict(clrx, fit_cft, lasso_blist[b], i_start-1, i_start-1, 
+                                            &ts_pred_temp);  
                             v_start[lasso_blist[b]] = (clry[i_start-1][lasso_blist[b]] -
                                ts_pred_temp)/mini_rmse;
 
                             /* compare the last clear observation */
-                            auto_ts_predict(clrx, fit_cft, b, i-1, i-1, &ts_pred_temp);
+                            auto_ts_predict(clrx, fit_cft, lasso_blist[b], i-1, i-1, &ts_pred_temp);
                             v_end[lasso_blist[b]] = (clry[i-1][lasso_blist[b]]-
                                                      ts_pred_temp)/mini_rmse;
 
@@ -978,10 +980,9 @@ int main (int argc, char *argv[])
                             /* differece in model intialization */
                             v_dif[lasso_blist[b]] = fabs(v_slope[lasso_blist[b]]) + 
                                                     fabs(v_start[lasso_blist[b]]) + 
-                                                    fabs(v_end[lasso_blist[b]]);
+                                                    fabs(v_end[lasso_blist[b]]);  
+                            v_dif_norm += v_dif[lasso_blist[b]] * v_dif[lasso_blist[b]];               
                         }
-                        matlab_norm(v_dif, LASSO_BANDS, &v_dif_norm);
-                        v_dif_norm *= v_dif_norm; 
 
                         status = free_2d_array ((void **) rec_v_dif);
                         if (status != SUCCESS)
@@ -1075,8 +1076,8 @@ int main (int argc, char *argv[])
                                             }
                                         }
                                     }
-                                    matlab_2d_norm(v_diff, i_start-1, LASSO_BANDS, &v_dif_norm);
-                                    vec_magg[i_conse] *= v_dif_norm; 
+                                    matlab_2d_array_norm(v_diff, i_conse, LASSO_BANDS, &v_dif_norm);
+                                    vec_magg[i_conse] = v_dif_norm * v_dif_norm; 
 
                                     if (vec_magg[i_conse] <= t_cg)
                                     {
@@ -1324,7 +1325,7 @@ int main (int argc, char *argv[])
                                 }
                             }
                         }
-                        matlab_2d_norm(v_diff, conse, LASSO_BANDS, &v_dif_norm);
+                        matlab_2d_array_norm(v_diff, i_conse, LASSO_BANDS, &v_dif_norm);
                         vec_mag[i_conse] = v_dif_norm * v_dif_norm; 
                     }
 

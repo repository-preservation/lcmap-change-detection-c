@@ -224,14 +224,6 @@ void matlab_norm
     float  *output_norm  /* O: output norm value */
 );
 
-void matlab_2d_norm
-(
-    float **array,       /* I: input array */
-    int array_dim1,      /* I: number of input elements in 1st dim */
-    int array_dim2,      /* I: number of input elements in 2nd dim */
-    float  *output_norm  /* O: output norm value */
-);
-
 void square_root_mean
 (
     int16 **array,       /* I: input array */
