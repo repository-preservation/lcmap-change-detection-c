@@ -1047,6 +1047,7 @@ int main (int argc, char *argv[])
                                 /* detect change. 
                                    value of difference for conse obs
                                    record the magnitude of change */
+                                printf("i_start,i=%d,%d\n",i_start,i);
                                 for (i_conse = 0; i_conse < i_start-1; i_conse++)
                                 {
                                     v_dif_norm = 0.0;
@@ -1055,11 +1056,11 @@ int main (int argc, char *argv[])
                                         /* absolute differences */
                                         auto_ts_predict(clrx, fit_cft, i_b, i_conse,
                                                      i_conse, &ts_pred_temp);
-                                        v_dif_mag[i_conse][i_b] = clry[i_conse][i_b] - 
+                                        v_dif_mag[i_conse][i_b] = (float)clry[i_conse][i_b] - 
                                             ts_pred_temp;
 
                                         /* normalize to z-score */
-                                        for (b = 0; b < LASSO_BANDS - 1; b++)
+                                        for (b = 0; b < LASSO_BANDS; b++)
                                         {
                                             if (i_b == lasso_blist[b])
                                             {
@@ -1067,18 +1068,18 @@ int main (int argc, char *argv[])
                                                 mean_v = fit_cft[0][i_b] + fit_cft[1][i_b] * 
                                                     (float)(clrx[i_start-1] + clrx[i-1]) / 2.0;
                                                 mini_rmse = max(mean_v * p_min, mini[i_b]);
-
                                                 /* minimum rmse */ 
                                                 mini_rmse = max(mini_rmse, rmse[i_b]);
  
                                                 /* z-scores */
                                                 v_diff[i_conse][i_b] = fabs(v_dif_mag[i_conse][i_b]) 
                                                                        / mini_rmse;
+                                                v_dif_norm += v_diff[i_conse][i_b] * v_diff[i_conse][i_b];
                                             }
                                         }
-                                        v_dif_norm += v_diff[i_conse][i_b] * v_diff[i_conse][i_b];
                                     }
                                     vec_magg[i_conse] = v_dif_norm; 
+                                    printf("i_conse,vec_magg[i_conse] = %d,%f\n",i_conse,vec_magg[i_conse]);
 
                                     if (vec_magg[i_conse] <= t_cg)
                                     {
@@ -1094,6 +1095,7 @@ int main (int argc, char *argv[])
                                      RETURN_ERROR ("Freeing memory: v_diff\n", 
                                          FUNC_NAME, EXIT_FAILURE);
 
+                                printf("new_i_start=%d\n",new_i_start);
                                 if (new_i_start > conse)
                                 {
                                     /* Allocate memory for rec_v_dif */
@@ -1106,7 +1108,7 @@ int main (int argc, char *argv[])
                                     /* defining computed variables */
                                     for (i_b = 0; i_b < TOTAL_BANDS -1; i_b++)
                                     {
-                                        status = auto_ts_fit(clrx, clry, i_b, 0, new_i_start-1, 
+                                        status = auto_ts_fit(clrx, clry, i_b, 0, new_i_start-2, 
                                                  min_num_c, fit_cft, &rmse[i_b], rec_v_dif); 
                                         if (status != SUCCESS)  
                                             RETURN_ERROR ("Calling auto_ts_fit5\n", 
@@ -1138,10 +1140,12 @@ int main (int argc, char *argv[])
                                     /* record fit category */
                                     rec_cg[num_fc].category = v_qa + min_num_c; 
                                     /* record change magnitude */
-                                    matlab_2d_array_mean(v_dif_mag, i_b, conse, 
-                                                         &v_dif_mean);  
-                                    rec_cg[num_fc].magnitude[i_b] = -v_dif_mean; 
-
+                                    for (i_b = 0; i_b < TOTAL_BANDS -1; i_b++)
+                                    {
+                                        matlab_2d_array_mean(v_dif_mag, i_b, conse, 
+                                                             &v_dif_mean);  
+                                        rec_cg[num_fc].magnitude[i_b] = -v_dif_mean; 
+                                    }
                                     /* identified and move on for the next functional curve */
                                     num_fc++;                                      
                                     /* free rec_v_dif memory */
@@ -1153,7 +1157,7 @@ int main (int argc, char *argv[])
                                 else if (new_i_start > 1)
                                 {
                                     /* median value fit for the rest of the pixels < conse */
-                                    for (i_b = 0; i< TOTAL_BANDS - 1; i++)
+                                    for (i_b = 0; i_b< TOTAL_BANDS - 1; i_b++)
                                     {
                                         matlab_2d_int_array_mean(clry, i_b, new_i_start-1, &fit_cft[0][i_b]);
                                         square_root_mean(clry, i_b, new_i_start-1, fit_cft, &rmse[i_b]);
@@ -1168,7 +1172,7 @@ int main (int argc, char *argv[])
                                     rec_cg[num_fc].pos.row = row; 
                                     /* record fitted coefficients */
                                     rec_cg[num_fc].pos.col = col; 
-                                    for (i_b = 0; i_b < TOTAL_BANDS - 1; i++)
+                                    for (i_b = 0; i_b < TOTAL_BANDS - 1; i_b++)
                                     {
                                         for (k = 0; k < max_num_c; k++)
                                             /* record fitted coefficients */
@@ -1184,7 +1188,7 @@ int main (int argc, char *argv[])
                                     rec_cg[num_fc].category = v_qa + 1; /* record fit category */
                                     for (i_b = 0; i_b < TOTAL_BANDS - 1; i_b++)
                                     {
-                                        matlab_2d_array_mean(v_dif_mag, i_b, conse, &v_dif_mean);
+                                        matlab_2d_array_mean(v_dif_mag, i_b, new_i_start-1, &v_dif_mean);
                                         /* record change magnitude */ 
                                         rec_cg[num_fc].magnitude[i_b] = -v_dif_mean; 
                                     }
@@ -1254,7 +1258,7 @@ int main (int argc, char *argv[])
                         if (status != SUCCESS)  
                             RETURN_ERROR ("Calling auto_ts_fit6\n", 
                                      FUNC_NAME, EXIT_FAILURE);
-                        for (b = 0; b < LASSO_BANDS - 1; b++)
+                        for (b = 0; b < LASSO_BANDS; b++)
                         {
                             if (i_b == lasso_blist[b])
                             {
@@ -1315,7 +1319,7 @@ int main (int argc, char *argv[])
                             v_dif_mag[i_conse][i_b] = clry[i_conse][i_b] - ts_pred_temp; 
        
                            /* normalize to z-score */
-                            for (b = 0; b < LASSO_BANDS - 1; b++)
+                            for (b = 0; b < LASSO_BANDS; b++)
                             {
                                 if (i_b == lasso_blist[b])
                                 {
@@ -1357,7 +1361,7 @@ int main (int argc, char *argv[])
                                 RETURN_ERROR ("Calling auto_ts_fit7\n", 
                                      FUNC_NAME, EXIT_FAILURE);
 
-                            for (b = 0; b < LASSO_BANDS - 1; b++)
+                            for (b = 0; b < LASSO_BANDS; b++)
                             {
                                 if (i_b == lasso_blist[b])
                                 {
@@ -1484,7 +1488,7 @@ int main (int argc, char *argv[])
                         v_dif_mag[conse-1][i_b] = clry[i+conse-1][i_b] - ts_pred_temp;
 
                         /* normalized to z-scores */
-                        for (b = 0; b < LASSO_BANDS - 1; b++)
+                        for (b = 0; b < LASSO_BANDS; b++)
                         {
                             if (i_b == lasso_blist[b])
                             {
