@@ -10,7 +10,6 @@
 #include "output.h"
 #include "ccdc.h"
 
-#define NUM_LASSO_BANDS 5
 #define LASSO_BANDS 5
 #define MAX_NUM_FC 10 /* Values change with number of pixels run */
 int lasso_blist[LASSO_BANDS] = {1, 2, 3, 4, 6}; /* This is band index */
@@ -906,6 +905,7 @@ int main (int argc, char *argv[])
                         i = i_rec;   /* keep the original i */
                         /* move forward to the i+1th clear observation */
                         i++;        
+                        printf("i++=%d\n",i);
                         free(cpx);
                         status = free_2d_array ((void **) cpy);
                         if (status != SUCCESS)
@@ -1047,8 +1047,9 @@ int main (int argc, char *argv[])
                                 /* detect change. 
                                    value of difference for conse obs
                                    record the magnitude of change */
-                                for (i_conse = 0; i_conse < i_start-1; i++)
+                                for (i_conse = 0; i_conse < i_start-1; i_conse++)
                                 {
+                                    v_dif_norm = 0.0;
                                     for (i_b = 0; i_b < TOTAL_BANDS - 1; i_b++)
                                     {
                                         /* absolute differences */
@@ -1075,9 +1076,9 @@ int main (int argc, char *argv[])
                                                                        / mini_rmse;
                                             }
                                         }
+                                        v_dif_norm += v_diff[i_conse][i_b] * v_diff[i_conse][i_b];
                                     }
-                                    matlab_2d_array_norm(v_diff, i_conse, LASSO_BANDS, &v_dif_norm);
-                                    vec_magg[i_conse] = v_dif_norm * v_dif_norm; 
+                                    vec_magg[i_conse] = v_dif_norm; 
 
                                     if (vec_magg[i_conse] <= t_cg)
                                     {
@@ -1305,6 +1306,7 @@ int main (int argc, char *argv[])
                     /* detect change, value of difference for conse obs */
                     for (i_conse = 0; i_conse < conse; i_conse++)
                     {
+                        v_dif_norm = 0.0;
                         for (i_b = 0; i_b < TOTAL_BANDS - 1; i_b++)
                         {
                             /* absolute differences */
@@ -1325,8 +1327,8 @@ int main (int argc, char *argv[])
                                 }
                             }
                         }
-                        matlab_2d_array_norm(v_diff, i_conse, LASSO_BANDS, &v_dif_norm);
-                        vec_mag[i_conse] = v_dif_norm * v_dif_norm; 
+                        v_dif_norm += v_diff[i_conse][i_b] * v_diff[i_conse][i_b];
+                        vec_mag[i_conse] = v_dif_norm; 
                     }
 
                     /* IDs that haven't been updated */
