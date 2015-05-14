@@ -510,7 +510,7 @@ int main (int argc, char *argv[])
                     /* record postion of the pixel */
                     rec_cg[num_fc].coefs[i_b][k] = fit_cft[i_b][k]; 
                 /* record rmse of the pixel */
-                rec_cg[num_fc].rmse[i_b] = rmse[i]; 
+                rec_cg[num_fc].rmse[i_b] = rmse[i_b]; 
             }
             /* record change probability */            
             rec_cg[num_fc].change_prob = 0.0;
@@ -648,7 +648,7 @@ int main (int argc, char *argv[])
                     /* record fitted coefficients */
                     rec_cg[num_fc].coefs[i_b][k] = fit_cft[i_b][k];
                 /* record rmse of the pixel */
-                rec_cg[num_fc].rmse[i] = rmse[i]; 
+                rec_cg[num_fc].rmse[i_b] = rmse[i_b]; 
             }
             /* record change probability */
             rec_cg[num_fc].change_prob = 0.0; 
@@ -844,6 +844,7 @@ int main (int argc, char *argv[])
                 {
                     /* move forward to the i+1th clear observation */
                     i++;
+                    printf("i++=%d\n",i);
                     /* not enough clear observations */
                     continue;
                 }
@@ -905,7 +906,7 @@ int main (int argc, char *argv[])
                         i = i_rec;   /* keep the original i */
                         /* move forward to the i+1th clear observation */
                         i++;        
-                        printf("i++=%d\n",i);
+                        printf("i++2=%d\n",i);
                         free(cpx);
                         status = free_2d_array ((void **) cpy);
                         if (status != SUCCESS)
@@ -996,10 +997,10 @@ int main (int argc, char *argv[])
                         {
                             /* start from next clear obs */
                             i_start++;
-
+                            printf("i_start1=%d\n",i_start);
                             /* move forward to the i+1th clear observation */
                             i++;
-                            printf("i_start++,i++=%d,%d\n",i_start,i);
+                            printf("i_start++,i++3=%d,%d\n",i_start,i);
 
                             /* keep all data and move to the next obs */
                             continue;
@@ -1285,9 +1286,9 @@ int main (int argc, char *argv[])
                     {
                         for (k = 0; k < update_num_c; k++)
                             /* record fitted coefficients */
-                            rec_cg[num_fc].coefs[i][k] = fit_cft[i_b][k]; 
+                            rec_cg[num_fc].coefs[i_b][k] = fit_cft[i_b][k]; 
                             /* record rmse of the pixel */
-                            rec_cg[num_fc].rmse[i] = rmse[i_b]; 
+                            rec_cg[num_fc].rmse[i_b] = rmse[i_b]; 
                     }
                     /* record change probability */
                     rec_cg[num_fc].change_prob = 0.0; 
@@ -1511,6 +1512,7 @@ int main (int argc, char *argv[])
                         break_mag = vec_mag[m];
                 }
 
+                printf("break_mag,vec_mag[0],t_max_cg=%f,%f,%f\n",break_mag,vec_mag[0],t_max_cg);
                 if (break_mag > t_cg)
                 {
                     printf("Change Magnitude = %.2f\n",break_mag);
@@ -1526,6 +1528,7 @@ int main (int argc, char *argv[])
                     num_fc++;
                     /* start from i+1 for the next functional curve */
                     i_start = i + 1;
+                    printf("i_start2=%d\n",i_start);
                     /* start training again */
                     bl_train = 0;
                 }
@@ -1551,6 +1554,7 @@ int main (int argc, char *argv[])
                        FUNC_NAME, EXIT_FAILURE);
             /* move forward to the i+1th clear observation */
             i++;
+            printf("i++4=%d\n",i);
         }
 
         /* Two ways for processing the end of the time series */ 
@@ -1646,6 +1650,7 @@ int main (int argc, char *argv[])
             {
                 if (bl_ids[m] == 0)
                     i_span++;
+                printf("i_span update =%d\n", i_span);
             }
 
             for (m = i_start-1; m <= i + conse - 1; m++)
