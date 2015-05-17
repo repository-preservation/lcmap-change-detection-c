@@ -209,7 +209,7 @@ int main (int argc, char *argv[])
     if (ids == NULL)
         RETURN_ERROR("ERROR allocating ids memory", FUNC_NAME, FAILURE);
 
-    ids_old = (int *)calloc(num_scenes, sizeof(int));
+    ids_old = (int *)malloc(num_scenes * sizeof(int));
     if (ids_old == NULL)
         RETURN_ERROR("ERROR allocating ids_old memory", FUNC_NAME, FAILURE);
 
@@ -1240,6 +1240,7 @@ int main (int argc, char *argv[])
                 update_cft(i_span, n_times, min_num_c, mid_num_c, max_num_c, 
                            num_c, &update_num_c);
 
+                printf("i_count,update_num_c,max_num_c=%d,%d,%d\n",i_count,update_num_c,max_num_c);
                 /* dynamic model fit when there are not many obs */
                 if (i_count == 0 || update_num_c < max_num_c)
                 {
@@ -1317,7 +1318,7 @@ int main (int argc, char *argv[])
                             /* absolute differences */
                             auto_ts_predict(clrx, fit_cft, i_b, i+i_conse-1, i+i_conse-1, 
                                 &ts_pred_temp);
-                            v_dif_mag[i_conse][i_b] = clry[i_conse][i_b] - ts_pred_temp; 
+                            v_dif_mag[i_conse][i_b] = (float)clry[i+i_conse][i_b] - ts_pred_temp; 
        
                            /* normalize to z-score */
                             for (b = 0; b < LASSO_BANDS; b++)
@@ -1329,13 +1330,20 @@ int main (int argc, char *argv[])
  
                                     /* z-scores */
                                     v_diff[i_conse][i_b] = fabs(v_dif_mag[i_conse][i_b]) / mini_rmse;
+                                    v_dif_norm += v_diff[i_conse][i_b] * v_diff[i_conse][i_b];
+#if 0
+                                    printf("i_conse,i_b,clry[i+i_conse][i_b],ts_pred_temp,mini_rmse,v_diff[i_conse][i_b]=%d,%d,%d,%f,%f,%f\n",i_conse,i_b,clry[i+i_conse][i_b],ts_pred_temp,mini_rmse,v_diff[i_conse][i_b]);
+#endif
                                 }
                             }
                         }
-                        v_dif_norm += v_diff[i_conse][i_b] * v_diff[i_conse][i_b];
-                        vec_mag[i_conse] = v_dif_norm; 
+                        vec_mag[i_conse] = v_dif_norm;
+                        printf("i_conse,vec_mag[i_conse]2=%d,%f\n",i_conse,vec_mag[i_conse]);
                     }
+                    for (k = 0; k < num_scenes; k++)
+                        ids_old[k] = 0;
 
+                    printf("i_start,i,length(ids_old)1=%d,%d,%d\n",i_start,i,i-i_start);
                     /* IDs that haven't been updated */
                     for (k = i_start-1; k < i; k++)
                         ids_old[k] = ids[k];
@@ -1389,6 +1397,9 @@ int main (int argc, char *argv[])
                         /* record fit category */
                         rec_cg[num_fc].category = v_qa + update_num_c; 
 
+                        for (k = 0; k < num_scenes; k++)
+                            ids_old[k] = 0;
+                        printf("i_start,i, length(ids_old)2=%d,%d,%d\n",i_start,i,i-i_start);
                         /* IDs that haven't been updated */
                         for (k = i_start-1; k < i; k++)
                             ids_old[k] = ids[k];
@@ -1397,8 +1408,8 @@ int main (int argc, char *argv[])
                     /* record time of curve end */
                     rec_cg[num_fc].t_end = clrx[i-1]; /* record time of curve end */
 
-                    //                    get_ids_length(ids_old, k, &ids_old_len);
-                    ids_old_len = i - i_start +1;
+                    get_ids_length(ids_old, k, &ids_old_len);
+                    printf("ids_old_len,i - i_start +1=%d,%d\n",ids_old_len,i - i_start +1);
                     /* use temporally-adjusted RMSE */
                     if (ids_old_len <= n_times * max_num_c)
                     {
@@ -1423,7 +1434,7 @@ int main (int argc, char *argv[])
                             RETURN_ERROR ("Allocating d_yr_idx memory", 
                                           FUNC_NAME, FAILURE);
                         rec_v_dif_temp = (float **)allocate_2d_array(ids_old_len,  
-                                          TOTAL_BANDS - 1, sizeof(float));
+                                          LASSO_BANDS, sizeof(float));
                         if (rec_v_dif_temp == NULL)
                             RETURN_ERROR ("Allocating rec_v_dif_temp memory", 
                                           FUNC_NAME, FAILURE);
@@ -1431,28 +1442,35 @@ int main (int argc, char *argv[])
                         for(m = 0; m < ids_old_len; m++)
                         {
                             d_rt = clrx[m] - clrx[i+conse-1]; 
-                            d_yr[m] = fabs(round((float)(d_rt/num_yrs)*num_yrs - d_rt));
+                            d_yr[m] = fabs(round((float)(d_rt/num_yrs)*num_yrs - (float)d_rt));
                             d_yr_idx[m] = m;
                         }
 
                         /* sort the d_yr */
                         quick_sort_index(d_yr, d_yr_idx, 0, ids_old_len-1);
 
+                        for(b = 0; b < TOTAL_BANDS-1; b++)
+                            tmpcg_rmse[b] = 0.0;
+
                         for(m = 0; m < ids_old_len; m++)
                         {
-                            for (b = 0; b < TOTAL_BANDS - 1; b++)
+                            for (b = 0; b < LASSO_BANDS; b++)
                             {
-                                rec_v_dif_temp[m][b] = rec_v_dif[ids_old[d_yr_idx[m]] - 
-                                     ids_old[0]][b];
+                                rec_v_dif_temp[m][lasso_blist[b]] = rec_v_dif[ids_old[d_yr_idx[m]] - 
+                                     ids_old[0]][lasso_blist[b]];
+                                tmpcg_rmse[lasso_blist[b]] += rec_v_dif_temp[m][lasso_blist[b]] *
+                                     rec_v_dif_temp[m][lasso_blist[b]]; 
                             }
                         }
                         /* temporarily changing RMSE */
-                        for (b = 0; b < TOTAL_BANDS-1; b++)
+                        for (b = 0; b < LASSO_BANDS; b++)
                         {
-                            matlab_2d_array_norm(rec_v_dif_temp, b, ids_old_len, 
-                                                 &tmpcg_rmse[b]);
-                            tmpcg_rmse[b] /= sqrt(n_rmse - update_num_c);  
+                            tmpcg_rmse[lasso_blist[b]] = sqrt(tmpcg_rmse[lasso_blist[b]]) / 
+                                    sqrt(n_rmse - update_num_c);  
                         }
+
+                        for(k = 0; k < num_scenes; k++)
+                            ids_old[k] = 0;
 
                         /* free allocated memories */
                         free(d_yr);
@@ -1498,14 +1516,13 @@ int main (int argc, char *argv[])
 
                                 /* z-score */
                                 v_diff[conse-1][i_b] = (v_dif_mag[conse-1][i_b]) / mini_rmse;
+                                vec_mag[conse-1] += v_diff[conse-1][i_b] * v_diff[conse-1][i_b]; 
                             }
                         }
 
                     }
-                    matlab_norm(v_diff[conse-1], LASSO_BANDS, &vec_mag[conse-1]);
-                    vec_mag[conse-1] *= vec_mag[conse-1];
                 }
-                break_mag = 0.0;
+                break_mag = 9999.0;
                 for (m = 0; m < conse; m++)
                 {
                     if (break_mag > vec_mag[m])
@@ -1545,7 +1562,7 @@ int main (int argc, char *argv[])
 
                     /* stay & check again after noise removal */
                     i--;
-
+                    printf("i--=%d\n",i);
                 }
             }
             status = free_2d_array ((void **) v_dif_mag);
@@ -1638,7 +1655,7 @@ int main (int argc, char *argv[])
                Use [conse,min_num_c*n_times+conse) to fit curve */
             /* multitemporal cloud mask */
             status = auto_mask(clrx, clry, i_start-1, end-1,
-                               (clrx[end-1]-clrx[i_start-1])/num_yrs, 
+                               (float)(clrx[end-1]-clrx[i_start-1])/num_yrs, 
                                 t_const, bl_ids);
             if (status != SUCCESS)
                 RETURN_ERROR("ERROR calling auto_mask routine", 

@@ -1204,14 +1204,15 @@ void get_ids_length
 )
 {
     int i;
-    static int sum = 0;
+    static int length = 0;
 
     for (i = 0; i < array_len; i++)
     {
-        sum += id_array[i];
+        if (id_array[i] != 0)
+            length++;
     }
 
-    *id_len = sum;
+    *id_len = length;
 }
 
 /******************************************************************************
