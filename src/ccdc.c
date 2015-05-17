@@ -1408,8 +1408,9 @@ int main (int argc, char *argv[])
                     /* record time of curve end */
                     rec_cg[num_fc].t_end = clrx[i-1]; /* record time of curve end */
 
-                    get_ids_length(ids_old, k, &ids_old_len);
-                    printf("ids_old_len,i - i_start +1=%d,%d\n",ids_old_len,i - i_start +1);
+                    printf("i_start, i, k=%d,%d,%d\n",i_start, i,k);
+                    get_ids_length(ids_old, i_start-1, i-1, &ids_old_len);
+                    printf("ids_old_len, - i_start +1=%d,%d\n",ids_old_len,i - i_start +1);
                     /* use temporally-adjusted RMSE */
                     if (ids_old_len <= n_times * max_num_c)
                     {
@@ -1650,7 +1651,7 @@ int main (int argc, char *argv[])
         }
         else if (bl_train == 0)
         {
-            get_array_length(clrx, num_scenes, &end);
+            get_ids_length(clrx, 0, num_scenes-1, &end);
             /* if break found close to the end of the time series 
                Use [conse,min_num_c*n_times+conse) to fit curve */
             /* multitemporal cloud mask */
