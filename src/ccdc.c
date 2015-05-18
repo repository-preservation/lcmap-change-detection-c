@@ -1536,7 +1536,7 @@ int main (int argc, char *argv[])
                     printf("Change Magnitude = %.2f\n",break_mag);
 
                     /* record break time */
-                    rec_cg[num_fc].t_break = clrx[i+1];
+                    rec_cg[num_fc].t_break = clrx[i];
                     rec_cg[num_fc].change_prob = 1.0;
                     for (i_b = 0; i_b < TOTAL_BANDS - 1; i_b++)
                         matlab_2d_array_mean(v_dif_mag, 0, conse, 
@@ -1591,7 +1591,7 @@ int main (int argc, char *argv[])
                     if (max_v_dif <= t_cg)
                     {
                         /* the last stable id */
-                        id_last = i_conse;
+                        id_last = i_conse + 1;
                         break;
                     }
                 }
@@ -1600,13 +1600,13 @@ int main (int argc, char *argv[])
             /* update change probability */
             rec_cg[num_fc].change_prob = (conse - id_last) / conse; 
             /* update end time of the curve */
-            rec_cg[num_fc].t_end = clrx[end - conse + id_last - 1];
+            rec_cg[num_fc].t_end = clrx[end - conse + id_last];
 
             /* mean value fit for the rest of the pixels < conse & > 1 */
             if (conse > id_last)
             {
                 /* update time of the probable change */
-                rec_cg[num_fc].t_break = clrx[end-conse+id_last];
+                rec_cg[num_fc].t_break = clrx[end-conse+id_last+1];
                 /* update magnitude of change */
                 for (i_b = 0; i_b < TOTAL_BANDS - 1; i_b++)
                     matlab_2d_partial_mean(v_dif_mag, i_b, id_last, conse-1, 
@@ -1624,7 +1624,7 @@ int main (int argc, char *argv[])
                 /* record time of curve start */
                 rec_cg[num_fc].t_start = clrx[end-conse+id_last];
                 /* record time of curve end */
-                rec_cg[num_fc].t_end = clrx[end];
+                rec_cg[num_fc].t_end = clrx[end-1];
                 /* record break time */
                 rec_cg[num_fc].t_break = 0;
                 /* record postion of the pixel */
