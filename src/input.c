@@ -142,9 +142,10 @@ int read_envi_header
     int ib;
     char map_info[10][MAX_STR_LEN]; 
     char filename[MAX_STR_LEN];
-    char FUNC_NAME[] = "read_raw_binary"; /* function name */
+    char FUNC_NAME[] = "read_envi_header"; /* function name */
 
-    sprintf(filename, "%s_sr_band1.hdr", scene_name);
+    //    sprintf(filename, "%s_sr_band1.hdr", scene_name);
+    sprintf(filename, "%s.hdr", scene_name);
 
     in=fopen(filename, "r");
     if (in == NULL)

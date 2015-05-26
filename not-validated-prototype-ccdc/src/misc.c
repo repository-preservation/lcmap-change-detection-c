@@ -47,39 +47,30 @@ int get_args
     char *argv[],             /* I: string of cmd-line args */
     int *row,                 /* O: row number for the pixel */
     int *col,                 /* O: col number for the pixel */
-    float *min_rmse,          /* O: minimum rmse threshold value */
     float *t_cg,              /* O: chi-square inversed T_cg */
-    float *t_max_cg,          /* O: chi-square inversed T_max_cg for 
-                                    last step noise removal */
     int * conse,              /* O: number of points used for change detection */ 
     bool *verbose             /* O: verbose flag */
 )
 {
     int c;                          /* current argument index */
     int option_index;               /* index for the command-line option */
-    static float min_rmse_default = 0.5;    /* default value of minimum RMSE */
     static float t_cg_default = 15.0863;    /* default value of chi2inv(0.99, 5) */
-    static float t_max_cg_default = 35.8882;/* default value of t_max_cg */
     static int conse_default = 6;           /* default value of conse */ 
     static int verbose_flag = 0;    /* verbose flag */
     char errmsg[MAX_STR_LEN];       /* error message */
     char FUNC_NAME[] = "get_args";  /* function name */
     static struct option long_options[] = {
         {"verbose", no_argument, &verbose_flag, 1},
-        {"min_rmse", required_argument, 0, 'r'},
         {"row", required_argument, 0, 'w'},
         {"col", required_argument, 0, 'l'},
         {"t_cg", required_argument, 0, 't'},
-        {"t_max_cg", required_argument, 0, 'm'},
         {"conse", required_argument, 0, 'c'},
         {"help", no_argument, 0, 'h'},
         {0, 0, 0, 0}
     };
 
     /* Assign the default values */
-    *min_rmse = min_rmse_default;
     *t_cg = t_cg_default;
-    *t_max_cg = t_max_cg_default;
     *conse = conse_default;
 
     /* Loop through all the cmd-line options */
@@ -114,16 +105,8 @@ int get_args
                 *col = atoi (optarg);
                 break;
 
-            case 'r':             
-                *min_rmse = atof (optarg);
-                break;
-
             case 't':             
                 *t_cg = atof (optarg);
-                break;
-
-            case 'm':             
-                *t_max_cg = atof (optarg);
                 break;
 
             case 'c': 
@@ -157,9 +140,7 @@ int get_args
     {
         printf ("row = %d\n", *row);
         printf ("col = %d\n", *col);
-        printf ("min_rmse = %f\n", *min_rmse);
         printf ("t_cg = %f\n", *t_cg);
-        printf ("t_max_cg = %f\n", *t_max_cg);
         printf ("conse = %d\n", *conse);
     }
 
@@ -582,7 +563,7 @@ int sort_scene_based_on_year_doy
         status = convert_year_doy_to_jday_from_0000(year, doy, &sdate[i]);
         if (status != SUCCESS)
         {
-            RETURN_ERROR ("Landsat data starts from 1973", FUNC_NAME, EXIT_FAILURE);
+            RETURN_ERROR ("Landsat data starts from 1973", FUNC_NAME, FAILURE);
         }
     }
 
@@ -702,6 +683,55 @@ void quick_sort_int16 (int16 arr[], int left, int right)
         quick_sort_int16 (arr, left, index - 1);
     if (index < right)
         quick_sort_int16 (arr, index, right);
+}
+
+/******************************************************************************
+MODULE:  median_variogram
+
+PURPOSE:  simulate matlab medium function for 2d array case
+
+RETURN VALUE:
+Type = void
+Value           Description
+-----           -----------
+
+
+HISTORY:
+Date        Programmer       Reason
+--------    ---------------  -------------------------------------
+5/19/2015   Song Guo         Original Development
+
+******************************************************************************/
+int median_variogram
+(
+    int16 **array,      /* I: input array */
+    int dim1_len,       /* I: dimension 1 length in input array */
+    int dim2_len,       /* I: dimension 2 length in input array */
+    int *output_array   /* O: output array */
+)
+{
+    int i, j;
+    int16 *temp; 
+    int m = (dim1_len -1) / 2;
+    char FUNC_NAME[] = "median_variogram";
+
+    temp = malloc((dim1_len - 1) * sizeof(int16));
+    if (temp == NULL)
+        RETURN_ERROR ("ERROR allocating memory", FUNC_NAME, FAILURE);
+
+    for (j = 0; j < dim2_len; j++)
+    {
+        for (i = 0; i < dim1_len - 1; i++)
+        {
+            temp[i] = abs(array[i+1][j] - array[i][j]);
+        }
+        quick_sort_int16(temp, 0, dim1_len - 1); 
+        output_array[j] = (int)temp[m+1];
+    }
+
+    free(temp);
+
+    return SUCCESS;
 }
 
 /******************************************************************************
@@ -956,6 +986,47 @@ void square_root_mean
 }
 
 /******************************************************************************
+MODULE:  partial_square_root_mean
+
+PURPOSE:  simulate square root mean function of paritail of a 2d array
+
+RETURN VALUE:
+Type = void
+Value           Description
+-----           -----------
+
+
+HISTORY:
+Date        Programmer       Reason
+--------    ---------------  -------------------------------------
+2/9/2015   Song Guo         Original Development
+
+NOTES: 
+******************************************************************************/
+void partial_square_root_mean
+(
+    int16 **array,       /* I: input array */
+    int dim2_number,     /* I: second dimension number used */   
+    int start,           /* I: number of start elements in 1st dim */
+    int end,             /* I: number of end elements in 1st dim */
+    float **fit_ctf,     /* I: */
+    float  *rmse         /* O: output rmse value */
+)
+{
+    int i;
+    int sum = 0;
+    float rmse_square;
+
+    for (i = start; i <= end; i++)
+    {
+        sum += ((array[i][dim2_number] - fit_ctf[0][dim2_number]) *
+                (array[i][dim2_number] - fit_ctf[0][dim2_number]));
+    }
+    rmse_square = (float)sum / (float)(end-start+1);
+    *rmse = sqrt(rmse_square);
+}
+
+/******************************************************************************
 MODULE:  matlab_2d_array_norm
 
 PURPOSE:  simulate matlab mean function for 1 dimesion in 2d array cases only
@@ -1028,10 +1099,10 @@ void matlab_2d_array_mean
 }
 
 /******************************************************************************
-MODULE:  matlab_2d_int_array_mean
+MODULE:  matlab_int_2d_partial_mean
 
-PURPOSE:  simulate matlab mean function for 1 dimesion in 2d integer array 
-          cases only
+PURPOSE:  simulate matlab mean function for parital part of 1 dimesion in 2d 
+          array cases only
 
 RETURN VALUE:
 Type = void
@@ -1046,22 +1117,23 @@ Date        Programmer       Reason
 
 NOTES: 
 ******************************************************************************/
-void matlab_2d_int_array_mean
+void matlab_int_2d_partial_mean
 (
     int16 **array,       /* I: input array */
     int dim2_number,     /* I: second dimension number used */   
-    int array_len1,      /* I: number of input elements in 1st dim */
+    int start,           /* I: number of start elements in 1st dim */
+    int end,             /* I: number of end elements in 1st dim */
     float  *output_mean  /* O: output norm value */
 )
 {
     int i;
-    int16 sum = 0;
+    float sum = 0.0;
 
-    for (i = 0; i < array_len1; i++)
+    for (i = start; i <= end; i++)
     {
-        sum += array[i][dim2_number];
+        sum += (float)array[i][dim2_number];
     }
-    *output_mean = (float) sum / (float)(array_len1);
+    *output_mean = sum / (float)(end - start + 1);
 }
 
 /******************************************************************************
@@ -1471,7 +1543,9 @@ int auto_mask
     int start,
     int end,
     float years,
-    int t_times,
+    int t_b1,
+    int t_b2,
+    int n_t,
     int *bl_ids
 )
 {
@@ -1538,8 +1612,8 @@ int auto_mask
                   coefs2[2] * sin((float)clrx[i+start] * w ) + coefs2[3] * 
                   cos((float)clrx[i+start] * w2 ) 
                   + coefs2[4] * sin((float)clrx[i+start] * w2);
-        if ((((float)clry[i+start][1]-pred_b2[i]) > (float)t_times) || 
-            (((float)clry[i+start][4]-pred_b5[i]) < (float)-t_times))
+        if ((((float)clry[i+start][1]-pred_b2[i]) > (float)(n_t * t_b1)) || 
+            (((float)clry[i+start][4]-pred_b5[i]) < -(float)(n_t * t_b2)))
             bl_ids[i] = 1;
         else
             bl_ids[i] = 0;
@@ -1615,7 +1689,7 @@ void auto_ts_predict
 /******************************************************************************
 MODULE:  auto_ts_fit
 
-PURPOSE:  Lasso regression fitting
+PURPOSE:  Lasso regression fitting with full outputs
 
 RETURN VALUE:
 Type = int
@@ -1628,6 +1702,291 @@ Date        Programmer       Reason
 NOTES:
 ******************************************************************************/
 int auto_ts_fit
+(
+    int *clrx,
+    int16 **clry,
+    int band_index,
+    int start,
+    int end,
+    int df,
+    float **coefs,
+    float *rmse
+)
+{
+    char FUNC_NAME[] = "auto_ts_fit";
+    float w;
+    int i;
+    float **x;
+    int status;
+    float **v_dif;
+    float *yhat;
+    float v_dif_norm;
+    int nums;
+    FILE *fd;
+
+    nums = end - start + 1;
+    w = TWO_PI / 365.25;
+    /* Allocate memory */
+    if (df ==2)
+    {
+        x = (float **)allocate_2d_array(1, nums, sizeof(float));
+        if (x == NULL)
+            RETURN_ERROR("Allocating x memory", FUNC_NAME, FAILURE);
+    }
+    else if (df == 4)
+    {
+        x = (float **)allocate_2d_array(3, nums, sizeof(float));
+        if (x == NULL)
+            RETURN_ERROR("Allocating x memory", FUNC_NAME, FAILURE);
+    }
+    else if (df == 6)
+    {
+        x = (float **)allocate_2d_array(5, nums, sizeof(float));
+        if (x == NULL)
+            RETURN_ERROR("Allocating x memory", FUNC_NAME, FAILURE);
+    }
+    else if (df == 8)
+    {
+        x = (float **)allocate_2d_array(7, nums, sizeof(float));
+        if (x == NULL)
+            RETURN_ERROR("Allocating x memory", FUNC_NAME, FAILURE);
+    }
+    else 
+        RETURN_ERROR("Unsupported df value", FUNC_NAME, FAILURE);
+
+    v_dif = (float **)allocate_2d_array(end - start + 1, TOTAL_BANDS - 1, 
+             sizeof(float));
+    if (v_dif == NULL)
+        RETURN_ERROR("Allocating v_dif memory", FUNC_NAME, FAILURE);
+
+    yhat = (float *)malloc(nums * sizeof(float));
+    if (yhat == NULL)
+        RETURN_ERROR("Allocating yhat memory", FUNC_NAME, FAILURE);
+
+    for (i = 0; i < nums; i++)
+    {
+        if (df == 2)
+        {
+            x[0][i] = (float)clrx[i+start];
+        }
+        else if (df == 4)
+        {
+            x[0][i] = (float)clrx[i+start];
+            x[1][i] = cos(w * (float)clrx[i+start]);
+            x[2][i] = sin(w * (float)clrx[i+start]);
+        }
+        else if (df == 6)
+        {
+            x[0][i] = (float)clrx[i+start];
+            x[1][i] = cos(w * (float)clrx[i+start]);
+            x[2][i] = sin(w * (float)clrx[i+start]);
+            x[3][i] = cos(2.0 * w * (float)clrx[i+start]);
+            x[4][i] = sin(2.0 * w * (float)clrx[i+start]);
+        }
+        else if (df == 8)
+        {
+            x[0][i] = (float)clrx[i+start];
+            x[1][i] = cos(w * (float)clrx[i+start]);
+            x[2][i] = sin(w * (float)clrx[i+start]);
+            x[3][i] = cos(2.0 * w * (float)clrx[i+start]);
+            x[4][i] = sin(2.0 * w * (float)clrx[i+start]);
+            x[5][i] = cos(3.0 * w * (float)clrx[i+start]);
+            x[6][i] = sin(3.0 * w * (float)clrx[i+start]);
+        }
+        else
+            RETURN_ERROR("Unsupported df value", FUNC_NAME, FAILURE);
+    }
+
+    /* Save the inputs for lasso fitting */
+
+    if (df == 2)
+    {
+        fd = fopen("glmnet_fit_inputs.txt", "w");
+        if (fd == NULL)
+            RETURN_ERROR("ERROR opening temporary file1", FUNC_NAME, FAILURE);
+
+        for (i = 0; i < nums; i++)
+        {
+            if (fprintf (fd, "%f,%d\n", x[0][i], clry[i+start][band_index]) == EOF)
+            {
+                RETURN_ERROR ("End of file (EOF) is met before nums"
+                              " lines", FUNC_NAME, FAILURE);
+            }
+
+        }
+        fclose(fd);
+
+        /* Call R script to do lasso fitting */
+        status = system("R CMD BATCH $BIN/glmnet_fit_df2.r");
+        if (status != SUCCESS)
+            RETURN_ERROR ("Running glmnet fit R scripts", FUNC_NAME, FAILURE);
+
+        fd = fopen("glmnet_fit_outputs.txt", "r");
+        if (fd == NULL)
+            RETURN_ERROR("ERROR opening temporary file2", FUNC_NAME, FAILURE);
+
+        /* Read out the lasso fit coefficients */
+        fscanf(fd, "%f %f", &coefs[0][band_index], &coefs[1][band_index]);
+        fclose(fd);
+    }
+    else if (df == 4)
+    {
+        fd = fopen("glmnet_fit_inputs.txt", "w");
+        if (fd == NULL)
+            RETURN_ERROR("ERROR opening temporary file1", FUNC_NAME, FAILURE);
+
+        for (i = 0; i < nums; i++)
+        {
+            if (fprintf (fd, "%f,%f,%f,%d\n", x[0][i], x[1][i], x[2][i], 
+                         clry[i+start][band_index]) == EOF)
+            {
+                RETURN_ERROR ("End of file (EOF) is met before nums"
+                              " lines", FUNC_NAME, FAILURE);
+            }
+#if 0
+            printf("i,start,x[0][i], x[1][i], x[2][i],clry[i+start][band_index]=%d,%d,%f,%f,%f,%d\n",
+                   i,start,x[0][i], x[1][i], x[2][i],clry[i+start][band_index]);
+#endif
+        }
+        fclose(fd);
+
+        /* Call R script to do lasso fitting */
+        status = system("R CMD BATCH $BIN/glmnet_fit_df4.r");
+        if (status !=SUCCESS)
+            RETURN_ERROR ("Running glmnet fit R scripts", FUNC_NAME, FAILURE);
+
+        fd = fopen("glmnet_fit_outputs.txt", "r");
+        if (fd == NULL)
+            RETURN_ERROR("ERROR opening temporary file2", FUNC_NAME, FAILURE);
+
+        /* Read out the lasso fit coefficients */
+        fscanf(fd, "%f %f %f %f", &coefs[0][band_index], &coefs[1][band_index], 
+               &coefs[2][band_index], &coefs[3][band_index]);
+        fclose(fd);
+    }
+    else if (df == 6)
+    {
+        fd = fopen("glmnet_fit_inputs.txt", "w");
+        if (fd == NULL)
+            RETURN_ERROR("ERROR opening temporary file1", FUNC_NAME, FAILURE);
+
+        for (i = 0; i < nums; i++)
+        {
+            if (fprintf (fd, "%f,%f,%f,%f,%f,%d\n", x[0][i], x[1][i], x[2][i], 
+                         x[3][i], x[4][i], clry[i+start][band_index]) == EOF)
+            {
+                RETURN_ERROR ("End of file (EOF) is met before nums"
+                              " lines", FUNC_NAME, FAILURE);
+            }
+
+        }
+        fclose(fd);
+
+        /* Call R script to do lasso fitting */
+        status = system("R CMD BATCH $BIN/glmnet_fit_df6.r");
+        if (status != SUCCESS)
+            RETURN_ERROR ("Running glmnet fit R scripts", FUNC_NAME, FAILURE);
+
+        fd = fopen("glmnet_fit_outputs.txt", "r");
+        if (fd == NULL)
+            RETURN_ERROR("ERROR opening temporary file2", FUNC_NAME, FAILURE);
+
+        /* Read out the lasso fit coefficients */
+        fscanf(fd, "%f %f %f %f %f %f", &coefs[0][band_index], &coefs[1][band_index], 
+               &coefs[2][band_index], &coefs[3][band_index], 
+               &coefs[4][band_index], &coefs[5][band_index]);
+        fclose(fd);
+    }
+    else if (df == 8)
+    {
+        fd = fopen("glmnet_fit_inputs.txt", "w");
+        if (fd == NULL)
+            RETURN_ERROR("ERROR opening temporary file1", FUNC_NAME, FAILURE);
+
+        for (i = 0; i < nums; i++)
+        {
+            if (fprintf (fd, "%f,%f,%f,%f,%f,%f,%f,%d\n", x[0][i], x[1][i], x[2][i], 
+                         x[3][i], x[4][i], x[5][i], x[6][i],
+                         clry[i+start][band_index]) == EOF)
+            {
+                RETURN_ERROR ("End of file (EOF) is met before nums"
+                              " lines", FUNC_NAME, FAILURE);
+            }
+        }
+        fclose(fd);
+
+        /* Call R script to do lasso fitting */
+        status = system("R CMD BATCH $BIN/glmnet_fit_df8.r");
+        if (status != SUCCESS)
+            RETURN_ERROR ("Running glmnet fit R scripts", FUNC_NAME, FAILURE);
+
+        fd = fopen("glmnet_fit_outputs.txt", "r");
+        if (fd == NULL)
+            RETURN_ERROR("ERROR opening temporary file2", FUNC_NAME, FAILURE);
+
+        /* Read out the lasso fit coefficients */
+        fscanf(fd, "%f %f %f %f %f %f %f %f", &coefs[0][band_index], &coefs[1][band_index], 
+               &coefs[2][band_index], &coefs[3][band_index], &coefs[4][band_index], 
+               &coefs[5][band_index], &coefs[6][band_index], &coefs[7][band_index]);
+        fclose(fd);
+    }
+    else
+         RETURN_ERROR("Incorrect df value", FUNC_NAME, FAILURE);
+
+    /* predict lasso model results */
+    if (df == 2 || df == 4 || df == 6 || df == 8)
+    {
+        auto_ts_predict(clrx, coefs, band_index, start, end, yhat);
+        for (i = 0; i < nums; i++)
+         {
+            v_dif[i][band_index] = (float)clry[i+start][band_index] - yhat[i];
+         }
+        matlab_2d_array_norm(v_dif, band_index, nums, &v_dif_norm);
+        *rmse = v_dif_norm / sqrt((float)(nums - df));
+        //        printf("*rmse=%f\n",*rmse);
+    }
+
+    /* Free allocated memory */
+    free(yhat);
+    if (df == 2 || df == 4 || df == 6 || df == 8)
+    {
+        if (free_2d_array ((void **) x) != SUCCESS)
+            RETURN_ERROR ("Freeing memory: x\n", FUNC_NAME, FAILURE);
+    }
+    if (free_2d_array ((void **) v_dif) != SUCCESS)
+        RETURN_ERROR ("Freeing memory: v_dif\n", FUNC_NAME, FAILURE);
+
+#if 0
+    /* Remove the temporary file */
+    status = system("rm glmnet_fit_inputs.txt");
+    if (status != SUCCESS)
+        RETURN_ERROR ("Deleting glmnet_fit_inputs.txt file", FUNC_NAME, FAILURE);
+    status = system("rm glmnet_fit_outputs.txt");
+    if (status != SUCCESS)
+        RETURN_ERROR ("Deleting glmnet_fit_outputs.txt file", FUNC_NAME, FAILURE);
+    status = system("rm glmnet_fit_*.r.Rout");
+    if (status != SUCCESS)
+        RETURN_ERROR ("Deleting glmnet_fit_*.r.Rout file", FUNC_NAME, FAILURE);
+#endif
+    return SUCCESS;
+}
+
+/******************************************************************************
+MODULE:  auto_ts_fit_full
+
+PURPOSE:  Lasso regression fitting with full outputs
+
+RETURN VALUE:
+Type = int
+
+HISTORY:
+Date        Programmer       Reason
+--------    ---------------  -------------------------------------
+3/5/2015   Song Guo         Original Development
+
+NOTES:
+******************************************************************************/
+int auto_ts_fit_full
 (
     int *clrx,
     int16 **clry,
