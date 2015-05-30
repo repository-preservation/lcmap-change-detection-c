@@ -199,17 +199,10 @@ void update_cft
 int median_variogram
 (
     int16 **array,      /* I: input array */
-    int dim1_len,       /* I: dimension 1 length in input array */
+    int dim1_start,     /* I: dimension 1 start index */
+    int dim1_end,       /* I: dimension 1 end index */
     int dim2_len,       /* I: dimension 2 length in input array */
-    int *output_array   /* O: output array */
-);
-
-void median_filter
-(
-    int16 **array,     /* I: input array */
-    int array_len,     /* I: number of elements in input array */
-    int n,             /* I: output order N, here is an odd number */
-    int16 *output_array/* O: output array */
+    float *output_array /* O: output array */
 );
 
 void array_intersection
