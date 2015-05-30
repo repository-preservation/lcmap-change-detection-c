@@ -48,7 +48,7 @@ int get_args
     int *row,                 /* O: row number for the pixel */
     int *col,                 /* O: col number for the pixel */
     float *t_cg,              /* O: chi-square inversed T_cg */
-    int * conse,              /* O: number of points used for change detection */ 
+    int *conse,               /* O: number of points used for change detection */ 
     bool *verbose             /* O: verbose flag */
 )
 {
@@ -64,7 +64,7 @@ int get_args
         {"row", required_argument, 0, 'w'},
         {"col", required_argument, 0, 'l'},
         {"t_cg", required_argument, 0, 't'},
-        {"conse", required_argument, 0, 'c'},
+        {"conse", required_argument, 0, 'o'},
         {"help", no_argument, 0, 'h'},
         {0, 0, 0, 0}
     };
@@ -109,7 +109,7 @@ int get_args
                 *t_cg = atof (optarg);
                 break;
 
-            case 'c': 
+            case 'o': 
                 *conse = atoi(optarg);
                 break;
 
@@ -705,78 +705,42 @@ Date        Programmer       Reason
 int median_variogram
 (
     int16 **array,      /* I: input array */
-    int dim1_len,       /* I: dimension 1 length in input array */
+    int dim1_start,     /* I: dimension 1 start index */
+    int dim1_end,       /* I: dimension 1 end index */
     int dim2_len,       /* I: dimension 2 length in input array */
-    int *output_array   /* O: output array */
+    float *output_array /* O: output array */
 )
 {
     int i, j;
-    int16 *temp; 
-    int m = (dim1_len -1) / 2;
+    int16 *var; 
+    int dim1_len = dim1_end - dim1_start + 1;
+    int m = dim1_len / 2;
     char FUNC_NAME[] = "median_variogram";
 
-    temp = malloc((dim1_len - 1) * sizeof(int16));
-    if (temp == NULL)
+    var = malloc((dim1_len-1) * sizeof(int16));
+    //    var = (int16 **)allocate_2d_array(dim1_len-1, TOTAL_BANDS-1, 
+    //            sizeof(int16));
+    if (var == NULL)
         RETURN_ERROR ("ERROR allocating memory", FUNC_NAME, FAILURE);
 
     for (j = 0; j < dim2_len; j++)
+         //    for (i = dim1_start; i < dim1_end; i++)
     {
-        for (i = 0; i < dim1_len - 1; i++)
+        for (i = dim1_start; i < dim1_end; i++)
+        //        for (j = 0; j < dim2_len; j++)
         {
-            temp[i] = abs(array[i+1][j] - array[i][j]);
+            var[i] = abs(array[i+1][j] - array[i][j]);
         }
-        quick_sort_int16(temp, 0, dim1_len - 1); 
-        output_array[j] = (int)temp[m+1];
+        quick_sort_int16(var, dim1_start, dim1_len-1);
+        if (dim1_len % 2 == 0)
+            output_array[j] = (float)(var[m-1] + var[m]) / 2;
+        else
+            output_array[j] = (float)var[m];
     }
 
-    free(temp);
+    free(var);
 
     return SUCCESS;
-}
-
-/******************************************************************************
-MODULE:  median_filter
-
-PURPOSE:  simulate matlab medfilt1 function for odd number cases only
-
-RETURN VALUE:
-Type = void
-Value           Description
------           -----------
-
-
-HISTORY:
-Date        Programmer       Reason
---------    ---------------  -------------------------------------
-2/3/2015   Song Guo         Original Development
-
-NOTES: We only handle odd number input N case as it will be 2 * conse + 1 
-       for CCDC run, if needed, we can add in even number case later
-******************************************************************************/
-void median_filter
-(
-    int16 **array,      /* I: input array */
-    int array_len,      /* I: number of elements in input array */
-    int n,              /* I: output order N, here is an odd number */
-    int16 *output_array/* O: output array */
-)
-{
-    int i, j;
-    int16 temp[n];
-    int m = n / 2;
-
-    for (i = 0; i < array_len; i++)
-    {
-        for (j = 0; j < n; j++)
-        {
-            if (((i + j - m) >= 0) && ((i + j - m) < array_len -1))
-                temp[j] = array[i + j - m][1];
-            else
-                temp[j] = 0;
-        }
-        quick_sort_int16(temp, 0, n - 1); 
-        output_array[i] = temp[m+1];
-    }
 }
 
 /******************************************************************************
@@ -1392,7 +1356,7 @@ void quick_sort_index (float arr[], int idx[], int left, int right)
  int index = partition_index (arr, idx, left, right);
 
     if (left < index - 1)
-     quick_sort_index (arr, idx, left, index - 1);
+        quick_sort_index (arr, idx, left, index - 1);
     if (index < right)
         quick_sort_index (arr, idx, index, right);
 }
@@ -1488,35 +1452,6 @@ int auto_robust_fit
     gsl_vector_free (y);
     gsl_vector_free (c);
     gsl_matrix_free (cov);
-#if 0
-    /* Save the inputs for robust fitting */
-    fd = fopen("robust_fit_inputs.txt", "w");
-    if (fd == NULL)
-        RETURN_ERROR("ERROR opening temporary file", FUNC_NAME, FAILURE);
-    for (i = 0; i < nums; i++)
-    {
-        if (fprintf (fd, "%f,%f,%f,%f,%d\n", x[0][i], x[1][i],
-                 x[2][i], x[3][i], clry[i][band_index]) == EOF)
-        {
-            RETURN_ERROR ("End of file (EOF) is met before nums"
-                          " lines", FUNC_NAME, FAILURE);
-        }
-    }
-    fclose(fd);
-
-    /* Call R script to do Robust fitting */
-    status = system("R CMD BATCH $BIN/robust_fit.r");
-    if (status != SUCCESS)
-        RETURN_ERROR ("Running robust fit R scripts", FUNC_NAME, FAILURE);
-
-    /* Read out the robust fit coefficients */
-    fd = fopen("robust_fit_outputs.txt", "r");
-    if (fd == NULL)
-        RETURN_ERROR("ERROR opening temporary file", FUNC_NAME, FAILURE);
-    fscanf(fd, "%f %f %f %f %f", &coefs[0], &coefs[1],
-            &coefs[2], &coefs[3], &coefs[4]);
-    fclose(fd);
-#endif
 
     return SUCCESS;
 }
@@ -1626,18 +1561,7 @@ int auto_mask
     free(pred_b5);
     if (free_2d_array ((void **) x) != SUCCESS)
         RETURN_ERROR ("Freeing memory: x\n", FUNC_NAME, FAILURE);
-#if 0
-    /* Remove the temporary file */
-    status = system("rm robust_fit_inputs.txt");
-    if (status != SUCCESS)
-        RETURN_ERROR ("Deleting robust_fit_inputs.txt file", FUNC_NAME, FAILURE);
-    status = system("rm robust_fit_outputs.txt");
-    if (status != SUCCESS)
-        RETURN_ERROR ("Deleting robust_fit_outputs.txt file", FUNC_NAME, FAILURE);
-    status = system("rm robust_fit.r.Rout");
-    if (status != SUCCESS)
-        RETURN_ERROR ("Deleting robust_fit.r.Rout file", FUNC_NAME, FAILURE);
-#endif
+
     return SUCCESS;
 }
 
@@ -1835,6 +1759,7 @@ int auto_ts_fit
         if (fd == NULL)
             RETURN_ERROR("ERROR opening temporary file1", FUNC_NAME, FAILURE);
 
+        printf("nums2=%d\n",nums);
         for (i = 0; i < nums; i++)
         {
             if (fprintf (fd, "%f,%f,%f,%d\n", x[0][i], x[1][i], x[2][i], 
@@ -1843,10 +1768,10 @@ int auto_ts_fit
                 RETURN_ERROR ("End of file (EOF) is met before nums"
                               " lines", FUNC_NAME, FAILURE);
             }
-#if 0
+
             printf("i,start,x[0][i], x[1][i], x[2][i],clry[i+start][band_index]=%d,%d,%f,%f,%f,%d\n",
                    i,start,x[0][i], x[1][i], x[2][i],clry[i+start][band_index]);
-#endif
+
         }
         fclose(fd);
 
@@ -1938,9 +1863,9 @@ int auto_ts_fit
     {
         auto_ts_predict(clrx, coefs, band_index, start, end, yhat);
         for (i = 0; i < nums; i++)
-         {
+        {
             v_dif[i][band_index] = (float)clry[i+start][band_index] - yhat[i];
-         }
+        }
         matlab_2d_array_norm(v_dif, band_index, nums, &v_dif_norm);
         *rmse = v_dif_norm / sqrt((float)(nums - df));
         //        printf("*rmse=%f\n",*rmse);
@@ -2218,9 +2143,9 @@ int auto_ts_fit_full
     {
         auto_ts_predict(clrx, coefs, band_index, start, end, yhat);
         for (i = 0; i < nums; i++)
-         {
+        {
             v_dif[i][band_index] = (float)clry[i+start][band_index] - yhat[i];
-         }
+        }
         matlab_2d_array_norm(v_dif, band_index, nums, &v_dif_norm);
         *rmse = v_dif_norm / sqrt((float)(nums - df));
         //        printf("*rmse=%f\n",*rmse);
