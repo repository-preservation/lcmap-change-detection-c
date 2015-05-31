@@ -14,6 +14,6 @@ cfs5<-coef(fit1)["x.x5",1]
 cfs6<-coef(fit1)["x.x6",1]
 cfs7<-coef(fit1)["x.x7",1]
 
-cfs<-data.frame(cfs0,cfs1,cfs2,cfs3,cfs4,cfs5y,cfs6,cfs7)
+cfs<-data.frame(cfs0,cfs1,cfs2,cfs3,cfs4,cfs5,cfs6,cfs7)
 print(cfs)
 write.table(cfs,"glmnet_fit_outputs.txt",sep=" ",row.names=FALSE,col.names=FALSE)
