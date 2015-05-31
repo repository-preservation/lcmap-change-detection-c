@@ -929,20 +929,17 @@ printf("conse3=%d\n",conse);
 
                             if (i_start > i_break)
                             {
-                                for (i_ini = i_start-1; i_ini >= i_break-1; i_ini--)
+                                /* model fit at the beginning of the time series */
+                                for(i_ini = i_start-2; i_ini >= i_break-1; i_ini--)
                                 {
-                                   /* model fit at the beginning of the time series */
-                                   for(i_ini = i_start-2; i >= i_break-1; i--)
-                                   {
-                                       if ((i_start - i_break) < conse)
-                                           ini_conse = i_start - i_break;
-                                       else
-                                           ini_conse = conse;
-                                    }
-
+                                    if ((i_start - i_break) < conse)
+                                        ini_conse = i_start - i_break;
+                                    else
+                                        ini_conse = conse;
+                            
                                     /* allocate memory for model_v_dif */ 
                                     v_dif_mag = (float **) allocate_2d_array(ini_conse,
-                                          TOTAL_BANDS-1, sizeof (float));
+                                              TOTAL_BANDS-1, sizeof (float));
                                     if (v_dif_mag == NULL)
                                     {
                                         RETURN_ERROR ("Allocating v_dif_mag memory", 
@@ -965,7 +962,7 @@ printf("conse3=%d\n",conse);
                                         RETURN_ERROR ("Allocating vec_magg memory", 
                                                       FUNC_NAME, FAILURE);
                                     }
-
+   
                                     /* detect change. 
                                        value of difference for conse obs
                                        record the magnitude of change */
@@ -978,9 +975,9 @@ printf("conse3=%d\n",conse);
                                         {
                                             /* absolute differences */
                                             auto_ts_predict(clrx, fit_cft, i_b, i_conse,
-                                                         i_conse, &ts_pred_temp);
+                                                            i_conse, &ts_pred_temp);
                                             v_dif_mag[i_conse][i_b] = (float)clry[i_conse][i_b] - 
-                                                ts_pred_temp;
+                                                    ts_pred_temp;
 
                                             /* normalize to z-score */
                                             for (b = 0; b < LASSO_BANDS; b++)
@@ -989,7 +986,7 @@ printf("conse3=%d\n",conse);
                                                 {
                                                     /* minimum rmse */ 
                                                     mini_rmse = max(adj_rmse[i_b], rmse[i_b]);
- 
+
                                                     /* z-scores */
                                                     v_diff[i_conse][i_b] = fabs(v_dif_mag[i_conse][i_b]) 
                                                                        / mini_rmse;
@@ -1032,10 +1029,10 @@ printf("conse3=%d\n",conse);
                                     for (i_b = 0; i_b < TOTAL_BANDS-1; i_b++)
                                     {
                                         status = auto_ts_fit(clrx, clry, b, i_start-1, i-1, 
-                                             min_num_c, fit_cft, &rmse[b]); 
+                                                 min_num_c, fit_cft, &rmse[b]); 
                                         if (status != SUCCESS)  
                                             RETURN_ERROR ("Calling auto_ts_fit5\n", 
-                                            FUNC_NAME, EXIT_FAILURE);
+                                                FUNC_NAME, EXIT_FAILURE);
                                     }
                                 }
                             }
