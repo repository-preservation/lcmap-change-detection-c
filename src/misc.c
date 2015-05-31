@@ -1759,7 +1759,6 @@ int auto_ts_fit
         if (fd == NULL)
             RETURN_ERROR("ERROR opening temporary file1", FUNC_NAME, FAILURE);
 
-        printf("nums2=%d\n",nums);
         for (i = 0; i < nums; i++)
         {
             if (fprintf (fd, "%f,%f,%f,%d\n", x[0][i], x[1][i], x[2][i], 
@@ -1768,10 +1767,10 @@ int auto_ts_fit
                 RETURN_ERROR ("End of file (EOF) is met before nums"
                               " lines", FUNC_NAME, FAILURE);
             }
-
+#if 0
             printf("i,start,x[0][i], x[1][i], x[2][i],clry[i+start][band_index]=%d,%d,%f,%f,%f,%d\n",
                    i,start,x[0][i], x[1][i], x[2][i],clry[i+start][band_index]);
-
+#endif
         }
         fclose(fd);
 
