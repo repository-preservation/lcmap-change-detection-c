@@ -929,7 +929,7 @@ printf("conse3=%d\n",conse);
 
                             if (i_start > i_break)
                             {
-                                for (i_ini = i_start-1; i_ini >= i_break-1; i--)
+                                for (i_ini = i_start-1; i_ini >= i_break-1; i_ini--)
                                 {
                                    /* model fit at the beginning of the time series */
                                    for(i_ini = i_start-2; i >= i_break-1; i--)
@@ -1183,7 +1183,8 @@ printf("i_start,i_break4=%d,%d\n",i_start,i_break);
                 }
                 i_span = i - i_start +1;
 
-                printf("up-update i_span=%d\n",i_span);
+                printf("i_start, i, up-update i_span=%d,%d,%d\n",
+                        i_start, i, i_span);
 
                 /* determine the time series model */
                 update_cft(i_span, n_times, min_num_c, mid_num_c, max_num_c, 
