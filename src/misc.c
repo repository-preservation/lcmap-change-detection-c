@@ -1924,7 +1924,7 @@ int auto_ts_fit_full
     float **v_dif
 )
 {
-    char FUNC_NAME[] = "auto_ts_fit";
+    char FUNC_NAME[] = "auto_ts_fit_full";
     float w;
     int i;
     float **x;
@@ -1936,6 +1936,7 @@ int auto_ts_fit_full
 
     nums = end - start + 1;
     w = TWO_PI / 365.25;
+
     /* Allocate memory */
     if (df ==2)
     {
