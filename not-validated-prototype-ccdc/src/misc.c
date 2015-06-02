@@ -1353,7 +1353,7 @@ NOTES:
 ******************************************************************************/
 void quick_sort_index (float arr[], int idx[], int left, int right)
 {
- int index = partition_index (arr, idx, left, right);
+    int index = partition_index (arr, idx, left, right);
 
     if (left < index - 1)
         quick_sort_index (arr, idx, left, index - 1);
