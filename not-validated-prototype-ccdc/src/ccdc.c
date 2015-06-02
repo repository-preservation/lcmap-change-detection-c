@@ -719,6 +719,10 @@ int main (int argc, char *argv[])
                 for(k = i_start-1; k < i+conse; k++)
                      printf("k,bl_ids[k]=%d,%d\n",k,bl_ids[k]);
 #endif
+                /* Clears the IDs buffers */
+                for (k = 0; k < num_scenes; k++)
+                    ids[k] = 0;
+
                 /* IDs to be removed */
                 for (k = i_start-1; k < i+conse; k++)
                     ids[k-i_start+1] = k;
@@ -1174,6 +1178,10 @@ printf("i_start,i_break4=%d,%d\n",i_start,i_break);
             /* continuous monitoring started!!! */
             if (bl_train == 1)
             {
+                /* Clears the IDs buffers */
+                for (k = 0; k < num_scenes; k++)
+                    ids[k] = 0;
+
                 /* all IDs */
                 for (k = i_start-1; k < i; k++)
                 {
@@ -1269,18 +1277,19 @@ printf("i_start,i_break4=%d,%d\n",i_start,i_break);
                             }
                         }
                         vec_mag[i_conse] = v_dif_norm;
-#if 0
+
                         printf("i_conse,vec_mag[i_conse]2=%d,%f\n",i_conse,vec_mag[i_conse]);
-#endif
+
                     }
-#if 0
-                    for (k = 0; k < num_scenes; k++)
-                        ids_old[k] = 0;
-#endif
                     get_ids_length(ids_old, 0, num_scenes-1, &ids_old_len);
                     get_ids_length(ids, 0, num_scenes-1, &ids_len);
                     printf("length(ids)1,length(ids_old)1,i-i_start+1=%d,%d,%d\n",
                     ids_len,ids_old_len,i-i_start+1);
+
+                    /* Clears the IDsOld buffers */
+                    for (k = 0; k < num_scenes; k++)
+                        ids_old[k] = 0;
+
                     /* IDs that haven't been updated */
                     for (k = 0; k < num_scenes-1; k++)
                         ids_old[k] = ids[k];
@@ -1318,14 +1327,15 @@ printf("i_start,i_break4=%d,%d\n",i_start,i_break);
                         rec_cg[num_fc].num_obs = i-i_start+1; 
                         /* record fit category */
                         rec_cg[num_fc].category = 0 + update_num_c; 
-#if 0
-                        for (k = 0; k < num_scenes; k++)
-                            ids_old[k] = 0;
-#endif
+
                         get_ids_length(ids_old, 0, num_scenes-1, &ids_old_len);
                         get_ids_length(ids, 0, num_scenes-1, &ids_len);
                         printf("length(ids)2,length(ids_old)2,i-i_start+1=%d,%d,%d\n",
                         ids_len,ids_old_len,i-i_start+1);
+
+                        /* Clears the IDsOld buffers */
+                        for (k = 0; k < num_scenes; k++)
+                            ids_old[k] = 0;
 
                         /* IDs that haven't been updated */
                         for (k = 0; k < num_scenes; k++)
