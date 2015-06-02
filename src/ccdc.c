@@ -504,7 +504,12 @@ int main (int argc, char *argv[])
                     for (i = 0; i < num_scenes; i++)
                     {
                         if (clry[i][k] > 0 && clry[i][k] < 10000)
-                            i_span++;
+                        {
+                            clrx[i_span] = sdate[i];
+                            for (k = 0; k < TOTAL_BANDS - 1; k++)
+                                 clry[i_span][k] = buf[i][k];
+                                i_span++;
+                        }
                     }
 
                     if (i_span < min_num_c * n_times)
@@ -524,7 +529,12 @@ int main (int argc, char *argv[])
                     for (i = 0; i < num_scenes; i++)
                     {
                         if (clry[i][k] > -9300 && clry[i][k] < 7070)
+                        {
+                            clrx[i_span] = sdate[i];
+                            for (k = 0; k < TOTAL_BANDS - 1; k++)
+                                 clry[i_span][k] = buf[i][k];
                             i_span++;
+                        }
                             
                         status = auto_ts_fit(clrx, clry, k, 0, i_span-1, min_num_c, fit_cft, 
                                  &rmse[k]); 
@@ -977,9 +987,9 @@ printf("conse3=%d\n",conse);
                                         for (i_b = 0; i_b < TOTAL_BANDS - 1; i_b++)
                                         {
                                             /* absolute differences */
-                                            auto_ts_predict(clrx, fit_cft, i_b, i_conse,
-                                                            i_conse, &ts_pred_temp);
-                                            v_dif_mag[i_conse][i_b] = (float)clry[i_conse][i_b] - 
+                                            auto_ts_predict(clrx, fit_cft, i_b, i_ini-i_conse,
+                                                            i_ini-i_conse, &ts_pred_temp);
+                                            v_dif_mag[i_conse][i_b] = (float)clry[i_ini-i_conse][i_b] - 
                                                     ts_pred_temp;
 
                                             /* normalize to z-score */
@@ -991,7 +1001,7 @@ printf("conse3=%d\n",conse);
                                                     mini_rmse = max(adj_rmse[i_b], rmse[i_b]);
 
                                                     /* z-scores */
-                                                    v_diff[i_conse][i_b] = fabs(v_dif_mag[i_conse][i_b]) 
+                                                    v_diff[i_conse][i_b] = v_dif_mag[i_conse][i_b] 
                                                                        / mini_rmse;
                                                     v_dif_norm += v_diff[i_conse][i_b] * v_diff[i_conse][i_b];
                                                 }
@@ -1198,8 +1208,8 @@ printf("i_start,i_break4=%d,%d\n",i_start,i_break);
 
                 /* dynamic model fit when there are not many obs */
                 get_ids_length(ids_old, 0, num_scenes-1, &ids_old_len);
-                printf("i_count,i_start,i,ids_old_len=%d,%d,%d,%d\n",i_count,i_start,i,ids_old_len);
-                if (i_count == 0 || ids_old_len < n_times * max_num_c)
+                printf("i_count,i_span,ids_old_len=%d,%d,%d\n",i_count,i_span,ids_old_len);
+                if (i_count == 0 || i_span < (n_times * max_num_c))
                 {
                     /* update i_count at each interation */
                     i_count = clrx[i-1] - clrx[i_start-1];
@@ -1257,7 +1267,7 @@ printf("i_start,i_break4=%d,%d\n",i_start,i_break);
                             /* absolute differences */
                             auto_ts_predict(clrx, fit_cft, i_b, i+i_conse-1, i+i_conse-1, 
                                 &ts_pred_temp);
-                            v_dif_mag[i_conse][i_b] = (float)clry[i+i_conse][i_b] - ts_pred_temp; 
+                            v_dif_mag[i_conse][i_b] = (float)clry[i+i_conse-1][i_b] - ts_pred_temp; 
        
                            /* normalize to z-score */
                             for (b = 0; b < LASSO_BANDS; b++)
@@ -1268,7 +1278,7 @@ printf("i_start,i_break4=%d,%d\n",i_start,i_break);
                                     mini_rmse = max(adj_rmse[i_b], rmse[i_b]);
  
                                     /* z-scores */
-                                    v_diff[i_conse][i_b] = fabs(v_dif_mag[i_conse][i_b]) / mini_rmse;
+                                    v_diff[i_conse][i_b] = v_dif_mag[i_conse][i_b] / mini_rmse;
                                     v_dif_norm += v_diff[i_conse][i_b] * v_diff[i_conse][i_b];
 #if 0
                                     printf("i_conse,i_b,clry[i+i_conse][i_b],ts_pred_temp,mini_rmse,v_diff[i_conse][i_b]=%d,%d,%d,%f,%f,%f\n",i_conse,i_b,clry[i+i_conse][i_b],ts_pred_temp,mini_rmse,v_diff[i_conse][i_b]);
@@ -1452,7 +1462,7 @@ printf("i_start,i_break4=%d,%d\n",i_start,i_break);
                                 mini_rmse = max(adj_rmse[i_b], tmpcg_rmse[i_b]);
 
                                 /* z-score */
-                                v_diff[conse-1][i_b] = (v_dif_mag[conse-1][i_b]) / mini_rmse;
+                                v_diff[conse-1][i_b] = v_dif_mag[conse-1][i_b] / mini_rmse;
                                 vec_mag[conse-1] += v_diff[conse-1][i_b] * v_diff[conse-1][i_b]; 
                             }
                         }
