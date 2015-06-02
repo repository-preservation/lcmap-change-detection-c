@@ -2,6 +2,7 @@
 #include <stdarg.h>
 #include <time.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "const.h"
 #include "2d_array.h"
@@ -13,6 +14,10 @@
 #define LASSO_BANDS 5
 #define MAX_NUM_FC 10 /* Values change with number of pixels run */
 int lasso_blist[LASSO_BANDS] = {1, 2, 3, 4, 6}; /* This is band index */
+int cmpfunc (const void * a, const void * b)
+{
+   return ( *(float*)a - *(float*)b );
+}
 
 /******************************************************************************
 METHOD:  ccdc
@@ -124,7 +129,6 @@ int main (int argc, char *argv[])
     float ts_pred_temp;
     FILE *fp_bin_out;
     int ids_old_len;
-    int *d_yr_idx;
     int i_break;
     int i_ini;
     int ini_conse;
@@ -1269,9 +1273,10 @@ printf("i_start,i_break4=%d,%d\n",i_start,i_break);
                         printf("i_conse,vec_mag[i_conse]2=%d,%f\n",i_conse,vec_mag[i_conse]);
 #endif
                     }
+#if 0
                     for (k = 0; k < num_scenes; k++)
                         ids_old[k] = 0;
-
+#endif
                     get_ids_length(ids_old, 0, num_scenes-1, &ids_old_len);
                     get_ids_length(ids, 0, num_scenes-1, &ids_len);
                     printf("length(ids)1,length(ids_old)1,i-i_start+1=%d,%d,%d\n",
@@ -1313,9 +1318,10 @@ printf("i_start,i_break4=%d,%d\n",i_start,i_break);
                         rec_cg[num_fc].num_obs = i-i_start+1; 
                         /* record fit category */
                         rec_cg[num_fc].category = 0 + update_num_c; 
-
+#if 0
                         for (k = 0; k < num_scenes; k++)
                             ids_old[k] = 0;
+#endif
                         get_ids_length(ids_old, 0, num_scenes-1, &ids_old_len);
                         get_ids_length(ids, 0, num_scenes-1, &ids_len);
                         printf("length(ids)2,length(ids_old)2,i-i_start+1=%d,%d,%d\n",
@@ -1331,7 +1337,7 @@ printf("i_start,i_break4=%d,%d\n",i_start,i_break);
 
                     printf("i_start, i, k=%d,%d,%d\n",i_start, i,k);
                     get_ids_length(ids_old, 0, num_scenes-1, &ids_old_len);
-                    printf("ids_old_len2, i- i_start +1=%d,%d\n",ids_old_len,i - i_start +1);
+                    printf("ids_old_len3, i- i_start +1=%d,%d\n",ids_old_len,i - i_start +1);
 #if 0
                     /* use temporally-adjusted RMSE */
                     if (ids_old_len <= n_times * max_num_c)
@@ -1353,10 +1359,6 @@ printf("i_start,i_break4=%d,%d\n",i_start,i_break);
                     if (d_yr == NULL)
                         RETURN_ERROR ("Allocating d_yr memory", 
                                       FUNC_NAME, FAILURE);
-                    d_yr_idx = malloc(ids_old_len * sizeof(int));
-                    if (d_yr == NULL)
-                        RETURN_ERROR ("Allocating d_yr_idx memory", 
-                                      FUNC_NAME, FAILURE);
                     rec_v_dif_temp = (float **)allocate_2d_array(ids_old_len,  
                                       LASSO_BANDS, sizeof(float));
                     if (rec_v_dif_temp == NULL)
@@ -1365,9 +1367,11 @@ printf("i_start,i_break4=%d,%d\n",i_start,i_break);
  
                     for(m = 0; m < ids_old_len; m++)
                     {
+#if 0
+                     printf("m,ids_old[m],i+conse-1=%d,%d,%d\n",m,ids_old[m],i+conse-1);
+#endif
                         d_rt = clrx[ids_old[m]] - clrx[i+conse-1]; 
                         d_yr[m] = fabs(round((float)d_rt/num_yrs)*num_yrs - (float)d_rt);
-                        d_yr_idx[m] = m;
 #if 0
                         printf("m,d_rt,d_yr[m]=%d,%d,%f\n",m,d_rt,d_yr[m]);
 #endif
@@ -1378,15 +1382,7 @@ printf("i_start,i_break4=%d,%d\n",i_start,i_break);
                     printf("ids_len,ids_old_len=====%d,%d\n",ids_len,ids_old_len);
 
                     /* sort the d_yr */
-#if 0
-                    for (m = 0; m < ids_old_len; m--)
-                     printf("m1,d_yr[m], d_yr_idx[m]=%d,%f,%d\n",m,d_yr[m],d_yr_idx[m]);
-#endif
-                    quick_sort_index(d_yr, d_yr_idx, 0, ids_old_len-1);
-#if 0
-                    for (m = 0; m < ids_old_len; m--)
-                     printf("m2,d_yr[m], d_yr_idx[m]=%d,%f,%d\n",m,d_yr[m],d_yr_idx[m]);
-#endif
+                    qsort(d_yr, ids_old_len, sizeof(float), cmpfunc);
 
                     for(b = 0; b < TOTAL_BANDS-1; b++)
                         tmpcg_rmse[b] = 0.0;
@@ -1395,7 +1391,7 @@ printf("i_start,i_break4=%d,%d\n",i_start,i_break);
                     {
                         for (b = 0; b < LASSO_BANDS; b++)
                         {
-                            rec_v_dif_temp[m][lasso_blist[b]] = rec_v_dif[ids_old[d_yr_idx[m]] - 
+                            rec_v_dif_temp[m][lasso_blist[b]] = rec_v_dif[ids_old[m] - 
                                      ids_old[0]][lasso_blist[b]];
                             tmpcg_rmse[lasso_blist[b]] += rec_v_dif_temp[m][lasso_blist[b]] *
                                      rec_v_dif_temp[m][lasso_blist[b]]; 
@@ -1411,7 +1407,6 @@ printf("i_start,i_break4=%d,%d\n",i_start,i_break);
 
                     /* free allocated memories */
                     free(d_yr);
-                    free(d_yr_idx);
                     status = free_2d_array ((void **) rec_v_dif_temp);
                     if (status != SUCCESS)
                         RETURN_ERROR ("Freeing memory: rec_v_dif_temp\n", 
@@ -1457,7 +1452,7 @@ printf("i_start,i_break4=%d,%d\n",i_start,i_break);
                 break_mag = 9999.0;
                 for (m = 0; m < conse; m++)
                 {
-                 //                 printf("m,vec_mag[m]3=%d,%f\n",m,vec_mag[m]3);
+                 printf("m,vec_mag[m]3=%d,%f\n",m,vec_mag[m]);
                     if (break_mag > vec_mag[m])
                         break_mag = vec_mag[m];
                 }
