@@ -1209,7 +1209,7 @@ printf("i_start,i_break4=%d,%d\n",i_start,i_break);
                 /* dynamic model fit when there are not many obs */
                 get_ids_length(ids_old, 0, num_scenes-1, &ids_old_len);
                 printf("i_count,i_span,ids_old_len=%d,%d,%d\n",i_count,i_span,ids_old_len);
-                if (i_count == 0 || i_span < (n_times * max_num_c))
+                if (i_count == 0 || i_span <= (n_times * max_num_c))
                 {
                     /* update i_count at each interation */
                     i_count = clrx[i-1] - clrx[i_start-1];
