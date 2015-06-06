@@ -1383,7 +1383,9 @@ int dofit(const gsl_multifit_robust_type *T,
   int s;
   gsl_multifit_robust_workspace * work 
     = gsl_multifit_robust_alloc (T, X->size1, X->size2);
-
+#if 0
+  printf("X->size1, X->size2=%d,%d\n",X->size1, X->size2);
+#endif
   s = gsl_multifit_robust (X, y, c, cov, work);
   gsl_multifit_robust_free (work);
 
@@ -1425,8 +1427,9 @@ int auto_robust_fit
         gsl_vector_set(y,i,clry[i+start][band_index]);
     }
 
-    printf("nums=%d\n",nums);
 #if 0
+    printf("nums,x->size1,x->size2=%d,%d,%d\n",nums,x->size1,x->size2);
+
     for (i = 0; i < nums; i++)
     {
         for (j = 0; j < p; j++)
