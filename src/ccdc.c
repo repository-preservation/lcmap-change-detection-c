@@ -123,7 +123,6 @@ int main (int argc, char *argv[])
     int d_rt;
     float *d_yr;
     float break_mag;
-    float max_v_dif;
     int id_last;
     float ts_pred_temp;
     FILE *fp_bin_out;
@@ -146,6 +145,7 @@ int main (int argc, char *argv[])
     col = 3191;
     t_cg = 15.0863;
     conse = 6;
+    verbose = 1;
 #if 0
     /* Read the command-line arguments, including the name of the input
        Landsat TOA reflectance product and the DEM */
@@ -267,6 +267,12 @@ int main (int argc, char *argv[])
         RETURN_ERROR ("Allocating v_dif_mag memory", 
                                  FUNC_NAME, FAILURE);
     }
+
+    /* Allocate memory for rec_v_dif */
+    rec_v_dif = (float **)allocate_2d_array(num_scenes, TOTAL_BANDS - 1,
+                                     sizeof (float));
+    if (rec_v_dif == NULL)
+        RETURN_ERROR ("Allocating rec_v_dif memory",FUNC_NAME, FAILURE);
 
 #if 0
     /* sort scene_list based on year & julian_day */
@@ -695,12 +701,6 @@ int main (int argc, char *argv[])
         /* while loop - process till the last clear observation - conse */
         while (i <= end - conse)
         {
-            /* Allocate memory for rec_v_dif */
-            rec_v_dif = (float **)allocate_2d_array(i-i_start+1, TOTAL_BANDS - 1,
-                                                            sizeof (float));
-            if (rec_v_dif == NULL)
-                RETURN_ERROR ("Allocating rec_v_dif memory",FUNC_NAME, FAILURE);
-
             /* span of "i" */
             i_span = i - i_start + 1;
 
@@ -1198,7 +1198,7 @@ printf("i_start,i_break4=%d,%d\n",i_start,i_break);
                 update_cft(i_span, n_times, min_num_c, mid_num_c, max_num_c, 
                            num_c, &update_num_c);
 
-                printf("update_cft=%d\n",update_cft);
+                printf("update_cft=%d\n",update_num_c);
                 /* dynamic model fit when there are not many obs */
                 //                if (i_count == 0 || ids_old_len < (n_times * max_num_c))
                 if (i_count == 0 || i_span <= (n_times * max_num_c))
@@ -1214,8 +1214,8 @@ printf("i_start,i_break4=%d,%d\n",i_start,i_break);
                             RETURN_ERROR ("Calling auto_ts_fit7\n", 
                                      FUNC_NAME, EXIT_FAILURE);
 #if 0
-                            for(k = i_start-1; k < i-1; k++)
-                             printf("i_b,rec_v_dif[k][i_b]1=%d,%f\n",i_b,rec_v_dif[k][i_b]);
+                            for(k = 0; k < i-i_start+1; k++)
+                             printf("i_b,k,rec_v_dif[k][i_b]1=%d,%d,%f\n",i_b,k,rec_v_dif[k][i_b]);
 #endif
                     }
 
@@ -1273,7 +1273,7 @@ printf("i_start,i_break4=%d,%d\n",i_start,i_break);
                                     v_diff[i_conse][i_b] = v_dif_mag[i_conse][i_b] / mini_rmse;
                                     v_dif_norm += v_diff[i_conse][i_b] * v_diff[i_conse][i_b];
 #if 0
-printf("=%d,%d,%d,%f,%f,%f\n",i_conse,i_b,clry[i+i_conse][i_b],ts_pred_temp,
+printf("=%d,%d,%d,%f,%f,%f,%f\n",i_conse,i_b,clry[i+i_conse][i_b],ts_pred_temp,
        v_dif_mag[i_conse][i_b],mini_rmse,v_diff[i_conse][i_b]);
 #endif
                                 }
@@ -1394,12 +1394,15 @@ printf("=%d,%d,%d,%f,%f,%f\n",i_conse,i_b,clry[i+i_conse][i_b],ts_pred_temp,
                     /* temporarily changing RMSE */
                     for (b = 0; b < LASSO_BANDS; b++)
                     {
-                        matlab_2d_array_norm(rec_v_dif, b, ids_old[n_rmse-1] - ids_old[0] + 1,
+                        matlab_2d_array_norm(rec_v_dif, lasso_blist[b], n_rmse,
                                           &tmpcg_rmse[lasso_blist[b]]);
                         tmpcg_rmse[lasso_blist[b]] /= sqrt(n_rmse - update_num_c);
 #if 0
-                        printf("====%d,%f\n",b,tmpcg_rmse[lasso_blist[b]]); 
+                        for (m = 0; m < n_rmse; m++)
+                         printf("m,b,rec_v_dif[m]===%d,%d,%f\n",m,b,rec_v_dif[m][lasso_blist[b]]);
 #endif
+                        printf("====%d,%f\n",b,tmpcg_rmse[lasso_blist[b]]); 
+
                     }
 
                     /* free allocated memories */
@@ -1425,8 +1428,11 @@ printf("=%d,%d,%d,%f,%f,%f\n",i_conse,i_b,clry[i+i_conse][i_b],ts_pred_temp,
                         /* absolute difference for all bands */
                         auto_ts_predict(clrx, fit_cft, i_b, i+conse-1, 
                              i+conse-1, &ts_pred_temp);
-                        v_dif_mag[conse-1][i_b] = clry[i+conse-1][i_b] - ts_pred_temp;
-
+                        v_dif_mag[conse-1][i_b] = (float)clry[i+conse-1][i_b] - ts_pred_temp;
+#if 0
+                        printf("===%d,%d,%f,%f\n",i_b,clry[i+conse-1][i_b],ts_pred_temp,
+                          v_dif_mag[conse-1][i_b]);
+#endif
                         /* normalized to z-scores */
                         for (b = 0; b < LASSO_BANDS; b++)
                         {
@@ -1491,10 +1497,6 @@ printf("m,vec_mag[conse-1]3=%d,%f\n",conse-1,vec_mag[conse-1]);
             /* move forward to the i+1th clear observation */
             i++;
             printf("i++4=%d\n",i);
-            status = free_2d_array ((void **) rec_v_dif);
-            if (status != SUCCESS)
-                RETURN_ERROR ("Freeing memory: rec_v_dif\n", 
-                           FUNC_NAME, EXIT_FAILURE);
         } /* end of "while (i <= end - conse) */
 
         /* Two ways for processing the end of the time series */ 
@@ -1505,17 +1507,11 @@ printf("m,vec_mag[conse-1]3=%d,%f\n",conse-1,vec_mag[conse-1]);
                define probability of change based on conse */
             for (i_conse = conse - 1; i_conse >= 0; i_conse--)
             {
-                max_v_dif = 0.0;
-                for (i_b = 0; i_b < LASSO_BANDS; i_b++)
+                if (vec_mag[i_conse] <= t_cg)
                 {
-                    if (max_v_dif < v_diff[i_conse][i_b])
-                        max_v_dif = v_diff[i_conse][i_b];
-                    if (max_v_dif <= t_cg)
-                    {
-                        /* the last stable id */
-                        id_last = i_conse + 1;
-                        break;
-                    }
+                    /* the last stable id */
+                    id_last = i_conse + 1;
+                    break;
                 }
             } 
 
@@ -1695,6 +1691,10 @@ printf("m,vec_mag[conse-1]3=%d,%f\n",conse-1,vec_mag[conse-1]);
     free(bl_ids);
     free(rm_ids);
     free(vec_mag);
+    status = free_2d_array ((void **) rec_v_dif);
+    if (status != SUCCESS)
+        RETURN_ERROR ("Freeing memory: rec_v_dif\n", 
+                      FUNC_NAME, EXIT_FAILURE);
     status = free_2d_array ((void **) v_dif_mag);
     if (status != SUCCESS)
         RETURN_ERROR ("Freeing memory: v_dif_mag\n", 
