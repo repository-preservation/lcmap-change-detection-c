@@ -922,7 +922,10 @@ printf("conse3=%d\n",conse);
                                 for (k = 0; k < num_scenes; k++) 
                                 {
                                     if (clrx[k] > rec_cg[num_fc-1].t_end)
-                                     i_break = k + 1;
+                                    {
+                                        i_break = k + 1;
+                                        break;
+                                    }
                                 }
                             printf("i_start,i_break2=%d,%d\n",i_start,i_break);
                             }
@@ -1046,7 +1049,6 @@ printf("i_start,i_break,conse3=%d,%d,%d\n",i_start,i_break,conse);
                             /* enough to fit simple model and confirm a break */
                             if ((i_start - i_break) >= conse)
                             {
-printf("i_start,i_break4=%d,%d\n",i_start,i_break);
                                 /* defining computed variables */
                                 for (i_b = 0; i_b < TOTAL_BANDS -1; i_b++)
                                 {
