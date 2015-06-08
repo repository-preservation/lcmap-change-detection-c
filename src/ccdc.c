@@ -969,7 +969,7 @@ printf("conse3=%d\n",conse);
                                     /* detect change. 
                                        value of difference for conse obs
                                        record the magnitude of change */
-                                    printf("ini_conse,i=%d,%d\n",ini_conse,i);
+                                    printf("ini_conse,i_ini,i=%d,%d,%d\n",ini_conse,i_ini,i);
                                     vec_magg_min = 9999.0;
                                     for (i_conse = 0; i_conse < ini_conse; i_conse++)
                                     {
@@ -977,9 +977,9 @@ printf("conse3=%d\n",conse);
                                         for (i_b = 0; i_b < TOTAL_BANDS - 1; i_b++)
                                         {
                                             /* absolute differences */
-                                            auto_ts_predict(clrx, fit_cft, i_b, i_ini-i_conse+1,
-                                                            i_ini-i_conse+1, &ts_pred_temp);
-                                            v_dif_mag[i_conse][i_b] = (float)clry[i_ini-i_conse+1][i_b] - 
+                                            auto_ts_predict(clrx, fit_cft, i_b, i_ini-i_conse,
+                                                            i_ini-i_conse, &ts_pred_temp);
+                                            v_dif_mag[i_conse][i_b] = (float)clry[i_ini-i_conse][i_b] - 
                                                     ts_pred_temp;
 
                                             /* normalize to z-score */
@@ -994,9 +994,9 @@ printf("conse3=%d\n",conse);
                                                     v_diff[i_conse][i_b] = v_dif_mag[i_conse][i_b] 
                                                                        / mini_rmse;
                                                     v_dif_norm += v_diff[i_conse][i_b] * v_diff[i_conse][i_b];
-
-                                    printf("=%d,%d,%d,%f,%f,%f,%f\n",i_conse,i_b,clry[i_ini-i_conse][i_b],ts_pred_temp,v_dif_mag[i_conse][i_b],mini_rmse,v_diff[i_conse][i_b]);
-
+#if 0
+                                                    printf("=%d,%d,%d,%d,%f,%f,%f,%f\n",i_conse,i_b,i_ini,clry[i_ini-i_conse][i_b],ts_pred_temp,v_dif_mag[i_conse][i_b],mini_rmse,v_diff[i_conse][i_b]);
+#endif
                                                 }
                                             }
                                         }
@@ -1004,7 +1004,7 @@ printf("conse3=%d\n",conse);
 
                                         printf("i_conse,vec_magg[i_conse]1 = %d,%f\n",i_conse,vec_magg[i_conse]);
 
-                                        if (vec_magg_min < vec_magg[i_conse])
+                                        if (vec_magg_min > vec_magg[i_conse])
                                             vec_magg_min =  vec_magg[i_conse];
                                     }
 
