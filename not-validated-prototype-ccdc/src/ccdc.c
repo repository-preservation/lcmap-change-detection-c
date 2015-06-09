@@ -47,7 +47,7 @@ int main (int argc, char *argv[])
     char msg_str[MAX_STR_LEN];  /* input data scene name */
     //    char filename[MAX_STR_LEN];         /* input binary filenames */
     float t_cg;
-    int conse;
+    int conse = 6;
     int status;                 /* return value from function call */
     Output_t *rec_cg = NULL;    /* output structure and metadata */
     bool verbose;               /* verbose flag for printing messages */
@@ -141,20 +141,14 @@ int main (int argc, char *argv[])
               "CCDC start_time=%s\n", ctime (&now));
     LOG_MESSAGE (msg_str, FUNC_NAME);
 
-    row = 5099;
-    col = 3191;
-    t_cg = 15.0863;
-    conse = 6;
-    verbose = 1;
-#if 0
     /* Read the command-line arguments, including the name of the input
        Landsat TOA reflectance product and the DEM */
-    status = get_args (argc, argv, &row, &col, &t_cg, &conse, &verbose);
+    status = get_args (argc, argv, &row, &col, &t_cg, &verbose);
     if (status != SUCCESS)
     {
         RETURN_ERROR ("calling get_args", FUNC_NAME, EXIT_FAILURE);
     }
-#endif
+
 #if 0
     /* allocate memory for scene_list */
     scene_list = (char **) allocate_2d_array (MAX_SCENE_LIST, MAX_STR_LEN,
@@ -847,6 +841,7 @@ int main (int argc, char *argv[])
                         /* record the start of Tmask (0=>initial;1=>done) */
                         bl_tmask = 0;
 #endif
+
                         /* Step 2: model fitting: initialize model testing variables
                            defining computed variables */
                         v_dif_norm = 0.0;
@@ -863,8 +858,6 @@ int main (int argc, char *argv[])
                              printf("lasso_blist[b],k,fit_cft[k][lasso_blist[b]],rmse[lasso_blist[b-1]]=%d,%d,%f,%f\n",lasso_blist[b],k,fit_cft[k][lasso_blist[b]],rmse[lasso_blist[b]]);
 #endif
                         }
-
-printf("conse=%d\n",conse);
 
                         for(b = 0; b < LASSO_BANDS; b++)
                         {
@@ -890,8 +883,6 @@ printf("conse=%d\n",conse);
                             v_dif_norm += v_dif[lasso_blist[b]] * v_dif[lasso_blist[b]];               
                         }
                         printf("v_dif_norm=%f\n",v_dif_norm);
-
-printf("conse3=%d\n",conse);
 
                         /* find stable start for each curve */
                         if (v_dif_norm > t_cg)
@@ -1798,7 +1789,6 @@ usage ()
             " --row=input row number"
             " --col=input col number"
             " --t_cg=chi-square inversed T_cg value" 
-            " --conse = number of points used for change detection" 
             " [--verbose]\n");
 
     printf ("\n");
@@ -1806,7 +1796,6 @@ usage ()
     printf ("    -row: input row number\n");
     printf ("    --col=input col number\n");
     printf ("    --t_cg=chi-square inversed T_cg value\n");
-    printf ("    --conse = number of points used for change detection\n");
     printf ("\n");
     printf ("where the following parameters are optional:\n");
     printf ("    -verbose: should intermediate messages be printed?"
@@ -1818,7 +1807,6 @@ usage ()
             " --row=5099"
             " --col=3191"
             " --t_cg=15.0863"
-            " --conse=6"
             " --verbose\n");
     printf ("Note: The ccdc must run from the directory"
             " where the input data are located.\n\n");

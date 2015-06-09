@@ -48,14 +48,12 @@ int get_args
     int *row,                 /* O: row number for the pixel */
     int *col,                 /* O: col number for the pixel */
     float *t_cg,              /* O: chi-square inversed T_cg */
-    int *conse,               /* O: number of points used for change detection */ 
     bool *verbose             /* O: verbose flag */
 )
 {
     int c;                          /* current argument index */
     int option_index;               /* index for the command-line option */
     static float t_cg_default = 15.0863;    /* default value of chi2inv(0.99, 5) */
-    static int conse_default = 6;           /* default value of conse */ 
     static int verbose_flag = 0;    /* verbose flag */
     char errmsg[MAX_STR_LEN];       /* error message */
     char FUNC_NAME[] = "get_args";  /* function name */
@@ -64,14 +62,12 @@ int get_args
         {"row", required_argument, 0, 'w'},
         {"col", required_argument, 0, 'l'},
         {"t_cg", required_argument, 0, 't'},
-        {"conse", required_argument, 0, 'o'},
         {"help", no_argument, 0, 'h'},
         {0, 0, 0, 0}
     };
 
     /* Assign the default values */
     *t_cg = t_cg_default;
-    *conse = conse_default;
 
     /* Loop through all the cmd-line options */
     opterr = 0; /* turn off getopt_long error msgs as we'll print our own */
@@ -109,10 +105,6 @@ int get_args
                 *t_cg = atof (optarg);
                 break;
 
-            case 'o': 
-                *conse = atoi(optarg);
-                break;
-
             case '?':
             default:
                 sprintf (errmsg, "Unknown option %s", argv[optind - 1]);
@@ -121,14 +113,6 @@ int get_args
                 break;
         }
     }
-
-    /* Make sure this is some positive value */
-    if (*conse <= 0)
-    {
-        sprintf (errmsg, "conse must be > 0");
-        RETURN_ERROR(errmsg, FUNC_NAME, FAILURE);
-    }
-
 
     /* Check the verbose flag */
     if (verbose_flag)
@@ -141,7 +125,6 @@ int get_args
         printf ("row = %d\n", *row);
         printf ("col = %d\n", *col);
         printf ("t_cg = %f\n", *t_cg);
-        printf ("conse = %d\n", *conse);
     }
 
     return SUCCESS;
