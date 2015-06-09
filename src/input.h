@@ -153,7 +153,6 @@ int get_args
     int *row,                 /* O: row number for the pixel */
     int *col,                 /* O: col number for the pixel */
     float *t_cg,              /* O: chi-square inversed T_cg */
-    int * conse,              /* O: number of points used for change detection */ 
     bool *verbose             /* O: verbose flag */
 );
 
