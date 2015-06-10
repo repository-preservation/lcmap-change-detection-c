@@ -701,16 +701,12 @@ int median_variogram
     char FUNC_NAME[] = "median_variogram";
 
     var = malloc((dim1_len-1) * sizeof(int16));
-    //    var = (int16 **)allocate_2d_array(dim1_len-1, TOTAL_BANDS-1, 
-    //            sizeof(int16));
     if (var == NULL)
         RETURN_ERROR ("ERROR allocating memory", FUNC_NAME, FAILURE);
 
     for (j = 0; j < dim2_len; j++)
-         //    for (i = dim1_start; i < dim1_end; i++)
     {
         for (i = dim1_start; i < dim1_end; i++)
-        //        for (j = 0; j < dim2_len; j++)
         {
             var[i] = abs(array[i+1][j] - array[i][j]);
         }
@@ -1366,9 +1362,7 @@ int dofit(const gsl_multifit_robust_type *T,
   int s;
   gsl_multifit_robust_workspace * work 
     = gsl_multifit_robust_alloc (T, X->size1, X->size2);
-#if 0
-  printf("X->size1, X->size2=%d,%d\n",X->size1, X->size2);
-#endif
+
   s = gsl_multifit_robust (X, y, c, cov, work);
   gsl_multifit_robust_free (work);
 
@@ -1410,21 +1404,6 @@ int auto_robust_fit
         gsl_vector_set(y,i,clry[i+start][band_index]);
     }
 
-#if 0
-    printf("nums,x->size1,x->size2=%d,%d,%d\n",nums,x->size1,x->size2);
-
-    for (i = 0; i < nums; i++)
-    {
-        for (j = 0; j < p; j++)
-        {
-            if (j == p-1)
-                printf ("x(%d,%d) = %g\n", i, j, gsl_matrix_get (x, i, j));
-            else
-                printf ("x(%d,%d) = %g, ", i, j, gsl_matrix_get (x, i, j));
-        }
-        printf ("y_%d = %g\n", i, gsl_vector_get (y, i));
-    }
-#endif
     /* perform robust fit */
     dofit(gsl_multifit_robust_bisquare, x, y, c, cov);
 
@@ -1502,7 +1481,6 @@ int auto_mask
     w = TWO_PI / 365.25;
     w2 = w / (float)year;
 
-    printf("start=%d\n",start);
     for (i = 0; i < nums; i++)
     {
         x[0][i] = cos(w * (float)clrx[i+start]);
@@ -1513,14 +1491,10 @@ int auto_mask
 
     /* Do robust fitting for band 2 */
     status = auto_robust_fit(x, clry, nums, start, 1, coefs);
-#if 0
-    printf("coefs[i]=%f,%f,%f,%f,%f\n",coefs[0],coefs[1],coefs[2],coefs[3],coefs[4]);
-#endif
+
     /* Do robust fitting for band 5 */
     status = auto_robust_fit(x, clry, nums, start, 4, coefs2);
-#if 0
-    printf("coefs2[i]=%f,%f,%f,%f,%f\n",coefs2[0],coefs2[1],coefs2[2],coefs2[3],coefs2[4]);
-#endif
+
     /* predict band 2 * band 5 refs, bl_ids value of 0 is clear and 
        1 otherwise */
     for (i = 0; i < nums; i++)
@@ -1753,10 +1727,6 @@ int auto_ts_fit
                 RETURN_ERROR ("End of file (EOF) is met before nums"
                               " lines", FUNC_NAME, FAILURE);
             }
-#if 0
-            printf("i,start,x[0][i], x[1][i], x[2][i],clry[i+start][band_index]=%d,%d,%f,%f,%f,%d\n",
-                   i,start,x[0][i], x[1][i], x[2][i],clry[i+start][band_index]);
-#endif
         }
         fclose(fd);
 
@@ -1853,7 +1823,6 @@ int auto_ts_fit
         }
         matlab_2d_array_norm(v_dif, band_index, nums, &v_dif_norm);
         *rmse = v_dif_norm / sqrt((float)(nums - df));
-        //        printf("*rmse=%f\n",*rmse);
     }
 
     /* Free allocated memory */
@@ -1866,7 +1835,6 @@ int auto_ts_fit
     if (free_2d_array ((void **) v_dif) != SUCCESS)
         RETURN_ERROR ("Freeing memory: v_dif\n", FUNC_NAME, FAILURE);
 
-#if 0
     /* Remove the temporary file */
     status = system("rm glmnet_fit_inputs.txt");
     if (status != SUCCESS)
@@ -1877,7 +1845,7 @@ int auto_ts_fit
     status = system("rm glmnet_fit_*.r.Rout");
     if (status != SUCCESS)
         RETURN_ERROR ("Deleting glmnet_fit_*.r.Rout file", FUNC_NAME, FAILURE);
-#endif
+
     return SUCCESS;
 }
 
@@ -2134,7 +2102,6 @@ int auto_ts_fit_full
         }
         matlab_2d_array_norm(v_dif, band_index, nums, &v_dif_norm);
         *rmse = v_dif_norm / sqrt((float)(nums - df));
-        //        printf("*rmse=%f\n",*rmse);
     }
 
     /* Free allocated memory */
@@ -2144,7 +2111,7 @@ int auto_ts_fit_full
         if (free_2d_array ((void **) x) != SUCCESS)
             RETURN_ERROR ("Freeing memory: x\n", FUNC_NAME, FAILURE);
     }
-#if 0
+
     /* Remove the temporary file */
     status = system("rm glmnet_fit_inputs.txt");
     if (status != SUCCESS)
@@ -2155,7 +2122,7 @@ int auto_ts_fit_full
     status = system("rm glmnet_fit_*.r.Rout");
     if (status != SUCCESS)
         RETURN_ERROR ("Deleting glmnet_fit_*.r.Rout file", FUNC_NAME, FAILURE);
-#endif
+
     return SUCCESS;
 }
 
