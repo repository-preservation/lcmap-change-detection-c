@@ -444,7 +444,7 @@ int main (int argc, char *argv[])
     }
 
 
-    /* percent of clear pixels */
+    /* percent of clear pixels */    
     clr_pct = (float) clr_sum / (float) all_sum;
 
     /* percent of snow observations */
@@ -462,7 +462,20 @@ int main (int argc, char *argv[])
     {
         if (sn_pct > t_sn)
         {
-            if (n_sn < n_times * min_num_c ) /* not enough snow pixels */
+            /* snow observations are "good" now */
+            for (i = 0; i < num_scenes; i++)
+            { 
+                if (fmask_buf[i] == 3 && id_range[i] == 1)
+                {
+                    clrx[n_sn] = sdate[i];
+                    for (k = 0; k < TOTAL_BANDS - 1; k++)
+                        clry[n_sn][k] = buf[i][k];
+                    n_sn++;
+                }
+            }  
+            end = n_sn;
+
+            if (n_sn < 1 ) /* not enough snow pixels */
             {
                 RETURN_ERROR ("Not enough good snow observations\n", 
                      FUNC_NAME, EXIT_FAILURE);
@@ -473,111 +486,82 @@ int main (int argc, char *argv[])
                 printf ("Fit permanent snow observations, now pixel = %f\n", 
                        100.0 * sn_pct); 
 
-                /* snow observations are "good" now */
-                for (i = 0; i < num_scenes; i++)
-                { 
-                        if (fmask_buf[i] == 3)
-                    {
-                        clrx[n_sn] = sdate[i];
-                        for (k = 0; k < TOTAL_BANDS - 1; k++)
-                            clry[n_sn][k] = buf[i][k];
-                        n_sn++;
-                    }
-                }   
-            }
-            end = n_sn;
 
-            /* the first observation for TSFit */
-            i_start = 1; /* the first observation for TSFit */
+                /* the first observation for TSFit */
+                i_start = 1; /* the first observation for TSFit */
 #if 0
-            /* identified and move on for the next curve */
-            num_fc++; /* not needed, as array index starts with zero */
+                /* identified and move on for the next curve */
+                num_fc++; /* not needed, as array index starts with zero */
 #endif
-            /* treat saturated and unsaturated pixels differently */
-            for (k = 0; k < TOTAL_BANDS -1; k++)
-            {
-                i_span = 0;
-                if (k != TOTAL_BANDS - 3) /* for optical bands */
+                if (n_sn < n_times * min_num_c)
                 {
-                    for (i = 0; i < num_scenes; i++)
+                    for (i_b = 0; i_b < TOTAL_BANDS - 1; i_b++)
                     {
-                        if (clry[i][k] > 0 && clry[i][k] < 10000)
-                        {
-                            clrx[i_span] = sdate[i];
-                            for (k = 0; k < TOTAL_BANDS - 1; k++)
-                                 clry[i_span][k] = buf[i][k];
-                                i_span++;
-                        }
-                    }
-
-                    if (i_span < min_num_c * n_times)
-                        fit_cft[i][k] = 10000; /* fixed value for saturated pixels */
-                    else
+                        matlab_2d_array_median(clry, i_b, end, &fit_cft[0][i_b]);
+			rmse_from_square_root_mean(clry, fit_cft[0][i_b], end, i_b, &rmse[i_b]); 
+		    }
+                    rec_cg[num_fc].category = 50 + 1; /* snow pixel */
+		}
+                else
+                {
+                    for (i_b = 0; i_b < TOTAL_BANDS - 1; i_b++)
                     {
-                        status = auto_ts_fit(clrx, clry, k, 0, i_span-1, min_num_c, 
-                                 fit_cft, &rmse[k]); 
+                        status = auto_ts_fit(clrx, clry, i_b, 0, end-1, min_num_c, 
+                                             fit_cft, &rmse[k]); 
                         if (status != SUCCESS)  
                             RETURN_ERROR ("Calling auto_ts_fit1\n", 
-                                   FUNC_NAME, EXIT_FAILURE);
-
-                    } 
+                                      FUNC_NAME, EXIT_FAILURE);
+		    }
+                    rec_cg[num_fc].category = 50 + min_num_c; /* snow pixel */
                 }
-                else /* for thermal band */
+
+                /* update information at each iteration */
+                /* record time of curve start */
+                rec_cg[num_fc].t_start = clrx[i_start-1]; 
+                /* record time of curve end */
+                rec_cg[num_fc].t_end = clrx[end-1]; 
+                /* no break at the moment */
+                rec_cg[num_fc].t_break = 0; 
+                /* record postion of the pixel */
+                rec_cg[num_fc].pos.row = row; 
+                /* record postion of the pixel */
+                rec_cg[num_fc].pos.col = col; 
+                for (i_b = 0; i_b < TOTAL_BANDS - 1; i_b++)
                 {
-                    for (i = 0; i < num_scenes; i++)
-                    {
-                        if (clry[i][k] > -9300 && clry[i][k] < 7070)
-                        {
-                            clrx[i_span] = sdate[i];
-                            for (k = 0; k < TOTAL_BANDS - 1; k++)
-                                 clry[i_span][k] = buf[i][k];
-                            i_span++;
-                        }
-                            
-                        status = auto_ts_fit(clrx, clry, k, 0, i_span-1, min_num_c, fit_cft, 
-                                 &rmse[k]); 
-                        if (status != SUCCESS)  
-                            RETURN_ERROR ("Calling auto_ts_fit2\n", 
-                                 FUNC_NAME, EXIT_FAILURE);
-                    }
+                    for (k = 0; k < min_num_c; k++)
+                        /* record fitted coefficients */
+                        rec_cg[num_fc].coefs[i_b][k] = fit_cft[i_b][k];
+                    /* record rmse of the pixel */
+                    rec_cg[num_fc].rmse[i_b] = rmse[i_b]; 
                 }
-            }
-
-            /* update information at each iteration */
-            /* record time of curve start */
-            rec_cg[num_fc].t_start = clrx[i_start-1]; 
-            /* record time of curve end */
-            rec_cg[num_fc].t_end = clrx[end-1]; 
-            /* no break at the moment */
-            rec_cg[num_fc].t_break = 0; 
-            /* record postion of the pixel */
-            rec_cg[num_fc].pos.row = row; 
-            /* record postion of the pixel */
-            rec_cg[num_fc].pos.col = col; 
-            for (i_b = 0; i_b < TOTAL_BANDS - 1; i_b++)
-            {
-                for (k = 0; k < min_num_c; k++)
-                    /* record fitted coefficients */
-                    rec_cg[num_fc].coefs[i_b][k] = fit_cft[i_b][k];
-                /* record rmse of the pixel */
-                rec_cg[num_fc].rmse[i_b] = rmse[i_b]; 
-            }
-            /* record change probability */
-            rec_cg[num_fc].change_prob = 0.0; 
-            /* record number of observations */
-            rec_cg[num_fc].num_obs = n_ws; 
-            /* record fit category */
-            rec_cg[num_fc].category = 50 + min_num_c; /* snow pixel */
-            for (i_b = 0; i_b < TOTAL_BANDS - 1; i_b++)
-                /* record change magnitude */ 
-                rec_cg[num_fc].magnitude[i_b] = 0.0; 
-            /* NUM of Fitted Curves (num_fc) */
-            num_fc++;   
+                /* record change probability */
+                rec_cg[num_fc].change_prob = 0.0; 
+                /* record number of observations */
+                rec_cg[num_fc].num_obs = n_ws; 
+                for (i_b = 0; i_b < TOTAL_BANDS - 1; i_b++)
+                    /* record change magnitude */ 
+                    rec_cg[num_fc].magnitude[i_b] = 0.0; 
+                /* NUM of Fitted Curves (num_fc) */
+                num_fc++;
+            }   
         }
         else
         {
+            /* snow observations are "good" now */
+            for (i = 0; i < num_scenes; i++)
+            { 
+                if ((fmask_buf[i] == 0 || fmask_buf[i] == 1) && id_range[i] == 1)
+                {
+                    clrx[n_sn] = sdate[i];
+                    for (k = 0; k < TOTAL_BANDS - 1; k++)
+                         clry[n_sn][k] = buf[i][k];
+                    n_clr++;
+                }   
+            }
+            end = n_clr;
+
             /* no change detection for clear observations */
-            if (clr_sum < (n_times * min_num_c)) /* not enough snow pixels */ 
+            if (n_clr < 1) /* not enough snow pixels */ 
             {
                 RETURN_ERROR("Not enough good clear observations\n", 
                             FUNC_NAME, EXIT_FAILURE);
@@ -588,25 +572,34 @@ int main (int argc, char *argv[])
                 printf ("Fmask failed, clear pixel = %f\n", 
                        100.0 * clr_pct); 
 
-                /* snow observations are "good" now */
-                for (i = 0; i < num_scenes; i++)
-                { 
-                    if ((fmask_buf[i] == 0 || fmask_buf[i] == 1) && id_range[i] == 1)
-                    {
-                        clrx[n_sn] = sdate[i];
-                        for (k = 0; k < TOTAL_BANDS - 1; k++)
-                             clry[n_sn][k] = buf[i][k];
-                        n_clr++;
-                    }   
-                }
-                end = n_clr;
-
                 /* the first observation for TSFit */
                 i_start = 1; /* the first observation for TSFit */
 #if 0
                 /* identified and move on for the next curve */
                 num_fc++; /* not needed, as array index starts with zero */
 #endif
+                if (n_clr < n_times * min_num_c)
+                {
+                    for (i_b = 0; i_b < TOTAL_BANDS - 1; i_b++)
+                    {
+                        matlab_2d_array_median(clry, i_b, end, &fit_cft[0][i_b]);
+			rmse_from_square_root_mean(clry, fit_cft[0][i_b], end, i_b, &rmse[i_b]); 
+		    }
+                    rec_cg[num_fc].category = 40 + 1; /* snow pixel */
+		}
+                else
+                {
+                    for (i_b = 0; i_b < TOTAL_BANDS - 1; i_b++)
+                    {
+                        status = auto_ts_fit(clrx, clry, i_b, 0, end-1, min_num_c, 
+                                             fit_cft, &rmse[k]); 
+                        if (status != SUCCESS)  
+                            RETURN_ERROR ("Calling auto_ts_fit1\n", 
+                                      FUNC_NAME, EXIT_FAILURE);
+		    }
+                    rec_cg[num_fc].category = 40 + min_num_c; /* snow pixel */
+                }
+
                 /* Do lasso regression */
                 for (k = 0; k < TOTAL_BANDS -1; k++)
                 {
@@ -912,7 +905,7 @@ int main (int argc, char *argv[])
                                 {
                                     for (k = 0; k < num_scenes; k++) 
                                     {
-                                        if (clrx[k] > rec_cg[num_fc-1].t_end)
+                                        if (clrx[k] > rec_cg[num_fc-1].t_break)
                                         {
                                             i_break = k + 1;
                                             break;
@@ -1050,8 +1043,6 @@ printf("i_start,i_break,conse3=%d,%d,%d\n",i_start,i_break,conse);
                                                  FUNC_NAME, EXIT_FAILURE);
                                     }
 
-                                    /* record time of curve start */
-                                    rec_cg[num_fc].t_start = clrx[i_break-1]; 
                                     /* record time of curve end */
                                     rec_cg[num_fc].t_end = clrx[i_start-2]; 
                                     /* record postion of the pixel */
@@ -1066,23 +1057,27 @@ printf("i_start,i_break,conse3=%d,%d,%d\n",i_start,i_break,conse);
                                         /* record rmse of the pixel */                         
                                         rec_cg[num_fc].rmse[i_b] = rmse[i_b]; 
                                     }
+				    /* recored break time */
+				    rec_cg[num_fc].t_break = clrx[i_start -1];
+				    /* record change probability */
+				    rec_cg[num_fc].change_prob = 1.0;
 
                                     /* treat first curve different */
                                     if (num_fc == rec_fc)                           
                                     {
+         			        /* record time of curve start */ 
+         			        rec_cg[num_fc].t_start = clrx[0];
                                         /* record fit category */
                                         rec_cg[num_fc].category = 10 + min_num_c;
-                                        /* record break time */
-                                        rec_cg[num_fc].t_break = clrx[i_start-1];
                                         /* record change probability */
                                         rec_cg[num_fc].change_prob = 1.0;
                                     }
                                     else
                                     {
+         			        /* record time of curve start */ 
+         			        rec_cg[num_fc].t_start = rec_cg[num_fc-1].t_break;
                                         /* record fit category */
                                         rec_cg[num_fc].category = 30 + min_num_c;
-                                        /* record break time */
-                                        rec_cg[num_fc].t_break = 0;
                                         /* record change probability */
                                         rec_cg[num_fc].change_prob = 0.0;
                                     } 
@@ -1108,8 +1103,7 @@ printf("i_start,i_break,conse3=%d,%d,%d\n",i_start,i_break,conse);
                                         partial_square_root_mean(clry, i_b, i_break-1, i_start-1, 
                                               fit_cft, &rmse[i_b]);
                                     }
-                                    /* record time of curve start */
-                                    rec_cg[num_fc].t_start = clrx[i_break-1]; 
+
                                     /* record time of curve end */  
                                     rec_cg[num_fc].t_end = clrx[i_start-2]; 
                                     /* record fitted coefficients */
@@ -1124,9 +1118,15 @@ printf("i_start,i_break,conse3=%d,%d,%d\n",i_start,i_break,conse);
                                         /* record rmse of the pixel */
                                         rec_cg[num_fc].rmse[i_b] = rmse[i_b]; 
                                     }
+				    /* record break time */
+				    rec_cg[num_fc].t_break = clrx[i_start - 1];
+				    /* record change probability */
+				    rec_cg[num_fc].change_prob = (float)(i_start-i_break) / (float)conse;
                                     /* treat first curve different */
                                     if (num_fc == rec_fc)                           
                                     {
+                                        /* record time of curve start */
+               				rec_cg[num_fc].t_start = clrx[0];
                                         /* record fit category */
                                         rec_cg[num_fc].category = 10 + 1;
                                         /* record break time */
@@ -1136,10 +1136,10 @@ printf("i_start,i_break,conse3=%d,%d,%d\n",i_start,i_break,conse);
                                     }
                                     else
                                     {
+                                        /* record time of curve start */
+               				rec_cg[num_fc].t_start = rec_cg[num_fc-1].t_break;
                                         /* record fit category */
                                         rec_cg[num_fc].category = 30 + 1;
-                                        /* record break time */
-                                        rec_cg[num_fc].t_break = 0;
                                         /* record change probability */
                                         rec_cg[num_fc].change_prob = 0.0;
                                     } 
@@ -1577,7 +1577,7 @@ printf("m,vec_mag[conse-1]3=%d,%f\n",conse-1,vec_mag[conse-1]);
             {
                 for (k = 0; k < num_scenes; k++) 
                 {
-                     if (clrx[k] > rec_cg[num_fc-1].t_end)
+                     if (clrx[k] > rec_cg[num_fc-1].t_break)
                          i_start  = k + 1;
                 }
                 printf("update i_start3=%d\n",i_start);
@@ -1643,8 +1643,11 @@ printf("m,vec_mag[conse-1]3=%d,%f\n",conse-1,vec_mag[conse-1]);
                      RETURN_ERROR ("Calling auto_ts_fit9\n", FUNC_NAME, EXIT_FAILURE);
             }
 
-            /* record time of curve start */
-            rec_cg[num_fc].t_start = clrx[i_start-1];
+	    /* record time of curve start */
+	    if (num_fc == rec_fc)
+                rec_cg[num_fc].t_start = clrx[0];
+	    else
+                rec_cg[num_fc].t_start = rec_cg[num_fc-1].t_break;
             /* record time of curve end */
             rec_cg[num_fc].t_end = clrx[end-1];
             /* record break time */

@@ -204,6 +204,15 @@ int median_variogram
     float *output_array /* O: output array */
 );
 
+void rmse_from_square_root_mean
+(
+    int16 **array,      /* I: input array */
+    float fit_cft,      /* I: input fit_cft value */
+    int dim1_len,       /* I: dimension 1 length */
+    int dim2_index,     /* I: dimension 2 index in input array */
+    float *rmse         /* O: output rmse */
+);
+
 void array_intersection
 (
     int *array1,       /* I: input array 1 */
@@ -248,11 +257,19 @@ void matlab_2d_array_mean
     float  *output_mean  /* O: output norm value */
 );
 
-void matlab_2d_int_array_mean
+void matlab_2d_array_median
 (
     int16 **array,       /* I: input array */
     int dim2_number,     /* I: second dimension number used */   
     int array_len1,      /* I: number of input elements in 1st dim */
+    float *output_median /* O: output norm value */
+);
+
+void matlab_2d_int_array_mean
+(
+    int16 **array,       /* I: input array */
+    int dim2_number,     /* I: second dimension number used */   
+    int din1_len,        /* I: number of input elements in 1st dim */
     float  *output_mean  /* O: output norm value */
 );
 

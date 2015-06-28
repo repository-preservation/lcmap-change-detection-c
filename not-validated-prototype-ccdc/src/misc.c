@@ -727,6 +727,43 @@ int median_variogram
 }
 
 /******************************************************************************
+MODULE:  rmse_from_square_root_mean
+
+PURPOSE:  simulate matlab calculate rmse from square root mean
+
+RETURN VALUE:
+Type = void
+Value           Description
+-----           -----------
+
+
+HISTORY:
+Date        Programmer       Reason
+--------    ---------------  -------------------------------------
+6/26/2015   Song Guo         Original Development
+
+******************************************************************************/
+void rmse_from_square_root_mean
+(
+    int16 **array,      /* I: input array */
+    float fit_cft,      /* I: input fit_cft value */
+    int dim1_len,       /* I: dimension 1 length */
+    int dim2_index,     /* I: dimension 2 index in input array */
+    float *rmse         /* O: output rmse */
+)
+{
+    int i;
+    float sum = 0.0;
+
+    for (i = 0; i < dim1_len; i++)
+    {
+         sum += (array[i][dim2_index] - fit_cft) * 
+                (array[i][dim2_index] - fit_cft); 
+    } 
+    *rmse = sqrt(sum / dim1_len); 
+}
+
+/******************************************************************************
 MODULE:  partition_int
 
 PURPOSE:  partition the sorted list
@@ -1007,6 +1044,40 @@ void matlab_2d_array_norm
         sum += array[i][dim2_number] * array[i][dim2_number];
     }
     *output_norm = sqrt(sum);
+}
+
+/******************************************************************************
+MODULE:  matlab_2d_array_median
+
+PURPOSE:  simulate matlab median function for 1 dimesion in 2d array cases only
+
+RETURN VALUE:
+Type = void
+Value           Description
+-----           -----------
+
+
+HISTORY:
+Date        Programmer       Reason
+--------    ---------------  -------------------------------------
+6/26/2015   Song Guo         Original Development
+
+NOTES: 
+******************************************************************************/
+void matlab_2d_array_median
+(
+    int16 **array,       /* I: input array */
+    int dim2_number,     /* I: second dimension number used */   
+    int dim1_len,        /* I: number of input elements in 1st dim */
+    float *output_median /* O: output norm value */
+)
+{
+    int m = dim1_len / 2;
+
+    if (dim1_len % 2 == 0)
+        *output_median = (float)(array[m-1][dim2_number] + array[m][dim2_number]) / 2;
+    else
+        *output_median = (float) array[m][dim2_number];
 }
 
 /******************************************************************************
