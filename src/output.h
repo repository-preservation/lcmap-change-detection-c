@@ -1,14 +1,6 @@
 #ifndef OUTPUT_H
 #define OUTPUT_H
 
-
-#include <time.h>
-
-
-#include "ccdc.h"
-#include "input.h"
-#include "date.h"
-
 #define FILL_VALUE 255
 #define NUM_COEFFS 8
 #define NUM_BANDS 7

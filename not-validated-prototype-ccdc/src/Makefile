@@ -5,14 +5,12 @@ MV    = mv
 EXTRA = -Wall -g
 
 # Define the include files
-INC = input.h 2d_array.h ccdc.h output.h utilities.h \
-	date.h
+INC = input.h 2d_array.h ccdc.h output.h utilities.h 
 INCDIR  = -I. -I$(XML2INC) -I$(ESPAINC) -I$(GSL_SCI_INC)
 NCFLAGS = $(EXTRA) $(INCDIR)
 
 # Define the source code and object files
-SRC = input.c 2d_array.c ccdc.c utilities.c date.c \
-      misc.c 
+SRC = input.c 2d_array.c ccdc.c utilities.c misc.c 
 OBJ = $(SRC:.c=.o)
 
 # Define the object libraries
