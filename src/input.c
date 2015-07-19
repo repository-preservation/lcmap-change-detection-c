@@ -5,12 +5,6 @@
 #include "input.h"
 #include "utilities.h"
 
-/* define the read/write formats to be used for opening a file */
-typedef enum {
-  RB_READ_FORMAT,
-  RB_WRITE_FORMAT,
-  RB_READ_WRITE_FORMAT,
-} Raw_binary_format_t;
 const char raw_binary_format[][4] = {"rb", "wb", "rb+"};
 
 FILE *open_raw_binary
@@ -22,14 +16,14 @@ FILE *open_raw_binary
 )
 {
     FILE *rb_fptr = NULL;    /* pointer to the raw binary file */
+    char FUNC_NAME[] = "open_raw_binary"; /* function name */
 
     /* Open the file with the specified access type */
     rb_fptr = fopen (infile, access_type);
     if (rb_fptr == NULL)
     {
-        printf("Opening raw binary file %s with %s access.",
-            infile, access_type);
-        return NULL;
+         ERROR_MESSAGE("Opening raw binary", FUNC_NAME);
+	 return NULL;
     }
 
     /* Return the file pointer */
@@ -55,13 +49,13 @@ int write_raw_binary
 )
 {
     int nvals;               /* number of values written to the file */
+    char FUNC_NAME[] = "write_raw_binary"; /* function name */
 
     /* Write the data to the raw binary file */
     nvals = fwrite (img_array, size, nlines * nsamps, rb_fptr);
     if (nvals != nlines * nsamps)
     {
-        printf ("Writing %d elements of %d bytes in size to the "
-            "raw binary file.", nlines * nsamps, size);
+        RETURN_ERROR("Incorrect amount of data written", FUNC_NAME, ERROR);
     }
 
     return SUCCESS;
@@ -79,18 +73,33 @@ int read_raw_binary
 )
 {
     int nvals;               /* number of values read from the file */
+    char FUNC_NAME[] = "read_raw_binary"; /* function name */
 
     /* Read the data from the raw binary file */
     nvals = fread (img_array, size, nlines * nsamps, rb_fptr);
     if (nvals != nlines * nsamps)
     {
-        printf ("Reading %d elements of %d bytes in size from the "
-            "raw binary file.", nlines * nsamps, size);
+        RETURN_ERROR("Incorrect amount of data read", FUNC_NAME, ERROR);
     }
 
     return SUCCESS;
 }
 
+/******************************************************************************
+MODULE: trimwhitespace
+
+PURPOSE: Trim leading spaces of a sting
+ 
+RETURN VALUE:
+Type = string without trailing space
+
+HISTORY:
+Date         Programmer       Reason
+----------   --------------   -------------------------------------
+1/16/2015    Song Guo         Modified from online code
+
+NOTES:
+*****************************************************************************/
 char *trimwhitespace(char *str)
 {
   char *end;

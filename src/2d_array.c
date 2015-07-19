@@ -8,7 +8,7 @@
 
 
 /* The 2D_ARRAY maintains a 2D array that can be sized at run-time. */
-typedef struct ias_2d_array
+typedef struct lsrd_2d_array
 {
     unsigned int signature; /* Signature used to make sure the pointer
                                math from a row_array_ptr actually gets back to
@@ -26,19 +26,19 @@ typedef struct ias_2d_array
                                of the block is for storing the actual data.
                                Note: the type is double to force the worst case
                                memory alignment on sparc boxes. */
-} IAS_2D_ARRAY;
+} LSRD_2D_ARRAY;
 
 
 /* Define a unique (i.e. random) value that can be used to verify a pointer
-   points to an IAS_2D_ARRAY. This is used to verify the operation succeeds to
-   get an IAS_2D_ARRAY pointer from a row pointer. */
+   points to an LSRD_2D_ARRAY. This is used to verify the operation succeeds to
+   get an LSRD_2D_ARRAY pointer from a row pointer. */
 #define SIGNATURE 0x326589ab
 
 
 /* Given an address returned by the allocate routine, get a pointer to the
    entire structure. */
 #define GET_ARRAY_STRUCTURE_FROM_PTR(ptr) \
-    ((IAS_2D_ARRAY *)((char *)(ptr) - offsetof(IAS_2D_ARRAY, memory_block)))
+    ((LSRD_2D_ARRAY *)((char *)(ptr) - offsetof(LSRD_2D_ARRAY, memory_block)))
 
 
 /*************************************************************************
@@ -64,7 +64,7 @@ void **allocate_2d_array
 )
 {
     int row;
-    IAS_2D_ARRAY *array;
+    LSRD_2D_ARRAY *array;
     size_t size;
     int data_start_index;
 
@@ -134,7 +134,7 @@ int free_2d_array
     if (array_ptr != NULL)
     {
         /* Convert the array_ptr into a pointer to the structure */
-        IAS_2D_ARRAY *array = GET_ARRAY_STRUCTURE_FROM_PTR (array_ptr);
+        LSRD_2D_ARRAY *array = GET_ARRAY_STRUCTURE_FROM_PTR (array_ptr);
 
         /* Verify it is a valid 2D array */
         if (array->signature != SIGNATURE)
