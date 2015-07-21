@@ -727,23 +727,19 @@ int median_variogram
     int m = dim1_len / 2;
     char FUNC_NAME[] = "median_variogram";
 
-    var = malloc((dim1_len-1) * sizeof(int16));
-    //    var = (int16 **)allocate_2d_array(dim1_len-1, TOTAL_BANDS-1, 
-    //            sizeof(int16));
+    var = malloc(dim1_len * sizeof(int16));
     if (var == NULL)
     {
         RETURN_ERROR ("Allocating var memory", FUNC_NAME, ERROR);
     }
 
     for (j = 0; j < dim2_len; j++)
-         //    for (i = dim1_start; i < dim1_end; i++)
     {
         for (i = dim1_start; i < dim1_end; i++)
-        //        for (j = 0; j < dim2_len; j++)
         {
             var[i] = abs(array[i+1][j] - array[i][j]);
         }
-        quick_sort_int16(var, dim1_start, dim1_len-1);
+        quick_sort_int16(var, dim1_start, dim1_end);
         if (dim1_len % 2 == 0)
 	{
             output_array[j] = (float)(var[m-1] + var[m]) / 2.0;
@@ -1231,9 +1227,7 @@ void dofit(const gsl_multifit_robust_type *T,
 {
   gsl_multifit_robust_workspace * work 
     = gsl_multifit_robust_alloc (T, X->size1, X->size2);
-#if 0
-  printf("X->size1, X->size2=%d,%d\n",X->size1, X->size2);
-#endif
+
   gsl_multifit_robust (X, y, c, cov, work);
   gsl_multifit_robust_free (work);
 }
@@ -1291,21 +1285,6 @@ void auto_robust_fit
         gsl_vector_set(y,i,clry[i+start][band_index]);
     }
 
-#if 0
-    printf("nums,x->size1,x->size2=%d,%d,%d\n",nums,x->size1,x->size2);
-
-    for (i = 0; i < nums; i++)
-    {
-        for (j = 0; j < p; j++)
-        {
-            if (j == p-1)
-                printf ("x(%d,%d) = %g\n", i, j, gsl_matrix_get (x, i, j));
-            else
-                printf ("x(%d,%d) = %g, ", i, j, gsl_matrix_get (x, i, j));
-        }
-        printf ("y_%d = %g\n", i, gsl_vector_get (y, i));
-    }
-#endif
     /* perform robust fit */
     dofit(gsl_multifit_robust_bisquare, x, y, c, cov);
 
@@ -1384,14 +1363,10 @@ int auto_mask
 
     /* Do robust fitting for band 2 */
     auto_robust_fit(x, clry, nums, start, 1, coefs);
-#if 0
-    printf("coefs[i]=%f,%f,%f,%f,%f\n",coefs[0],coefs[1],coefs[2],coefs[3],coefs[4]);
-#endif
+
     /* Do robust fitting for band 5 */
     auto_robust_fit(x, clry, nums, start, 4, coefs2);
-#if 0
-    printf("coefs2[i]=%f,%f,%f,%f,%f\n",coefs2[0],coefs2[1],coefs2[2],coefs2[3],coefs2[4]);
-#endif
+
     /* predict band 2 * band 5 refs, bl_ids value of 0 is clear and 
        1 otherwise */
     for (i = 0; i < nums; i++)
@@ -1505,9 +1480,10 @@ int auto_ts_fit
     float **x;
     int status;
     float *yhat;
-    float v_dif_norm;
-    int nums;
+    float v_dif_norm = 0.0;
+    int nums = 0.0;
     FILE *fd;
+    int ret;
 
     nums = end - start + 1;
     w = TWO_PI / 365.25;
@@ -1599,10 +1575,6 @@ int auto_ts_fit
                     RETURN_ERROR ("End of file (EOF) is met before nums"
                                   " lines", FUNC_NAME, ERROR);
                 }
-#if 0
-            printf("i,start,x[0][i], x[1][i], x[2][i],clry[i+start][band_index]=%d,%d,%f,%f,%f,%d\n",
-                   i,start,x[0][i], x[1][i], x[2][i],clry[i+start][band_index]);
-#endif
             }
             fclose(fd);
 
@@ -1622,12 +1594,7 @@ int auto_ts_fit
             /* Read out the lasso fit coefficients */
             fscanf(fd, "%f %f %f %f", &coefs[band_index][0], &coefs[band_index][1], 
                    &coefs[band_index][2], &coefs[band_index][3]);
-#if 0
-	    printf("coefs[0][band_index], coefs[1][band_index], coefs[2][band_index], coefs[3][band_index],"
-                   " coefs[4][band_index], coefs[5][band_index], coefs[6][band_index], coefs[7][band_index] "
-                   "= %f,%f,%f,%f,%f,%f,%f,%f\n",coefs[band_index][0], coefs[band_index][1], coefs[band_index][2], 
-                   coefs[band_index][3],coefs[band_index][4], coefs[band_index][5], coefs[band_index][6], coefs[band_index][7]);
-#endif
+
             fclose(fd);
             break;
 
@@ -1750,9 +1717,9 @@ int auto_ts_fit
             RETURN_ERROR ("Freeing memory: x\n", FUNC_NAME, ERROR);
 	}
     }
-#if 0
+
     /* Remove the temporary file */
-    ret = remove"glmnet_fit_inputs.txt");
+    ret = remove("glmnet_fit_inputs.txt");
     if (ret != SUCCESS)
         RETURN_ERROR ("Deleting glmnet_fit_inputs.txt file", FUNC_NAME, ERROR);
     ret = remove("glmnet_fit_outputs.txt");
@@ -1761,7 +1728,6 @@ int auto_ts_fit
     ret = remove("glmnet_fit_*.r.Rout");
     if (ret != SUCCESS)
         RETURN_ERROR ("Deleting glmnet_fit_*.r.Rout file", FUNC_NAME, ERROR);
-#endif
 
     return SUCCESS;
 }

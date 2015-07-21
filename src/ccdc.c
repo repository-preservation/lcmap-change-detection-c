@@ -76,17 +76,20 @@ second digit:
 4: model has 3 coefs + 1 const 
 6: model has 5 coefs + 1 const
 8: model has 7 coefs + 1 const
+
+Note: The commented out parts of code is the inputs using ESPA putputs,
+      the current input part is only for reading inputs from Zhe's code
 ******************************************************************************/
 int main (int argc, char *argv[])
 {
     char FUNC_NAME[] = "main";
     char msg_str[MAX_STR_LEN];  /* input data scene name */
-    //    char filename[MAX_STR_LEN];         /* input binary filenames */
+    char filename[MAX_STR_LEN];         /* input binary filenames */
     int status;                 /* return value from function call */
     Output_t *rec_cg = NULL;    /* output structure and metadata */
     bool verbose;               /* verbose flag for printing messages */
     int i, k, m, b, k_new;
-    //    char **scene_list = NULL;
+    char **scene_list = NULL;
     FILE *fd;
     int num_scenes = MAX_SCENE_LIST;
     int num_c = 8;            /* max number of coefficients for the model */
@@ -132,7 +135,7 @@ int main (int argc, char *argv[])
     int rm_ids_len;
     int i_rec;
     float **v_diff = NULL;
-    float v_dif_norm;
+    float v_dif_norm = 0.0;
     int i_count;
     float **v_dif_mag;
     int i_conse, i_b;
@@ -158,6 +161,9 @@ int main (int argc, char *argv[])
     int ini_conse;
     float vec_magg_min;
     int ids_len;
+    int clr_land_water_counter;
+    int fmask_total_counter;
+    int landsat_number;
 
     time_t now;
     time (&now);
@@ -172,9 +178,6 @@ int main (int argc, char *argv[])
         RETURN_ERROR ("calling get_args", FUNC_NAME, EXIT_FAILURE);
     }
 
-    printf("row,col,verbose=%d,%d,%d\n",row,col,verbose);
-
-#if 0
     /* allocate memory for scene_list */
     scene_list = (char **) allocate_2d_array (MAX_SCENE_LIST, MAX_STR_LEN,
                                          sizeof (char));
@@ -208,9 +211,8 @@ int main (int argc, char *argv[])
             break;
     }
     num_scenes = i;
-#endif
 
-    num_scenes = 455;
+    //    num_scenes = 455;
     /* Allocate memory */
     sdate = malloc(num_scenes * sizeof(int));
     if (sdate == NULL)
@@ -286,13 +288,13 @@ int main (int argc, char *argv[])
         RETURN_ERROR ("Allocating fit_cft memory", FUNC_NAME, FAILURE);
     }
 
-    rmse = malloc((TOTAL_IMAGE_BANDS) * sizeof(float));
+    rmse = (float *)calloc(TOTAL_IMAGE_BANDS, sizeof(float));
     if (rmse == NULL)
     {
         RETURN_ERROR ("Allocating rmse memory", FUNC_NAME, FAILURE);
     }
 
-    vec_mag = malloc(CONSE * sizeof(float));
+    vec_mag = (float *)calloc(CONSE, sizeof(float));
     if (vec_mag == NULL)
     {
         RETURN_ERROR ("Allocating vec_mag memory", FUNC_NAME, FAILURE);
@@ -322,7 +324,7 @@ int main (int argc, char *argv[])
     {
         RETURN_ERROR ("Allocating rec_v_dif memory",FUNC_NAME, FAILURE);
     }
-#if 0
+
     /* sort scene_list based on year & julian_day */
     status = sort_scene_based_on_year_doy(scene_list, num_scenes, sdate);
     if (status != SUCCESS)
@@ -330,7 +332,7 @@ int main (int argc, char *argv[])
         RETURN_ERROR ("Calling sort_scene_based_on_year_jday", 
                       FUNC_NAME, FAILURE);
     }
-#endif
+
     /* Create the Input metadata structure */
     meta = (Input_meta_t *)malloc(sizeof(Input_meta_t));
     if (meta == NULL) 
@@ -339,8 +341,8 @@ int main (int argc, char *argv[])
     }
 
     /* Get the metadata, all scene metadata are the same for stacked scenes */
-    //    status = read_envi_header(scene_list[0], meta);
-    status = read_envi_header("LC80460272013120LGN01_MTLstack", meta);
+    status = read_envi_header(scene_list[0], meta);
+    //    status = read_envi_header("LC80460272013120LGN01_MTLstack", meta);
     if (status != SUCCESS)
     {
         RETURN_ERROR ("Calling read_envi_header", 
@@ -360,17 +362,19 @@ int main (int argc, char *argv[])
         printf ("DEBUG: Pixel size: %d\n", meta->pixel_size);
         printf ("DEBUG: Envi save format: %s\n", meta->interleave);
     }
-#if 0
+
     /* Open input files */
     FILE *fp_bin[num_scenes][TOTAL_BANDS];
     short int buf[num_scenes][TOTAL_IMAGE_BANDS];
     unsigned char fmask_buf[num_scenes];
+    char temp_string[3];
     /* Open input files */
     for (i = 0; i < num_scenes; i++)
     {
         for (k = 0; k < TOTAL_BANDS; k++)
         {
-            landsat_number = atoi(sub_string(scene_list[i],2,1));
+	    strncpy(temp_string, scene_list[i]+2, 1);
+            landsat_number = atoi(temp_string);
             if (landsat_number != 8)
             {
                 if (k == 5)
@@ -412,8 +416,29 @@ int main (int argc, char *argv[])
             }
             close_raw_binary(fp_bin[i][k]);
         }
+
+	/* Eliminate scenes that have less than 20% clear-sky pixels */
+	clr_land_water_counter = 0;
+	fmask_total_counter = 0;
+	if (fmask_buf[i] == 0 || fmask_buf[i] == 1)
+	{
+            clr_land_water_counter++;
+	}
+	if (fmask_buf[i] > 0 && fmask_buf[i] < 255)
+	{
+	    fmask_total_counter++;
+	}
+
+	if (((float) clr_land_water_counter / (float)fmask_total_counter) < 0.2)
+	{
+            for (k = i; k < num_scenes; k++)
+	    {
+                strcpy(scene_list[k], scene_list[k+1]);
+	    }
+	    num_scenes--;
+	}
     }
-#endif
+#if 0
     /* Temporary code for testing purpose */
     unsigned char fmask_buf[num_scenes];
     int buf[num_scenes][TOTAL_BANDS + 1];
@@ -453,7 +478,7 @@ int main (int argc, char *argv[])
             }
         }
     }
-
+#endif
     /* Only run CCDC for places where more than 50% of images has data */
     for (i = 0; i < num_scenes; i++)
     { 
@@ -560,10 +585,7 @@ int main (int argc, char *argv[])
 
             /* the first observation for TSFit */
             i_start = 1; /* the first observation for TSFit */
-#if 0
-            /* identified and move on for the next curve */
-            num_fc++; /* not needed, as array index starts with zero */
-#endif
+
             if (n_sn < N_TIMES * MIN_NUM_C)
             {
                 for (i_b = 0; i_b < TOTAL_IMAGE_BANDS; i_b++)
@@ -658,10 +680,7 @@ int main (int argc, char *argv[])
 
             /* the first observation for TSFit */
             i_start = 1; /* the first observation for TSFit */
-#if 0
-            /* identified and move on for the next curve */
-            num_fc++; /* not needed, as array index starts with zero */
-#endif
+
             if (n_clr < N_TIMES * MIN_NUM_C)
             {
                 for (i_b = 0; i_b < TOTAL_IMAGE_BANDS; i_b++)
@@ -752,18 +771,18 @@ int main (int argc, char *argv[])
         }
         end = n_clr;
 
-        printf("end_clr=%d\n",end);
         /* calculate median variogram */
+	for (k = 0; k < TOTAL_IMAGE_BANDS; k++)
+	{
+            adj_rmse[k] = 0.0;
+	} 
         status = median_variogram(clry, 0, end-1, TOTAL_IMAGE_BANDS, adj_rmse);
         if (status != SUCCESS)
 	{
             RETURN_ERROR("ERROR calling median_variogram routine", FUNC_NAME, 
                          FAILURE);
 	}
-#if 0
-        for (k = 0; k < TOTAL_IMAGE_BANDS; k++)
-         printf("k,adj_rmse[k]=%d,%f\n",k,adj_rmse[k]);
-#endif
+
         /* start with mininum requirement of clear obs */
         i = N_TIMES * MIN_NUM_C;
 
@@ -785,9 +804,6 @@ int main (int argc, char *argv[])
             /* span of "i" */
             i_span = i - i_start + 1;
 
-            printf("end,CONSE=%d,%d\n",end,CONSE);
-            printf("i_start,i,i_span=%d,%d,%d\n",i_start,i,i_span);
-
             /* span of time (num of years) */
             time_span = (float)(clrx[i-1] - clrx[i_start-1]) / NUM_YEARS;
 
@@ -806,10 +822,7 @@ int main (int argc, char *argv[])
                         RETURN_ERROR("ERROR calling auto_mask during model initilization", 
                                       FUNC_NAME, FAILURE);
 		    }
-#if 0
-                    for(k = i_start-1; k < i+CONSE; k++)
-                        printf("k,bl_ids[k]=%d,%d\n",k,bl_ids[k]);
-#endif
+
                     /* Clears the IDs buffers */
                     for (k = 0; k < num_scenes; k++)
                         ids[k] = 0;
@@ -826,7 +839,6 @@ int main (int argc, char *argv[])
                         if (bl_ids[k] == 1) 
                         {
                             rm_ids[m] = ids[k];
-                            printf("m,rm_ids[m]=%d,%d\n",m,rm_ids[m]);
                             m++;
                         }
                         else
@@ -837,13 +849,11 @@ int main (int argc, char *argv[])
                     /* update i_span after noise removal */
                     // i_span = i - i_start +1 - rm_ids_len;
 
-                    printf("rm_ids_len, update i_span = %d,%d\n", rm_ids_len, i_span);
                     /* check if there is enough observation */
                     if (i_span < (N_TIMES * MIN_NUM_C))
                     {
                         /* move forward to the i+1th clear observation */
                         i++;
-                        printf("i++=%d\n",i);
                         /* not enough clear observations */
                         continue;
                     }
@@ -870,7 +880,6 @@ int main (int argc, char *argv[])
 			}
                     }
 
-                    printf("end1,rm_ids_len=%d,%d\n",end,rm_ids_len);
                     /* remove noise pixels between i_start & i */
                     m = 0;
                     for (k = 0, k_new=0; k < end; k++)
@@ -888,7 +897,6 @@ int main (int argc, char *argv[])
                         k_new++;
                     }
                     end = k_new;
-                    printf("end2=%d\n",end);
 
                     /* record i before noise removal 
                        This is very important as if model is not initialized 
@@ -898,7 +906,6 @@ int main (int argc, char *argv[])
 
                     /* update i afer noise removal (i_start stays the same) */
                     i=i_start + i_span - 1;
-                    printf("update i = %d\n",i);
 
                     /* update span of time (num of years) */
                     time_span=(cpx[i-1] - cpx[i_start-1]) / NUM_YEARS;
@@ -909,7 +916,6 @@ int main (int argc, char *argv[])
                         i = i_rec;   /* keep the original i */
                         /* move forward to the i+1th clear observation */
                         i++;        
-                        printf("i++2=%d\n",i);
                         free(cpx);
                         status = free_2d_array ((void **) cpy);
                         if (status != SUCCESS)
@@ -937,10 +943,6 @@ int main (int argc, char *argv[])
                         RETURN_ERROR ("Freeing memory: cpy\n", 
                              FUNC_NAME, FAILURE);
 		    }
-#if 0
-                    /* record the start of Tmask (0=>initial;1=>done) */
-                    bl_tmask = 0;
-#endif
 
                     /* Step 2: model fitting: initialize model testing variables
                                defining computed variables */
@@ -955,10 +957,6 @@ int main (int argc, char *argv[])
                             RETURN_ERROR ("Calling auto_ts_fit during model initilization\n", 
                                  FUNC_NAME, FAILURE);
 			}
-#if 0
-                        for(k = 0; k < NUM_COEFFS; k++)
-                        printf("lasso_blist[b],k,fit_cft[k][lasso_blist[b]],rmse[lasso_blist[b-1]]=%d,%d,%f,%f\n",lasso_blist[b],k,fit_cft[k][lasso_blist[b]],rmse[lasso_blist[b]]);
-#endif
                     }
 
                     for(b = 0; b < NUM_LASSO_BANDS; b++)
@@ -984,18 +982,15 @@ int main (int argc, char *argv[])
                                                 fabs(v_end[lasso_blist[b]]);  
                         v_dif_norm += v_dif[lasso_blist[b]] * v_dif[lasso_blist[b]];               
                     }
-                    printf("v_dif_norm=%f\n",v_dif_norm);
 
                     /* find stable start for each curve */
                     if (v_dif_norm > T_CG)
                     {
                         /* start from next clear obs */
                         i_start++;
-                        printf("i_start1=%d\n",i_start);
                         
                         /* move forward to the i+1th clear observation */
                         i++;
-                        printf("i_start++,i++3=%d,%d\n",i_start,i);
 
                         /* keep all data and move to the next obs */
                         continue;
@@ -1022,7 +1017,6 @@ int main (int argc, char *argv[])
                                 break;
                             }
                         }
-                        printf("i_start,i_break2=%d,%d\n",i_start,i_break);
                     }
 
                     if (i_start > i_break)
@@ -1058,7 +1052,7 @@ int main (int argc, char *argv[])
                             }
  
                             /* allocate memory for vec_magg */ 
-                            vec_magg = (float *) malloc(ini_conse * sizeof (float));
+                            vec_magg = (float *) calloc(ini_conse,  sizeof (float));
                             if (vec_magg == NULL)
                             {
                                 RETURN_ERROR ("Allocating vec_magg memory", 
@@ -1068,7 +1062,6 @@ int main (int argc, char *argv[])
                             /* detect change. 
                                value of difference for CONSE obs
                                record the magnitude of change */
-                            printf("ini_conse,i_ini,i=%d,%d,%d\n",ini_conse,i_ini,i);
                             vec_magg_min = 9999.0;
                             for (i_conse = 0; i_conse < ini_conse; i_conse++)
                             {
@@ -1093,16 +1086,11 @@ int main (int argc, char *argv[])
                                             v_diff[i_conse][i_b] = v_dif_mag[i_conse][i_b] 
                                                                           / mini_rmse;
                                             v_dif_norm += v_diff[i_conse][i_b] * v_diff[i_conse][i_b];
-#if 0
-                                            printf("=%d,%d,%d,%d,%f,%f,%f,%f\n",i_conse,i_b,i_ini,clry[i_ini-i_conse][i_b],ts_pred_temp,v_dif_mag[i_conse][i_b],mini_rmse,v_diff[i_conse][i_b]);
-#endif
 					    break;
                                         }
                                     }
                                 }
                                 vec_magg[i_conse] = v_dif_norm; 
-
-                                printf("i_conse,vec_magg[i_conse]1 = %d,%f\n",i_conse,vec_magg[i_conse]);
 
                                 if (vec_magg_min > vec_magg[i_conse])
 				{
@@ -1126,27 +1114,6 @@ int main (int argc, char *argv[])
 				    }
                                 }
                                 i--;
-#if 0
-                                /* remove noise pixels */
-                                m = 0;
-                                for (k = 0, k_new=0; k < end; k++)
-                                {
-                                    if (m < i_ini && k == i_ini)
-                                    {
-                                        m++;
-                                        continue;
-                                    }
-                                    cpx[k_new] = clrx[k];
-                                    for (b = 0; b < TOTAL_IMAGE_BANDS; b++)
-			            {
-                                        cpy[k_new][b] = clry[k][b];
-			            }
-                                    k_new++;
-                                }
-                                end = k_new;
-                                i--;
-#endif
-				printf("end,i=%d,%d\n",end,i);
                             }
 
                             /* free the memory */
@@ -1160,7 +1127,6 @@ int main (int argc, char *argv[])
 
                             /* update i_start if i_ini is not a confirmed break */
                             i_start = i_ini;
-                            printf("i_start=%d\n",i_start);
 
                             /* update curves */
                             for (i_b = 0; i_b < TOTAL_IMAGE_BANDS; i_b++)
@@ -1176,7 +1142,6 @@ int main (int argc, char *argv[])
                         }
                     }
 
-printf("i_start,i_break,conse3=%d,%d,%d\n",i_start,i_break,CONSE);
                     /* enough to fit simple model and confirm a break */
                     if ((i_start - i_break) >= CONSE)
                     {
@@ -1348,16 +1313,11 @@ printf("i_start,i_break,conse3=%d,%d,%d\n",i_start,i_break,CONSE);
                     }
                     i_span = i - i_start +1;
 
-                printf("i_start, i, up-update i_span=%d,%d,%d\n",
-                       i_start, i, i_span);
-
                     /* determine the time series model */
                     update_cft(i_span, N_TIMES, MIN_NUM_C, MID_NUM_C, MAX_NUM_C, 
                               num_c, &update_num_c);
 
-                printf("update_cft=%d\n",update_num_c);
                     /* dynamic model fit when there are not many obs */
-                    //                if (i_count == 0 || ids_old_len < (N_TIMES * MAX_NUM_C))
                     if (i_count == 0 || i_span <= (N_TIMES * MAX_NUM_C))
                     {
                        /* update i_count at each iteration */
@@ -1372,10 +1332,6 @@ printf("i_start,i_break,conse3=%d,%d,%d\n",i_start,i_break,CONSE);
                                RETURN_ERROR ("Calling auto_ts_fit during continuous monitoring\n", 
                                      FUNC_NAME, FAILURE);
 			   }
-#if 0
-                            for(k = 0; k < i-i_start+1; k++)
-                             printf("i_b,k,rec_v_dif[k][i_b]1=%d,%d,%f\n",i_b,k,rec_v_dif[k][i_b]);
-#endif
                        }
 
                        /* updating information for the first iteration */
@@ -1433,18 +1389,11 @@ printf("i_start,i_break,conse3=%d,%d,%d\n",i_start,i_break,CONSE);
                                        /* z-scores */
                                        v_difs[i_conse][i_b] = v_dif_mag[i_conse][i_b] / mini_rmse;
                                        v_dif_norm += v_difs[i_conse][i_b] * v_difs[i_conse][i_b];
-#if 0
-printf("=%d,%d,%d,%f,%f,%f,%f\n",i_conse,i_b,clry[i+i_conse][i_b],ts_pred_temp,
-       v_dif_mag[i_conse][i_b],mini_rmse,v_difs[i_conse][i_b]);
-#endif
-                                        break;
+                                       break;
                                    }
                                }
                             }
                             vec_mag[i_conse] = v_dif_norm;
-
-                            printf("i_conse,vec_mag[i_conse]2=%d,%f\n",i_conse,vec_mag[i_conse]);
-
                         }
 
                         /* Clears the IDsOld buffers */
@@ -1459,9 +1408,6 @@ printf("=%d,%d,%d,%f,%f,%f,%f\n",i_conse,i_b,clry[i+i_conse][i_b],ts_pred_temp,
                             ids_old[k] = ids[k];
 			}
                         ids_old_len = ids_len;
-
-                    printf("length(ids)1,length(ids_old)1,i-i_start+1=%d,%d,%d\n",
-                    ids_len,ids_old_len,i-i_start+1);
                     }
                     else
                     {
@@ -1479,10 +1425,6 @@ printf("=%d,%d,%d,%f,%f,%f,%f\n",i_conse,i_b,clry[i+i_conse][i_b],ts_pred_temp,
                                     RETURN_ERROR ("Calling auto_ts_fit for change detection with "
                                          "enough observations\n", FUNC_NAME, FAILURE);
 				}
-#if 0
-                                for(k = i_start-1; k < i-1; k++)
-                                 printf("i_b,rec_v_dif[k][i_b]2=%d,%f\n",i_b,rec_v_dif[k][i_b]);
-#endif
                             }
 
                             /* record fitted coefficients */
@@ -1513,30 +1455,11 @@ printf("=%d,%d,%d,%f,%f,%f,%f\n",i_conse,i_b,clry[i+i_conse][i_b],ts_pred_temp,
                                 ids_old[k] = ids[k];
 			    }
                             ids_old_len = ids_len;
-
-                            printf("length(ids)2,length(ids_old)2,i-i_start+1=%d,%d,%d\n",
-                               ids_len,ids_old_len,i-i_start+1);
                         }
 
                         /* record time of curve end */
                         rec_cg[num_fc].t_end = clrx[i-1]; /* record time of curve end */
 
-                        printf("length(ids_len)3, length(ids_old_len)3, i- i_start +1=%d,%d,%d\n",
-                               ids_len, ids_old_len, i - i_start +1);
-#if 0
-                        /* use temporally-adjusted RMSE */
-                        if (ids_old_len <= N_TIMES * MAX_NUM_C)
-                        {
-                            /* number of observations for calculating RMSE */
-                            n_rmse = ids_old_len;
-                            for (b = 0; b < TOTAL_IMAGE_BANDS; b++)
-			    {
-                                tmpcg_rmse[b] = rmse[b];
-			    }
-                        }
-                        else
-                        {
-#endif
                         /* use fixed number for RMSE computing */
                         n_rmse = N_TIMES * MAX_NUM_C;
 
@@ -1553,21 +1476,14 @@ printf("=%d,%d,%d,%f,%f,%f,%f\n",i_conse,i_b,clry[i+i_conse][i_b],ts_pred_temp,
                         {
                             d_rt = clrx[ids_old[m]] - clrx[i+CONSE-1]; 
                             d_yr[m] = fabs(round((float)d_rt / NUM_YEARS) * NUM_YEARS - (float)d_rt);
-#if 0
-                            printf("m,d_rt,d_yr[m]=%d,%d,%f\n",m,d_rt,d_yr[m]);
-#endif
                         }
 
                         printf("length(IDs),length(IDsOld)=%d,%d\n",  ids_len, ids_old_len); 
                         /* sort the d_yr */
                         qsort(d_yr, ids_old_len, sizeof(float), cmpfunc);
-#if 0
-                       for(m = 0; m < ids_old_len; m++)
-                         printf("m,ids_old[m],d_yr[m]=%d,%d,%f\n",m,ids_old[m],d_yr[m]);
-#endif
 
-                       for(b = 0; b < TOTAL_IMAGE_BANDS; b++)
-                           tmpcg_rmse[b] = 0.0;
+                        for(b = 0; b < TOTAL_IMAGE_BANDS; b++)
+                            tmpcg_rmse[b] = 0.0;
 
                         /* temporarily changing RMSE */
                         for (b = 0; b < NUM_LASSO_BANDS; b++)
@@ -1575,12 +1491,6 @@ printf("=%d,%d,%d,%f,%f,%f,%f\n",i_conse,i_b,clry[i+i_conse][i_b],ts_pred_temp,
                             matlab_2d_array_norm(rec_v_dif, lasso_blist[b], n_rmse,
                                              &tmpcg_rmse[lasso_blist[b]]);
                             tmpcg_rmse[lasso_blist[b]] /= sqrt(n_rmse - update_num_c);
-#if 0
-                            for (m = 0; m < n_rmse; m++)
-                         printf("m,b,rec_v_dif[m]===%d,%d,%f\n",m,b,rec_v_dif[m][lasso_blist[b]]);
-#endif
-                            printf("====%d,%f\n",b,tmpcg_rmse[lasso_blist[b]]); 
-
                         }
 
                         /* free allocated memories */
@@ -1595,9 +1505,7 @@ printf("=%d,%d,%d,%f,%f,%f,%f\n",i_conse,i_b,clry[i+i_conse][i_b],ts_pred_temp,
                                 v_dif_mag[m][b] = v_dif_mag[m+1][b];
                             }
                             vec_mag[m] = vec_mag[m+1];
-#if 0
-                     printf("m,vec_mag[m]3=%d,%f\n",m,vec_mag[m]);
-#endif
+
                             v_difs[CONSE-1][b] = 0.0;
                             v_dif_mag[CONSE-1][b] = 0.0;
                         }
@@ -1609,10 +1517,7 @@ printf("=%d,%d,%d,%f,%f,%f,%f\n",i_conse,i_b,clry[i+i_conse][i_b],ts_pred_temp,
                             auto_ts_predict(clrx, fit_cft, i_b, i+CONSE-1, 
                                  i+CONSE-1, &ts_pred_temp);
                             v_dif_mag[CONSE-1][i_b] = (float)clry[i+CONSE-1][i_b] - ts_pred_temp;
-#if 0
-                            printf("===%d,%d,%f,%f\n",i_b,clry[i+CONSE-1][i_b],ts_pred_temp,
-                              v_dif_mag[CONSE-1][i_b]);
-#endif
+
                             /* normalized to z-scores */
                             for (b = 0; b < NUM_LASSO_BANDS; b++)
                             {
@@ -1629,19 +1534,16 @@ printf("=%d,%d,%d,%f,%f,%f,%f\n",i_conse,i_b,clry[i+i_conse][i_b],ts_pred_temp,
                             }
 
                         }
-printf("m,vec_mag[conse-1]3=%d,%f\n",CONSE-1,vec_mag[CONSE-1]);
                     }
                     break_mag = 9999.0;
                     for (m = 0; m < CONSE; m++)
                     {
-                        printf("m,vec_mag[m]4=%d,%f\n",m,vec_mag[m]);
                         if (break_mag > vec_mag[m])
 			{
                             break_mag = vec_mag[m];
 			}
                     }
 
-                    printf("break_mag,vec_mag[0],T_MAX_CG=%f,%f,%f\n",break_mag,vec_mag[0],T_MAX_CG);
                     if (break_mag > T_CG)
                     {
                         printf("Change Magnitude = %.2f\n",break_mag);
@@ -1668,31 +1570,11 @@ printf("m,vec_mag[conse-1]3=%d,%f\n",CONSE-1,vec_mag[CONSE-1]);
 
                         /* start from i+1 for the next functional curve */
                         i_start = i + 1;
-                        printf("i_start2=%d\n",i_start);
                         /* start training again */
                         bl_train = 0;
                     }
                     else if (vec_mag[0] > T_MAX_CG)
                     {
-#if 0
-                        /* remove noise */
-                        m = 0;
-                        for (k = 0, k_new=0; k < end; k++)
-                        {
-                            if (m < i && k == i)
-                            {
-                                m++;
-                                continue;
-                            }
-                            cpx[k_new] = clrx[k];
-                            for (b = 0; b < TOTAL_IMAGE_BANDS; b++)
-			    {
-                                cpy[k_new][b] = clry[k][b];
-			    }
-                            k_new++;
-                        }
-                        end = k_new;
-#endif
                         for (m = i; m < num_scenes - 1; m++)
                         {
                             clrx[m] = clrx[m+1];
@@ -1705,13 +1587,11 @@ printf("m,vec_mag[conse-1]3=%d,%f\n",CONSE-1,vec_mag[CONSE-1]);
 
                         /* stay & check again after noise removal */
                         i--;
-                        printf("i--=%d\n",i);
                     }
                 }    
             } /* end of continuous monitoring */ 
             /* move forward to the i+1th clear observation */
             i++;
-            printf("i++4=%d\n",i);
         } /* end of "while (i <= end - CONSE) */
 
         /* Two ways for processing the end of the time series */ 
@@ -1730,7 +1610,6 @@ printf("m,vec_mag[conse-1]3=%d,%f\n",CONSE-1,vec_mag[CONSE-1]);
                 }
             } 
 
-            printf("id_last = %d\n",id_last);
             /* update change probability */
             rec_cg[num_fc].change_prob = (CONSE - id_last) / CONSE; 
             /* update end time of the curve */
@@ -1808,7 +1687,6 @@ printf("m,vec_mag[conse-1]3=%d,%f\n",CONSE-1,vec_mag[CONSE-1]);
             {
                 /* first curve */
                 i_start = 1;
-                printf("update i_start2=%d\n",i_start);
             }
             else
             {
@@ -1819,7 +1697,6 @@ printf("m,vec_mag[conse-1]3=%d,%f\n",CONSE-1,vec_mag[CONSE-1]);
                          i_start  = k + 1;
 		     }
                 }
-                printf("update i_start3=%d\n",i_start);
             }
 
             for (m = 0; m < num_scenes; m++)
@@ -1827,8 +1704,6 @@ printf("m,vec_mag[conse-1]3=%d,%f\n",CONSE-1,vec_mag[CONSE-1]);
                 bl_ids[m] = 0;
 	    }
 
-	    //            get_ids_length(clrx, 0, num_scenes-1, &end);
-            printf("i_start,end=%d,%d\n",i_start,end);
             /* multitemporal cloud mask */
             status = auto_mask(clrx, clry, i_start-1, end-1,
                                (float)(clrx[end-1]-clrx[i_start-1]) / NUM_YEARS, 
@@ -1864,13 +1739,11 @@ printf("m,vec_mag[conse-1]3=%d,%f\n",CONSE-1,vec_mag[CONSE-1]);
                 if (bl_ids[k] == 1) 
                 {
                     rm_ids[m] = ids[k];
-                    printf("m,rm_ids[m]=%d,%d\n",m,rm_ids[m]);
                     m++;
                 }
             }
             rm_ids_len = m;
 
-            printf("rm_ids_len, update i_span2 =%d,%d\n", rm_ids_len, i_span);
             /* remove noise pixels between i_start & i */
             m = 0;
             for (k = 0, k_new=0; k < end; k++)
@@ -1981,14 +1854,14 @@ printf("m,vec_mag[conse-1]3=%d,%f\n",CONSE-1,vec_mag[CONSE-1]);
         RETURN_ERROR ("Freeing memory: v_dif_mag\n", 
                    FUNC_NAME, FAILURE);
     }
-#if 0
+
     status = free_2d_array ((void **) scene_list);
     if (status != SUCCESS)
     {
         RETURN_ERROR ("Freeing memory: scene_list\n", FUNC_NAME,
                       FAILURE);
     }
-#endif
+
     status = free_2d_array ((void **) clry);
     if (status != SUCCESS)
     {
