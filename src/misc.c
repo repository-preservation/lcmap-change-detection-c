@@ -727,7 +727,7 @@ int median_variogram
     int m = dim1_len / 2;
     char FUNC_NAME[] = "median_variogram";
 
-    var = malloc((dim1_len-1) * sizeof(int16));
+    var = malloc(dim1_len * sizeof(int16));
     //    var = (int16 **)allocate_2d_array(dim1_len-1, TOTAL_BANDS-1, 
     //            sizeof(int16));
     if (var == NULL)
@@ -743,7 +743,7 @@ int median_variogram
         {
             var[i] = abs(array[i+1][j] - array[i][j]);
         }
-        quick_sort_int16(var, dim1_start, dim1_len-1);
+        quick_sort_int16(var, dim1_start, dim1_end);
         if (dim1_len % 2 == 0)
 	{
             output_array[j] = (float)(var[m-1] + var[m]) / 2.0;
@@ -1505,8 +1505,8 @@ int auto_ts_fit
     float **x;
     int status;
     float *yhat;
-    float v_dif_norm;
-    int nums;
+    float v_dif_norm = 0.0;
+    int nums = 0.0;
     FILE *fd;
 
     nums = end - start + 1;

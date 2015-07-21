@@ -76,6 +76,9 @@ second digit:
 4: model has 3 coefs + 1 const 
 6: model has 5 coefs + 1 const
 8: model has 7 coefs + 1 const
+
+Note: The commented out parts of code is the inputs using ESPA putputs,
+      the current input part is only for reading inputs from Zhe's code
 ******************************************************************************/
 int main (int argc, char *argv[])
 {
@@ -132,7 +135,7 @@ int main (int argc, char *argv[])
     int rm_ids_len;
     int i_rec;
     float **v_diff = NULL;
-    float v_dif_norm;
+    float v_dif_norm = 0.0;
     int i_count;
     float **v_dif_mag;
     int i_conse, i_b;
@@ -158,6 +161,8 @@ int main (int argc, char *argv[])
     int ini_conse;
     float vec_magg_min;
     int ids_len;
+    //    int clr_land_water_counter;
+    //    int fmask_total_counter;
 
     time_t now;
     time (&now);
@@ -286,13 +291,13 @@ int main (int argc, char *argv[])
         RETURN_ERROR ("Allocating fit_cft memory", FUNC_NAME, FAILURE);
     }
 
-    rmse = malloc((TOTAL_IMAGE_BANDS) * sizeof(float));
+    rmse = (float *)calloc(TOTAL_IMAGE_BANDS, sizeof(float));
     if (rmse == NULL)
     {
         RETURN_ERROR ("Allocating rmse memory", FUNC_NAME, FAILURE);
     }
 
-    vec_mag = malloc(CONSE * sizeof(float));
+    vec_mag = (float *)calloc(CONSE, sizeof(float));
     if (vec_mag == NULL)
     {
         RETURN_ERROR ("Allocating vec_mag memory", FUNC_NAME, FAILURE);
@@ -412,6 +417,27 @@ int main (int argc, char *argv[])
             }
             close_raw_binary(fp_bin[i][k]);
         }
+
+	/* Eliminate scenes that have less than 20% clear-sky pixels */
+	clr_land_water_counter = 0;
+	fmask_total_counter = 0;
+	if (fmask_buf[i] == 0 || fmask_buf[i] == 1)
+	{
+            clr_land_water_counter++;
+	}
+	if (fmask_buf[i] > 0 && fmask_buf[i] < 255)
+	{
+	    fmask_total_counter++;
+	}
+
+	if (((float) clr_land_water_counter / (float)fmask_total_counter) < 0.2)
+	{
+            for (k = i; k < num_scenes; k++)
+	    {
+                strcpy(scene_list[k], scene_list[k+1]);
+	    }
+	    num_scenes--;
+	}
     }
 #endif
     /* Temporary code for testing purpose */
@@ -754,6 +780,10 @@ int main (int argc, char *argv[])
 
         printf("end_clr=%d\n",end);
         /* calculate median variogram */
+	for (k = 0; k < TOTAL_IMAGE_BANDS; k++)
+	{
+            adj_rmse[k] = 0.0;
+	} 
         status = median_variogram(clry, 0, end-1, TOTAL_IMAGE_BANDS, adj_rmse);
         if (status != SUCCESS)
 	{
@@ -1058,7 +1088,7 @@ int main (int argc, char *argv[])
                             }
  
                             /* allocate memory for vec_magg */ 
-                            vec_magg = (float *) malloc(ini_conse * sizeof (float));
+                            vec_magg = (float *) calloc(ini_conse,  sizeof (float));
                             if (vec_magg == NULL)
                             {
                                 RETURN_ERROR ("Allocating vec_magg memory", 
