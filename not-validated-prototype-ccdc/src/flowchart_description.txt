@@ -2,11 +2,12 @@
 2. Only run CCDC for pixels where more than 50% of images has data
 3. If more than 75% of valid data show a pixel is snow, then the pixel is considered permanent 
    snow.
-4. For permanent snow pixel, get model coefficients and RMSE either from lasso regression if more than 
-   12 valid data or from median values if less tha 12 points.
+4. For permanent snow pixel, get model coefficients and RMSEs either from lasso regression if more than 
+   12 valid data points or from median values if less tha 12 points.
 5. At least 12 data points and 1 years of data are needed for clear-sky land/water pixel analysis.
 6. Modle initialization: Further remove outliers (cloud/cloud shadow/snow) using Robust fit.
-7. Model fitting: Getting the right starting point with observed values and lasso regressing predicated values
+7. Model fitting: Do lasso regression and get the right starting point with observed values and 
+   lasso regressing predicated values
 8. Stable Start: 12 data points and 1 years of data? If no, increses data points, otherwise, next step.
 9. Model ready: Find the previous break point & use lasso model to detect change if there is enough points(6)
    or use median values if less than conse (6) points 
