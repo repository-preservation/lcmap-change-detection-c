@@ -1,5 +1,5 @@
 ## CCDC - Continuous Change Detection and Classification (Algorithm)
-* <b>NOTE:</b> A more detailed description is being written.
+* <b>NOTE:</b> See <i>CCDC ADD CY5 V1.0.docx</i> for a detailed description.
 * <b>NOTE:</b> This algorithm is not validated and considered prototype.
 
 ## More Information
