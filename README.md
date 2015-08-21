@@ -6,7 +6,7 @@ This project contains application source code for Change Detection products.
 
 ### CCDC - Continuous Change Detection and Classification (Algorithm)
 * <b>NOTE:</b> This algorithm is not validated and considered prototype.
-* See <b><i>CCDC ADD CY5 V1.0.docx</i></b> in <b>not-validated-prototype-ccdc</b> for the detailed description.
+* See [CCDC ADD](http://landsat.usgs.gov/documents/ccdc_add.pdf) for the detailed description.
 * See folder <b>not-validated-prototype-ccdc</b>
 
 ## More Information
