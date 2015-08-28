@@ -30,6 +30,7 @@ int get_args
     char *argv[],             /* I: string of cmd-line args */
     int *rows,                /* O: number of rows */
     int *cols,                /* O: number of columns */
+    int *ref_rows,            /* O: number of rows for reference data */
     int *nclass,              /* O: number of classification types */
     bool *verbose             /* O: verbose flag */
 )
@@ -45,6 +46,7 @@ int get_args
         {"verbose", no_argument, &verbose_flag, 1},
         {"rows", required_argument, 0, 'r'},
         {"cols", required_argument, 0, 'c'},
+        {"ref_rows", required_argument, 0, 'f'},
         {"nclass", required_argument, 0, 'n'},
         {"help", no_argument, 0, 'h'},
         {0, 0, 0, 0}
@@ -96,6 +98,10 @@ int get_args
                 *cols = atoi (optarg);
                 break;
 
+            case 'f':             
+                *ref_rows = atoi (optarg);
+                break;
+
             case 'n':             
                 *nclass = atoi (optarg);
                 break;
@@ -122,6 +128,12 @@ int get_args
         RETURN_ERROR(errmsg, FUNC_NAME, FAILURE);
     }
 
+    if (*ref_rows < 0)
+    {
+        sprintf (errmsg, "number of reference rows must be > 0");
+        RETURN_ERROR(errmsg, FUNC_NAME, FAILURE);
+    }
+
     if (*nclass < 0)
     {
         sprintf (errmsg, "number of classes must be > 0");
@@ -139,6 +151,7 @@ int get_args
     {
         printf ("rows = %d\n", *rows);
         printf ("cols = %d\n", *cols);
+        printf ("ref_rows = %d\n", *ref_rows);
         printf ("nclass = %d\n", *nclass);
         printf ("verbose = %d\n", *verbose);
     }

@@ -52,6 +52,7 @@ int get_args
     char *argv[],             /* I: string of cmd-line args */
     int *rows,                /* O: number of rows */
     int *cols,                /* O: number of columns */
+    int *ref_rows,            /* O: number of rows for reference data */
     int *nclass,              /* O: number of classification types */
     bool *verbose             /* O: verbose flag */
 );

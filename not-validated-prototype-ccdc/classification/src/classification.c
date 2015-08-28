@@ -28,6 +28,7 @@ int main(int argc, char *argv[])
     matvar_t *matvar, *matvar2;
     char *data;
     double *x;
+    double *ref_x;
     int *y;
     int i, j = 0;
     size_t stride;
@@ -35,6 +36,7 @@ int main(int argc, char *argv[])
     char FUNC_NAME[] = "main";
     char msg_str[MAX_STR_LEN];  /* input data scene name */
     int rows;
+    int ref_rows;
     int cols;
     int nclass;
     bool verbose;               /* verbose flag for printing messages */
@@ -47,7 +49,7 @@ int main(int argc, char *argv[])
     LOG_MESSAGE (msg_str, FUNC_NAME);
 
     /* Read the command-line arguments */
-    status = get_args (argc, argv, &rows, &cols, &nclass, &verbose);
+    status = get_args (argc, argv, &rows, &cols, &ref_rows, &nclass, &verbose);
     if (status != SUCCESS)
     {
         RETURN_ERROR ("calling get_args", FUNC_NAME, EXIT_FAILURE);
@@ -55,7 +57,13 @@ int main(int argc, char *argv[])
 
     /* Allocate memory */
     x = malloc(rows * cols * sizeof(double));
+    ref_x = malloc(ref_rows * cols * sizeof(double));
     y = malloc(rows * sizeof(int));
+    if (x == NULL || ref_x == NULL || y == NULL)
+    {
+        fprintf(stderr,"Error allocating memory\n");
+        return -1;
+    }
 
     mat = Mat_Open("/data1/sguo/CCDC/classification/Xs.mat",MAT_ACC_RDONLY);
     mat2 = Mat_Open("/data1/sguo/CCDC/classification/Ys.mat",MAT_ACC_RDONLY);
@@ -197,7 +205,7 @@ int main(int argc, char *argv[])
     int* inbag = (int*) calloc(n_size,sizeof(int));
     
     //train the model
-    classRF(x, dimx, y, &nclass, cat, &maxcat,
+    classRF(ref_x, dimx, y, &nclass, cat, &maxcat,
 	     &sampsize, &strata, Options, &ntree, &mtry,&ipi, 
          classwt, cutoff, &nodesize,outcl, counttr, &prox,
 	     impout, &impSD, &impmat, &nrnodes,ndbigtree, nodestatus, 
@@ -278,6 +286,7 @@ int main(int argc, char *argv[])
     free(impout);
     
     free(x);
+    free(ref_x);
     free(y);    
     fflush(stdout);
     fclose(fp);
@@ -313,6 +322,7 @@ usage ()
     printf ("classification"
             " --rows=<number of rows>"
             " --cols=<number of columns>"
+            " --rows=<number of rows for reference data>"
             " --nclass=<number of classes>"
             " [--verbose]\n");
 
@@ -320,6 +330,7 @@ usage ()
     printf ("where the following parameters are required:\n");
     printf ("    --rows=: number of rows\n");
     printf ("    --cols=: number of columns\n");
+    printf ("    --rows=: number of rows for reference data\n");
     printf ("    --nclass=: number of classes\n");
     printf ("\n");
     printf ("and the following parameters are optional:\n");
@@ -332,6 +343,7 @@ usage ()
     printf ("classification"
             " --rows=1000"
             " --cols=71"
+            " --ref_rows=500"
             " --nclass=11"
             " --verbose\n");
     printf ("Note: The classification must run from the directory"
