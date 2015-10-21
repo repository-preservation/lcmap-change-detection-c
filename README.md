@@ -40,7 +40,7 @@ $ make
 ```
 
 The executables and scripts will be installed into ``./bin`` by default. This
-can be overridden by setting a `BIN`` environment variable or using a ``BIN``
+can be overridden by setting a ``BIN`` environment variable or using a ``BIN``
 variable when running the target:
 
 ```bash
