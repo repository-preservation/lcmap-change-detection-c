@@ -1,3 +1,4 @@
 Y_hat.txt
 *.o
 *~
+bin/*
