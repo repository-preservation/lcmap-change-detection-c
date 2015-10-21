@@ -1,0 +1,31 @@
+1. Only landsat scene with more than 20% clear-sky pixels are used in ccdc analysis.
+2. Only run CCDC for pixels where more than 50% of images has data
+3. If more than 75% of valid data show a pixel is snow, then the pixel is considered permanent 
+   snow.
+4. For permanent snow pixel, get model coefficients and RMSEs either from lasso regression if more than 
+   12 valid data points or from median values if less tha 12 points.
+5. At least 12 data points and 1 years of data are needed for clear-sky land/water pixel analysis.
+6. Modle initialization: Further remove outliers (cloud/cloud shadow/snow) using Robust fit.
+7. Model fitting: Do lasso regression and get the right starting point with observed values and 
+   lasso regressing predicated values
+8. Stable Start: 12 data points and 1 years of data? If no, increses data points, otherwise, next step.
+9. Model ready: Find the previous break point & use lasso model to detect change if there is enough points(6)
+   or use median values if less than conse (6) points 
+10. Real change detected (Minimum magnitude of change is larger than a threshold and the first point of change
+    is less than another threshold)?
+11. If yes, then model coefficients, RMSEs, magnitude of change are generated through lasso regression
+12. If no, the false detected point is removed.
+13. Check to see if enough points for model fitting and break point confirmation? If yes, do lasso regression, 
+    otherwise, use median values to calculate RMSEs
+14. Continuous monitoring: If first 24 points, dynamic model fitting for model coeffs, rmse, v_dif and calculate 
+    norm of v_dif & update IDs, otherwise, next step.
+15. Updated data points as needed to use the closest 24 data points for model fitting
+16. Detected change based on RMSEs and normalized value v_dif
+17. If break happens close to the end of time serires, roboust fit outlier removing process is first appled, 
+    then if the data points after the change detected (break point) are less than conse (6) points, median 
+    values are used, otherwise, lasso model fitting is used.
+18. Model outputs: model coefficients, RMSEs, change of magnitude, times of start, end, break, change probability, 
+    change category  
+    
+    
+   
