@@ -16,7 +16,18 @@ On Ubuntu, you will need the following packages installed in order to compile th
 CCDC C library:
 
 ```bash
-$ sudo apt-get install build-essential libgsl0-dev libgsl0ldbl gsl-bin
+$ sudo apt-get install build-essential
+$ sudo apt-get install libgsl0-dev libgsl0ldbl gsl-bin
+$ sudo apt-get install r-base r-recommended
+```
+
+Currently, the following R library is also required:
+
+```bash
+$ sudo R
+```
+```r
+> install.packages("glmnet", repos = "http://cran.us.r-project.org")
 ```
 
 ## More Information
