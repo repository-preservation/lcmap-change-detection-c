@@ -5,6 +5,12 @@ and related scripts.
 
 ## Dependencies
 
+### CentOS
+
+TBD
+
+### Ubuntu
+
 On Ubuntu, you will need the following packages installed in order to compile the
 CCDC C library:
 
