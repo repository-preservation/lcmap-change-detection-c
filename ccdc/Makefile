@@ -14,10 +14,7 @@ MV = mv
 EXTRA = -Wall -Wextra -g
 
 # Define the include files
-#INC = input.h 2d_array.h ccdc.h output.h utilities.h
-#INC = $(SRC_DIR)/input.h $(SRC_DIR)/2d_array.h $(SRC_DIR)/ccdc.h $(SRC_DIR)/output.h $(SRC_DIR)/utilities.h
 INC = $(wildcard $(SRC_DIR)/*.h)
-#INCDIR = -I$(SRC_DIR) -I$(XML2INC) -I$(ESPAINC) -I$(GSL_SCI_INC)
 INCDIR  = -I$(SRC_DIR) -I$(GSL_SCI_INC) -I$(XML2INC) -I$(ESPAINC) -I$(GSL_SCI_INC)
 NCFLAGS = $(EXTRA) $(INCDIR)
 
