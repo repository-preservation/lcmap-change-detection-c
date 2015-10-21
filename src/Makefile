@@ -1,10 +1,11 @@
 # Configuration
-SRC_DIR = src
-BIN =? ./bin
-XML2INC = /usr/include/libxml2/libxml
-ESPAINC =
-GSL_SCI_INC = /usr/include/gsl
-GSL_SCI_LIB = /usr/lib
+SRC_DIR = .
+SCRIPTS = ../scripts
+BIN ?= ../bin
+XML2INC ?= /usr/include/libxml2/libxml
+ESPAINC ?=
+GSL_SCI_INC ?= /usr/include/gsl
+GSL_SCI_LIB ?= /usr/lib
 
 # Set up compile options
 CC = gcc
@@ -42,7 +43,7 @@ $(BIN):
 
 install: $(BIN)
 	cp $(EXE) $(BIN)
-	cp scripts/* $(BIN)
+	cp $(SCRIPTS)/* $(BIN)
 
 clean:
 	$(RM) *.o $(EXE)
