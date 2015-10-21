@@ -23,6 +23,14 @@ $ sudo R
 > install.packages("glmnet", repos = "http://cran.us.r-project.org")
 ```
 
+The classification tool requires the additional installs:
+
+```bash
+sudo apt-get install libmatio-dev libmatio2
+sudo apt-get install gfortran
+```
+
+
 ## Installation
 
 To install, simply run the top-level ``make`` target:
