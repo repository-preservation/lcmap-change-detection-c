@@ -36,13 +36,7 @@ sudo apt-get install gfortran
 To install, simply run the top-level ``make`` target:
 
 ```bash
-$ make ccdc
-```
-
-If you want to compile the classifier too:
-
-```bash
-$ make classification
+$ make
 ```
 
 The executables and scripts will be installed into ``./bin`` by default. This
@@ -50,7 +44,7 @@ can be overridden by setting a `BIN`` environment variable or using a ``BIN``
 variable when running the target:
 
 ```bash
-$ BIN=/my/path/bin make ccdc
+$ BIN=/my/path/bin make
 ```
 
 Similarly, you may override the include and lib paths, should they be different
@@ -59,6 +53,10 @@ on your system:
  * ``ESPANIC``
  * ``GSL_SCI_INC``
  * ``GSL_SCI_LIB``
+ * ``FORTRAN``
+ * ``HDF5INC``
+ * ``HDF5LIB``
+ * ``MATIOLIB``
 
 ## Usage
 
