@@ -1,5 +1,5 @@
 ccdc:
-	cd src && \
+	cd ccdc && \
 	make && \
 	make install
 

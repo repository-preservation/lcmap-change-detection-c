@@ -42,7 +42,7 @@ $(BIN):
 	mkdir -p $(BIN)
 
 install: $(BIN)
-	cp $(EXE) $(BIN)
+	mv $(EXE) $(BIN)
 	cp $(SCRIPTS)/* $(BIN)
 
 clean:
