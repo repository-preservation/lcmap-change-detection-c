@@ -3,13 +3,6 @@
 This project contains application source code for Change Detection C library
 and related scripts.
 
-## Implementation
-
-### CCDC - Continuous Change Detection and Classification (Algorithm)
-
-* <b>NOTE:</b> This algorithm is not validated and considered prototype.
-* See [CCDC ADD](http://landsat.usgs.gov/documents/ccdc_add.pdf) for the detailed description.
-
 ## Dependencies
 
 On Ubuntu, you will need the following packages installed in order to compile the
@@ -29,6 +22,46 @@ $ sudo R
 ```r
 > install.packages("glmnet", repos = "http://cran.us.r-project.org")
 ```
+
+## Installation
+
+To install, simply run the top-level ``make`` target:
+
+```bash
+$ make ccdc
+```
+
+If you want to compile the classifier too:
+
+```bash
+$ make classification
+```
+
+The executables and scripts will be installed into ``./bin`` by default. This
+can be overridden by setting a `BIN`` environment variable or using a ``BIN``
+variable when running the target:
+
+```bash
+$ BIN=/my/path/bin make ccdc
+```
+
+Similarly, you may override the include and lib paths, should they be different
+on your system:
+ * ``XML2INC``
+ * ``ESPANIC``
+ * ``GSL_SCI_INC``
+ * ``GSL_SCI_LIB``
+
+## Usage
+
+TBD
+
+## Implementation
+
+### CCDC - Continuous Change Detection and Classification (Algorithm)
+
+* <b>NOTE:</b> This algorithm is not validated and considered prototype.
+* See [CCDC ADD](http://landsat.usgs.gov/documents/ccdc_add.pdf) for the detailed description.
 
 ## More Information
 
