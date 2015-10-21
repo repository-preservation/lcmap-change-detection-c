@@ -1,16 +1,21 @@
+# Configuration
+SRC_DIR = src
+
 # Set up compile options
-CC    = gcc
-RM    = rm -f
-MV    = mv
+CC = gcc
+RM = rm -f
+MV = mv
 EXTRA = -Wall -g
 
 # Define the include files
-INC = input.h 2d_array.h ccdc.h output.h utilities.h 
-INCDIR  = -I. -I$(XML2INC) -I$(ESPAINC) -I$(GSL_SCI_INC)
+#INC = input.h 2d_array.h ccdc.h output.h utilities.h
+INC = $(wildcard $(SRC_DIR)/*.h)
+INCDIR = -I$(SRC_DIR) -I$(XML2INC) -I$(ESPAINC) -I$(GSL_SCI_INC)
 NCFLAGS = $(EXTRA) $(INCDIR)
 
 # Define the source code and object files
-SRC = input.c 2d_array.c ccdc.c utilities.c misc.c 
+#SRC = input.c 2d_array.c ccdc.c utilities.c misc.c
+SRC = $(wildcard $(SRC_DIR)/*.c)
 OBJ = $(SRC:.c=.o)
 
 # Define the object libraries

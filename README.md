@@ -10,6 +10,15 @@ and related scripts.
 * <b>NOTE:</b> This algorithm is not validated and considered prototype.
 * See [CCDC ADD](http://landsat.usgs.gov/documents/ccdc_add.pdf) for the detailed description.
 
+## Dependencies
+
+On Ubuntu, you will need the following packages installed in order to compile the
+CCDC C library:
+
+```bash
+$ sudo apt-get install build-essential libgsl0-dev libgsl0ldbl gsl-bin
+```
+
 ## More Information
 
 This project is hosted by the US Geological Survey (USGS) Earth Resources Observation and
