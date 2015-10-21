@@ -1,6 +1,6 @@
 # Configuration
-SRC_DIR = .
-SCRIPTS = ../scripts
+SRC_DIR = ./
+SCRIPTS = ./scripts
 BIN ?= ../bin
 XML2INC ?= /usr/include/libxml2/libxml
 ESPAINC ?=
@@ -43,7 +43,9 @@ install: $(BIN)
 	cp $(SCRIPTS)/* $(BIN)
 
 clean:
-	$(RM) *.o $(EXE)
+	$(RM) $(BIN)/$(EXE)
+	$(RM) $(BIN)/*.r
+	$(RM) *.o
 
 $(OBJ): $(INC)
 

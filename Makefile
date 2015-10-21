@@ -1,9 +1,19 @@
+all:
+	make ccdc
+	make classification
+
 ccdc:
 	cd ccdc && \
 	make && \
 	make install
 
 classification:
-	cd classification && make
+	cd classification && \
+	make && \
+	make install
 
-.PHONY: ccdc classification
+clean:
+	cd ccdc && make clean
+	cd classification && make clean
+
+.PHONY: ccdc classification clean
