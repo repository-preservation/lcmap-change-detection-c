@@ -1,17 +1,17 @@
 /* multirobust.c
- * 
+ *
  * Copyright (C) 2013 Patrick Alken
- * 
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 3 of the License, or (at
  * your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -26,11 +26,11 @@
  *
  * [2] Street, J.O., R.J. Carroll, and D. Ruppert (1988), "A note on
  * computing robust regression estimates via iteratively
- * reweighted least squares," The American Statistician, v. 42, 
+ * reweighted least squares," The American Statistician, v. 42,
  * pp. 152-154.
  */
 
-#include <config.h>
+//#include <config.h>
 #include <gsl/gsl_math.h>
 #include <gsl/gsl_multifit.h>
 #include <gsl/gsl_vector.h>
@@ -259,11 +259,11 @@ gsl_multifit_robust(const gsl_matrix * X,
                  GSL_EBADLEN);
     }
   else if (cov->size1 != cov->size2)
-    {   
+    {
       GSL_ERROR ("covariance matrix is not square", GSL_ENOTSQR);
-    }   
+    }
   else if (c->size != cov->size1)
-    {   
+    {
       GSL_ERROR
         ("number of parameters does not match size of covariance matrix",
          GSL_EBADLEN);
