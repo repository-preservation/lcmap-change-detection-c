@@ -1,0 +1,7 @@
+run --row=23 --col=3022 --inDir=/shared/users/bdavis/ARD_out/grid07/C --outDir=/shared/bdavis/grid07/C_out/all --sceneList=/shared/users/bdavis/ARD_out/grid07/all.txt --verbose
+
+inDir = /shared/users/bdavis/ARD_out/grid07/C
+outDir = /shared/bdavis/grid07/C_out/all
+sceneList = /shared/users/bdavis/ARD_out/grid07/0001-0064.txt
+verbose = 1
+
