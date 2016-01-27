@@ -28,14 +28,14 @@
 #define T_CG 15.0863     /* chi-square inversed T_cg (0.99) for noise removal */
 #define T_MAX_CG 35.8882 /* chi-square inversed T_max_cg (1e-6) for 
                             last step noise removal */
-#define CFMASK_CLEAR  0
-#define CFMASK_WATER  1
-#define CFMASK_CLOUD  2
-#define CFMASK_SNOW   3
-#define CFMASK_SHADOW 4 
-#define CFMASK_FILL 255 
+#define CFMASK_CLEAR   0
+#define CFMASK_WATER   1
+#define CFMASK_SHADOW  2
+#define CFMASK_SNOW    3
+#define CFMASK_CLOUD   4
+#define CFMASK_FILL  255 
 #define IMAGE_FILL -9999
-#define CFMASK_BAND 7
+#define CFMASK_BAND    7
 
 const char scene_list_name[] = {"scene_list.txt"};
 int lasso_blist[NUM_LASSO_BANDS] = {1, 2, 3, 4, 5}; /* This is band index */
@@ -553,7 +553,7 @@ int main (int argc, char *argv[])
         /*                                                            */
         /**************************************************************/
 
-        // a bitmaks should probably be set up to do these.......
+        // a bitmask should probably be set up to do these.......
         //
         switch (fmask_buf[i])
         {
@@ -572,7 +572,7 @@ int main (int argc, char *argv[])
                 sn_sum++;
                 break;
             case CFMASK_CLOUD:
-                shadow_sum++;
+                cloud_sum++;
                 break;
             case CFMASK_FILL:
                 fill_sum++;
