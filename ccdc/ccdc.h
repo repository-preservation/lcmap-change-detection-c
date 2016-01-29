@@ -34,9 +34,7 @@ void get_scenename
 int create_scene_list
 (
     const char *item,         /* I: string of file items be found */
-    int num_scenes,           /* I/O: number of scenes */
-    char *sceneListFileName,  /* I: file name containing list of scene IDs */
-    char **scene_list         /* O: scene_list used for ccdc processing */ 
+    char *sceneListFileName   /* I: file name containing list of scene IDs */
 );
 
 int convert_year_doy_to_jday_from_0000

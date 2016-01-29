@@ -273,9 +273,7 @@ NOTES:
 int create_scene_list
 (
     const char *item,         /* I: string of file items be found */
-    int num_scenes,           /* I/O: number of scenes */
-    char *sceneListFileName,  /* I: file name of list of scene IDs */
-    char **scene_list         /* O: scene_list used for ccdc processing */ 
+    char *sceneListFileName   /* I: file name of list of scene IDs */
 )
 {
     DIR *dirp;
@@ -1242,9 +1240,6 @@ void dofit(const gsl_multifit_robust_type *T,
 {
   gsl_multifit_robust_workspace * work 
     = gsl_multifit_robust_alloc (T, X->size1, X->size2);
-#if 0
-  printf("X->size1, X->size2=%d,%d\n",X->size1, X->size2);
-#endif
   gsl_multifit_robust (X, y, c, cov, work);
   gsl_multifit_robust_free (work);
 }
@@ -1273,7 +1268,8 @@ void auto_robust_fit
     float *coefs
 )
 {
-    int i, j;
+    int i;
+    size_t j;
     const size_t p = 5; /* linear fit */
     gsl_matrix *x, *cov;
     gsl_vector *y, *c;
@@ -1302,21 +1298,6 @@ void auto_robust_fit
         gsl_vector_set(y,i,clry[band_index][i+start]);
     }
 
-#if 0
-    printf("nums,x->size1,x->size2=%d,%d,%d\n",nums,x->size1,x->size2);
-
-    for (i = 0; i < nums; i++)
-    {
-        for (j = 0; j < p; j++)
-        {
-            if (j == p-1)
-                printf ("x(%d,%d) = %g\n", i, j, gsl_matrix_get (x, i, j));
-            else
-                printf ("x(%d,%d) = %g, ", i, j, gsl_matrix_get (x, i, j));
-        }
-        printf ("y_%d = %g\n", i, gsl_vector_get (y, i));
-    }
-#endif
     /* perform robust fit */
     dofit(gsl_multifit_robust_bisquare, x, y, c, cov);
 
@@ -1396,14 +1377,8 @@ int auto_mask
 
     /* Do robust fitting for band 2 */
     auto_robust_fit(x, clry, nums, start, 1, coefs);
-#if 0
-    printf("coefs[i]=%f,%f,%f,%f,%f\n",coefs[0],coefs[1],coefs[2],coefs[3],coefs[4]);
-#endif
     /* Do robust fitting for band 5 */
     auto_robust_fit(x, clry, nums, start, 4, coefs2);
-#if 0
-    printf("coefs2[i]=%f,%f,%f,%f,%f\n",coefs2[0],coefs2[1],coefs2[2],coefs2[3],coefs2[4]);
-#endif
     /* predict band 2 * band 5 refs, bl_ids value of 0 is clear and 
        1 otherwise */
     for (i = 0; i < nums; i++)
@@ -1420,12 +1395,6 @@ int auto_mask
             ((clry[4][i+start]-pred_b5) < -(n_t * t_b2)))
 	{
             bl_ids[i] = 1;
-#if 0
-	    printf("i,clry[1][i+start],pred_b2,(float)n_t * t_b1 = %d,%d,%f,%d\n",
-		   i,clry[1][i+start],pred_b2, n_t * t_b2);
-	    printf("i,clry[1][i+start],pred_b5,(float)n_t * t_b5 = %d,%d,%f,%d\n",
-		   i,clry[4][i+start],pred_b5,n_t * t_b5);
-#endif
 	}
         else
 	{
@@ -1469,7 +1438,6 @@ int auto_ts_predict
 )
 {
     char FUNC_NAME[] = "auto_ts_predict";
-    char errmsg[MAX_STR_LEN];
     int i;
     int nums = end - start + 1;
     float w, w2, w3;
@@ -1516,6 +1484,8 @@ int auto_ts_predict
         RETURN_ERROR("Unsupported df number", FUNC_NAME, ERROR);
       }
     }
+
+    return SUCCESS;
 }
 
 
@@ -1587,7 +1557,6 @@ int c_glmnet(
     double a0[nlam];	//   a0(lmu) = intercept values for each solution
     double ca[nlam][nx];// ca(nx,lmu) = compressed coefficient values for each solution
     int ia[nx];		//   ia(nx) = pointers to compressed coefficients
-    int ja[nx];		//   lable wheather ia[nx] is out of range
     int nin[nlam];	//   nin(lmu) = number of compressed coefficients for each solution
     double rsq[nlam];	//   rsq(lmu) = R**2 values for each solution
     double alm[nlam];	//   alm(lmu) = lamda values corresponding to each solution
@@ -1617,36 +1586,6 @@ int c_glmnet(
     elnet_(&ka, &parm, &no, &ni, x, y, w, jd, vp, cl, &ne, &nx,
            &nlam, &flmin, ulam, &thr, &isd, &intr, &maxit,
            lmu, a0, &ca[0][0], ia, nin, rsq, alm, &nlp, &jerr);
-#if 0
-    for (j = 0; j < nx; j++)
-        ja[j] = 0;
-
-    for (j = 0; j < nx; j++)
-    {
-        printf("ia[%d]:%d,ca[0][%d]:%f\n",j,ia[j],j,ca[0][j]);
-        if (ia[j] >= 1 || ia[j] <= nx)
-        {
-  	    for (k = 0; k < nx; k++)
-            {
-	        if (ia[j] == k+1)
-	            ja[k] = 1;
-	    }
-        }
-    }	
-
-    for (j = 0; j < nx; j++)
-    {
-        if (ia[j] < 1 || ia[j] > nx)
-	{
-	    for (k = 0; k < nx; k++)
-	    {
-	        if (ja[k] == 0)
-	            ia[j] = k + 1;
-	    }
-	}
-	printf("ia2[%d]:%d\n",j,ia[j]);
-    }
-#endif
     for (i = 0; i < *lmu; i++) 
     {
         for (j = 0; j < 8; j++)
@@ -1716,7 +1655,6 @@ int auto_ts_fit
     float *yhat;
     float v_dif_norm = 0.0;
     int nums = 0.0;
-    FILE *fd;
     int nlam = 1;		// number of lambda
     double ulam[1] = {20.0, };  // lambda = 20
     double alpha = 1.0;
@@ -1750,7 +1688,7 @@ int auto_ts_fit
 	y = malloc(nums * sizeof(double));
         if (y == NULL)
 	{
-            sprintf(errmsg, "Allocating y memory", 
+            sprintf(errmsg, "Allocating y memory for %d - 1 times %d size of double", 
                     df, nums);
             RETURN_ERROR(errmsg, FUNC_NAME, ERROR);
 	}
@@ -1774,8 +1712,6 @@ int auto_ts_fit
             {
                 x[0][i] = (double)clrx[i+start];
 		y[i] = (double)clry[band_index][i+start];
-                //bdavis debug
-                // printf("%f,%f\n", x[0][i], y[i]);
 	    }
 
             status = c_glmnet(nums, df-1, &x[0][0], y, nlam, ulam, alpha, &lmu, cfs);
@@ -1804,10 +1740,6 @@ int auto_ts_fit
                 x[1][i] = (double)cos(w * (float)clrx[i+start]);
                 x[2][i] = (double)sin(w * (float)clrx[i+start]);
 		y[i] = (double)clry[band_index][i+start];
-
-                // bdavis debug
-                // printf("%f,%f,%f,%f\n", x[0][i], x[1][i], x[2][i],y[i]);
-
 	    }
 
             status = c_glmnet(nums, df-1, &x[0][0], y, nlam, ulam, alpha, &lmu, cfs);
@@ -1838,9 +1770,6 @@ int auto_ts_fit
                 x[3][i] = (double)cos(2.0 * w * (float)clrx[i+start]);
                 x[4][i] = (double)sin(2.0 * w * (float)clrx[i+start]);
 		y[i] = (double)clry[band_index][i+start];
-            // bdavis debug
-            //printf("%f,%f,%f,%f,%f,%f\n",
-            //       x[0][i], x[1][i], x[2][i], x[3][i], x[4][i],y[i]);
 	    }
 
             status = c_glmnet(nums, df-1, &x[0][0], y, nlam, ulam, alpha, &lmu, cfs);
@@ -1873,9 +1802,6 @@ int auto_ts_fit
                 x[5][i] = (double)cos(3.0 * w * (float)clrx[i+start]);
                 x[6][i] = (double)sin(3.0 * w * (float)clrx[i+start]);
 		y[i] = (double)clry[band_index][i+start];
-            // bdavis debug
-            // printf("%f,%f,%f,%f,%f,%f,%f,%f\n",
-            //       x[0][i], x[1][i], x[2][i], x[3][i], x[4][i],x[5][i], x[6][i],y[i]);
 	    }
 
             status = c_glmnet(nums, df-1, &x[0][0], y, nlam, ulam, alpha, &lmu, cfs);
@@ -1898,14 +1824,6 @@ int auto_ts_fit
             break;
     }
 
-    // bdavis debug
-    // printf("coefs[%d][0]... = %f,%f,%f,%f,%f,%f,%f,%f\n",
-    //       band_index,band_index,band_index,band_index,band_index,
-    //       band_index,band_index,band_index,coefs[band_index][0], 
-    //       coefs[band_index][1], coefs[band_index][2], 
-    //       coefs[band_index][3],coefs[band_index][4], coefs[band_index][5], 
-    //       coefs[band_index][6], coefs[band_index][7]);
-
     /* predict lasso model results */
     if (df == 2 || df == 4 || df == 6 || df == 8)
     {
@@ -1918,8 +1836,6 @@ int auto_ts_fit
         matlab_2d_array_norm(v_dif, band_index, nums, &v_dif_norm);
         *rmse = v_dif_norm / sqrt((float)(nums - df));
     }
-    // bdavis debug
-    // printf("rmse=%f\n",*rmse);
 
     /* Free allocated memory */
     free(yhat);
