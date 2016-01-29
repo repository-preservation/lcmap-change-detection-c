@@ -51,7 +51,7 @@ char *sub_string
     size_t length
 ) 
 {
-    int i;
+    size_t i;
     char *target;
 
     target = malloc(length*sizeof(char));
@@ -136,7 +136,6 @@ int main (int argc, char *argv[])
     Input_meta_t *meta;
     int row, col;
     int landsat_number;
-    int fmask_sum = 0;
     int clr_sum = 0;
     int sn_sum = 0;
     int all_sum = 0;
@@ -197,8 +196,6 @@ int main (int argc, char *argv[])
     unsigned char *updated_fmask_buf;
     int **buf;
     FILE ***fp_bin;
-    int clr_land_water_counter;
-    int fmask_total_counter;
 
     char inDir[MAX_STR_LEN];    /* directory location of input data/files     */
     char outDir[MAX_STR_LEN];   /* directory location for output files        */
@@ -254,7 +251,7 @@ int main (int argc, char *argv[])
         }
         else /* Default File exists */
         {
-            status = create_scene_list(hdr_name, num_scenes, sceneListFileName, scene_list);
+            status = create_scene_list(hdr_name, sceneListFileName);
             if(status != SUCCESS)
             RETURN_ERROR("Running create_scene_list file", FUNC_NAME, FAILURE);
         }
@@ -491,7 +488,7 @@ int main (int argc, char *argv[])
     /* and snow, essentially skipping over fill values,               */
     /* and update the number of "scenes" so that only the data bands  */
     /* buffer and date information array are filled with values from  */
-    /* from valid "scenes".
+    /* from valid "scenes".                                           */
     /*                                                                */
     /* Previously, all data was read, then cfmask was checked after   */
     /* the last loop, and was accidentally checked because the cfmask */
@@ -509,7 +506,6 @@ int main (int argc, char *argv[])
     /******************************************************************/
 
     int valid_num_scenes = 0;
-    int cfmask_band = CFMASK_BAND;
     int clear_sum = 0;
     int water_sum = 0;
     int shadow_sum = 0;
@@ -652,15 +648,19 @@ int main (int argc, char *argv[])
 
     if (verbose)
     {
-        printf(" clear_sum =   %d\n", clear_sum);
-        printf(" water_sum =   %d\n", water_sum);
-        printf(" shadow_sum =  %d\n", shadow_sum);
-        printf(" snow_sum =    %d\n", sn_sum);
-        printf(" cloud_sum =   %d\n", cloud_sum);
-        printf(" fill_sum =    %d\n", fill_sum);
-        printf(" clear+water = %d\n", clr_sum);
-        printf(" clear_pct   = %f\n", clr_pct);
-        printf(" snow_pct    = %f\n", sn_pct);
+        printf("  Number of total       pixels = %d\n", num_scenes);
+        printf("  Number of fill (255)  pixels = %d\n", fill_sum);
+        printf("  Number of non-fill    pixels = %d\n", all_sum);
+        printf("  Number of clear  (0)  pixels = %d\n", clear_sum);
+        printf("  Number of water  (1)  pixels = %d\n", water_sum);
+        printf("  Number of shadow (2)  pixels = %d\n", shadow_sum);
+        printf("  Number of snow   (3)  pixels = %d\n", sn_sum);
+        printf("  Number of cloud  (4)  pixels = %d\n", cloud_sum);
+        printf("  Number of clear+water pixels = %d\n", clr_sum);
+        printf("  Percent of clear pixels      = %f (of non-fill pixels)\n", clr_pct);
+        printf("  Percent of clear pixels      = %f (of non-fill, non-cloud, non-shadow pixels)\n",
+               (float) clr_sum / (float) (clr_sum + sn_sum));
+        printf("  Percent of snow  pixels      = %f (of non-fill, non-cloud, non-shadow pixels)\n", sn_pct);
     }
 
     // if clr pct less than 50, return error, this syntax is invalid
@@ -1971,9 +1971,21 @@ int main (int argc, char *argv[])
                       FAILURE);
     }
     if (num_fc == 0)
-        fwrite(rec_cg, sizeof(Output_t), 1, fp_bin_out);
+    {
+        status = fwrite(rec_cg, sizeof(Output_t), 1, fp_bin_out);
+        if (status != 1)
+        {
+            RETURN_ERROR ("Writing output.bin file\n", FUNC_NAME, FAILURE);
+        }
+    }
     else
-        fwrite(rec_cg, sizeof(Output_t), num_fc-1, fp_bin_out);
+    {
+        status = fwrite(rec_cg, sizeof(Output_t), num_fc, fp_bin_out);
+        if (status != num_fc)
+        {
+            RETURN_ERROR ("Writing output.bin file\n", FUNC_NAME, FAILURE);
+        }
+    }
     fclose(fp_bin_out);   
 
     if (verbose)
