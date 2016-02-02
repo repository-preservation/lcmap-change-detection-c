@@ -43,17 +43,6 @@ variable when running the target:
 $ BIN=/my/path/bin make
 ```
 
-Similarly, you may override the include and lib paths, should they be different
-on your system:
- * ``XML2INC``
- * ``ESPANIC``
- * ``GSL_SCI_INC``
- * ``GSL_SCI_LIB``
- * ``FORTRAN``
- * ``HDF5INC``
- * ``HDF5LIB``
- * ``MATIOLIB``
-
 ## Usage
 
 TBD
