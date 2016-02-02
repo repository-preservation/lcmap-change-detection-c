@@ -17,23 +17,13 @@ CCDC C library:
 ```bash
 $ sudo apt-get install build-essential
 $ sudo apt-get install libgsl0-dev libgsl0ldbl gsl-bin
-$ sudo apt-get install r-base r-recommended
-```
-
-Currently, the following R library is also required:
-
-```bash
-$ sudo R
-```
-```r
-> install.packages("glmnet", repos = "http://cran.us.r-project.org")
+$ sudo apt-get install gfortran
 ```
 
 The classification tool requires the additional installs:
 
 ```bash
-sudo apt-get install libmatio-dev libmatio2
-sudo apt-get install gfortran
+$ sudo apt-get install libmatio-dev libmatio2
 ```
 
 
