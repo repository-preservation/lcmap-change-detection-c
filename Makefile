@@ -22,4 +22,10 @@ docker:
 dockerhub:
 	cd docker && make publish-docker
 
+ubuntu-bash:
+	docker run -i -t --entrypoint=/bin/bash usgseros/ubuntu-c-ccdc -s
+
+debian-bash:
+	docker run -i -t --entrypoint=/bin/bash usgseros/debian-c-ccdc -s
+
 .PHONY: ccdc classification clean docker
