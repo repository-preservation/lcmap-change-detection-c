@@ -16,4 +16,10 @@ clean:
 	cd ccdc && make clean
 	cd classification && make clean
 
-.PHONY: ccdc classification clean
+docker:
+	cd docker && make
+
+dockerhub:
+	cd docker && make publish-docker
+
+.PHONY: ccdc classification clean docker
