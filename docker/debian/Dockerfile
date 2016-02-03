@@ -12,6 +12,5 @@ RUN git clone https://github.com/USGS-EROS/lcmap-change-detection-c.git
 RUN cd lcmap-change-detection-c && \
     BIN=$CCDC_BIN make
 
-COPY run.py run.py
-ENTRYPOINT ["python3", "-u", "run.py"]
+ENTRYPOINT ["/root/bin/ccdc"]
 
