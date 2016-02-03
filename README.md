@@ -25,7 +25,8 @@ For additional notes, such as installing dependencies (Ubuntu), overriding ``Mak
 
 ## Usage
 
-TBD
+[We're in active development on making this not only work, but be usable. Ticket #5 has some early usability notes + tasks that we're trying to hit right away, if you're interested in tracking this.] 
+
 
 ## Implementation
 
