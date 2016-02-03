@@ -9,6 +9,8 @@ and related scripts.
 To install, simply run the top-level ``make`` target:
 
 ```bash
+$ git clone git@github.com:USGS-EROS/lcmap-change-detection-c.git
+$ cd lcmap-change-detection-c
 $ make
 ```
 
