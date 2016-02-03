@@ -57,6 +57,7 @@ details, see:
 
 This project is hosted by the US Geological Survey (USGS) Earth Resources
 Observation and Science (EROS) Land Change Monitoring, Assessment, and
-Projection (LCMAP) Project.  For questions regarding this source code, please
-contact the Landsat Contact Us page and specify USGS LCMAP in the "Regarding"
-section. https://landsat.usgs.gov/contactus.php
+Projection ([LCMAP](https://github.com/USGS-EROS?utf8=%E2%9C%93&query=lcmap))
+Project.  For questions regarding this source code, please contact the
+[Landsat Contact Us](https://landsat.usgs.gov/contactus.php) page and specify
+``USGS LCMAP`` in the "Regarding" section.
