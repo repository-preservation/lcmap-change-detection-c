@@ -22,7 +22,7 @@ $ BIN=/my/path/bin make
 
 For additional notes, such as installing dependencies (Ubuntu), overriding ``Makefile`` variables, etc., see:
 
-* [Building LCMAP](../..//wiki/Building-LCMAP).
+* [Building LCMAP](../..//wiki/Building-LCMAP)
 
 
 ## Usage
