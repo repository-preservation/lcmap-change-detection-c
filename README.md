@@ -39,6 +39,7 @@ Development notes for C-CCDC are maintained in the project wiki. For more
 details, see:
 
  * [CCDC Development](../../wiki/CCDC Development)
+ * [Using CCDC with Docker](../../CCDC-%26-Docker)
 
 
 ## Implementation
