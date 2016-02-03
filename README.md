@@ -3,29 +3,6 @@
 This project contains application source code for Change Detection C library
 and related scripts.
 
-## Dependencies
-
-### CentOS
-
-TBD
-
-### Ubuntu
-
-On Ubuntu, you will need the following packages installed in order to compile the
-CCDC C library:
-
-```bash
-$ sudo apt-get install build-essential
-$ sudo apt-get install libgsl0-dev libgsl0ldbl gsl-bin
-$ sudo apt-get install gfortran
-```
-
-The classification tool requires the additional installs:
-
-```bash
-$ sudo apt-get install libmatio-dev libmatio2
-```
-
 
 ## Installation
 
@@ -42,6 +19,9 @@ variable when running the target:
 ```bash
 $ BIN=/my/path/bin make
 ```
+
+For additional notes, such as installing dependencies (Ubuntu), overriding ``Makefile`` variables, etc., see [[Building LCMAP]].
+
 
 ## Usage
 
