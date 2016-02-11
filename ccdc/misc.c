@@ -176,6 +176,10 @@ int get_args
     else
         *verbose = false;
 
+    /* we need to do this back in main, after deterining whether      */
+    /* stdin/stdout are being used or not, because if they are, we    */
+    /* limit the printed otput to only that required for stdout.      */
+    /*
     if (*verbose)
     {
         printf ("row = %d\n", *row);
@@ -185,6 +189,7 @@ int get_args
         printf ("sceneList = %s\n", sceneList);
         printf ("verbose = %d\n", *verbose);
     }
+    */
 
     return SUCCESS;
 }

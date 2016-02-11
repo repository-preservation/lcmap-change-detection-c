@@ -244,9 +244,12 @@ int main (int argc, char *argv[])
                                  /* the overlap area.                 */
     time_t now;
     time (&now);
-    snprintf (msg_str, sizeof(msg_str),
-              "CCDC start_time=%s\n", ctime (&now));
-    LOG_MESSAGE (msg_str, FUNC_NAME);
+
+    if (verbose)
+    {
+        snprintf (msg_str, sizeof(msg_str), "CCDC start_time=%s\n", ctime (&now));
+        LOG_MESSAGE (msg_str, FUNC_NAME);
+    }
 
     /* Initialize the input and output directory specification, */
     /* because they are optional.                               */
@@ -258,15 +261,6 @@ int main (int argc, char *argv[])
     if (status != SUCCESS)
     {
         RETURN_ERROR ("calling get_args", FUNC_NAME, EXIT_FAILURE);
-    }
-
-    if (verbose)
-    {
-        printf("row,col,verbose=%d,%d,%d\n",row,col,verbose);
-        printf("Input Directory:  %s\n", inDir);
-        printf("Output Directory: %s\n", outDir);
-        printf("sceneList: %s\n", sceneList);
-        printf("outputBinary: %s\n", outputBinary);
     }
 
     /******************************************************************/
@@ -291,6 +285,17 @@ int main (int argc, char *argv[])
     if (strcmp(outDir, "stdout") == 0)
     {
         std_out = true;
+        verbose = false;
+        debug = false;
+    }
+
+    if (verbose)
+    {
+        printf("row,col,verbose=%d,%d,%d\n",row,col,verbose);
+        printf("Input Directory:  %s\n", inDir);
+        printf("Output Directory: %s\n", outDir);
+        printf("sceneList: %s\n", sceneList);
+        printf("outputBinary: %s\n", outputBinary);
     }
 
     updated_fmask_buf = malloc(valid_num_scenes * sizeof(unsigned char));
@@ -928,8 +933,11 @@ int main (int argc, char *argv[])
 
     } // end of elseif stdin bracket
 
-    snprintf (msg_str, sizeof(msg_str), "CCDC read_time=%s\n", ctime (&now));
+    if (verbose)
+    {
+        snprintf (msg_str, sizeof(msg_str), "CCDC read_time=%s\n", ctime (&now));
         LOG_MESSAGE (msg_str, FUNC_NAME);
+    }
 
     /* percent of clear pixels, clear (0) or water (1) */    
     clr_pct = (float) clr_sum / (float) all_sum;
@@ -1243,8 +1251,11 @@ int main (int argc, char *argv[])
     }
     else /* clear land or water pixels */
     {
-        printf("Seasonal Snow (Snow < %f)\n", 100.0 * sn_pct);
-        printf("Fmask works, clear pixels (land/water) = %f\n", 100.0 * clr_pct);
+        if (verbose)
+        {
+            printf("Seasonal Snow (Snow < %f)\n", 100.0 * sn_pct);
+            printf("Fmask works, clear pixels (land/water) = %f\n", 100.0 * clr_pct);
+        }
 
         for (i = 0; i < valid_num_scenes; i++)
         { 
@@ -1259,7 +1270,10 @@ int main (int argc, char *argv[])
             }   
         }
         end = n_clr;
-        printf("end_clr=%d\n",end);
+        if (debug)
+        {
+            printf("end_clr=%d\n",end);
+        }
 
 
         /* calculate median variogram */
@@ -1293,8 +1307,11 @@ int main (int argc, char *argv[])
         bl_tmask = 0;
 
         /* while loop - process till the last clear observation - CONSE */
-        snprintf (msg_str, sizeof(msg_str), "CCDC init_time=%s\n", ctime (&now));
+        if (verbose)
+        {
+            snprintf (msg_str, sizeof(msg_str), "CCDC init_time=%s\n", ctime (&now));
             LOG_MESSAGE (msg_str, FUNC_NAME);
+        }
 
         while (i <= end - CONSE)
         {
@@ -2297,7 +2314,7 @@ int main (int argc, char *argv[])
         fclose(fp_bin_out);   
     }
 
-    if (verbose)
+    if ((verbose) || (stdout))
     {
         if (num_fc == 0)
 	{
@@ -2362,7 +2379,7 @@ int main (int argc, char *argv[])
 
     time (&now);
 
-    if (!std_out)
+    if (verbose)
     {
         snprintf (msg_str, sizeof(msg_str),
                   "CCDC end_time=%s\n", ctime (&now));
