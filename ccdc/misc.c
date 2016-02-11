@@ -545,7 +545,7 @@ int convert_jday_from_0000_to_year_doy
     return SUCCESS;
 }
 
-/******************************************************************************
+/***********************************************************************
 MODULE:  sort_scene_based_on_year_jday
 
 PURPOSE:  Sort scene list based on year and julian day of year
@@ -561,19 +561,26 @@ HISTORY:
 Date        Programmer       Reason
 --------    ---------------  -------------------------------------
 1/23/2015   Song Guo         Original Development
-20151203    Brian Davis      Added call to strlen, to allow for long/full file
-                             names, and not assume a specific length.....
+20151203    Brian Davis      Added call to strlen, to allow for
+                             long/full file names, and not assume a
+                             specific length.....
+20160204    Brian Davis      Moved the swath overlap filtering here,
+                             the scene list parameter may or not be
+                             sorted.  Sorting is needed to compare
+                             rows from the same path for identical
+                             date/times.
 
 NOTES:
-******************************************************************************/
+***********************************************************************/
 int sort_scene_based_on_year_doy
 (
-    char **scene_list,      /* I/O: scene_list, sorted as output */
-    int num_scenes,         /* I: number of scenes in the scene list */
-    int *sdate              /* O: year plus date since 0000 */
+    char **scene_list,      /* I/O: scene_list, sorted as output      */
+    int num_scenes,         /* I: number of scenes in the list to be  */
+                            /* sorted.                                */
+    int *sdate              /* O: year plus date since 0000           */
 )
 {
-    int i;
+    int i;                  /* loop counter                           */
     int status;
     int year, doy;
     int *yeardoy;
@@ -581,8 +588,9 @@ int sort_scene_based_on_year_doy
     char temp_string2[5];
     char temp_string3[4];
     char errmsg[MAX_STR_LEN];
-    char FUNC_NAME[] = "sort_scene_based_on_year_doy"; /* function name */
-    int len; /* length of string returned from strlen for string manipulation */
+    char FUNC_NAME[] = "sort_scene_based_on_year_doy";/* function name*/
+    int len;                /* length of string returned from strlen  */
+                            /* for string manipulation                */
 
     /* Allocate memory for yeardoy */
     yeardoy = malloc(num_scenes * sizeof(int));
@@ -595,13 +603,10 @@ int sort_scene_based_on_year_doy
     for (i = 0; i < num_scenes; i++)
     {
         len = strlen(scene_list[i]);
-        //strncpy(temp_string, scene_list[i]+9, 7);
         strncpy(temp_string, scene_list[i]+(len-12), 7);
         yeardoy[i] = atoi(temp_string);
-        //strncpy(temp_string2, scene_list[i]+9, 4);
         strncpy(temp_string2, scene_list[i]+(len-12), 4);
         year = atoi(temp_string2);
-        //strncpy(temp_string3, scene_list[i]+13, 3);
         strncpy(temp_string3, scene_list[i]+(len-8), 3);
         doy = atoi(temp_string3);
         status = convert_year_doy_to_jday_from_0000(year, doy, &sdate[i]);

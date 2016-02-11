@@ -18,16 +18,16 @@
 #define MID_NUM_C 6
 #define MAX_NUM_C 8
 #define CONSE 6
-#define N_TIMES 3 /* number of clear observations/coefficients*/
-#define NUM_YEARS 365.25 /* average number of days per year */
-#define NUM_FC 10 /* Values change with number of pixels run */
-#define T_CONST 4.89 /* Threshold for cloud, shadow, and snow detection */
-#define MIN_YEARS 1 /* minimum year for model intialization */
-#define T_SN 0.75        /* no change detection for permanent snow pixels */ 
-#define T_CLR 0.25       /* Fmask fails threshold */
-#define T_CG 15.0863     /* chi-square inversed T_cg (0.99) for noise removal */
-#define T_MAX_CG 35.8882 /* chi-square inversed T_max_cg (1e-6) for 
-                            last step noise removal */
+#define N_TIMES 3         /* number of clear observations/coefficients*/
+#define NUM_YEARS 365.25  /* average number of days per year          */
+#define NUM_FC 10         /* Values change with number of pixels run  */
+#define T_CONST 4.89      /* Threshold for cloud, shadow, and snow detection */
+#define MIN_YEARS 1       /* minimum year for model intialization     */
+#define T_SN 0.75         /* no change detection for permanent snow pixels */ 
+#define T_CLR 0.25        /* Fmask fails threshold                    */
+#define T_CG 15.0863      /* chi-square inversed T_cg (0.99) for noise removal */
+#define T_MAX_CG 35.8882  /* chi-square inversed T_max_cg (1e-6) for 
+                             last step noise removal                  */
 #define CFMASK_CLEAR   0
 #define CFMASK_WATER   1
 #define CFMASK_SHADOW  2
@@ -64,14 +64,15 @@ char *sub_string
     return target;
 }
 
-/******************************************************************************
+/*****************************************************************************
+ *
 METHOD:  ccdc
 
 PURPOSE:  the main routine for CCDC (Continuous Change Detection and 
           Classification) in C
 
-RETURN VALUE:
-Type = int
+RETURN VALUE: Type = int
+
 Value           Description
 -----           -----------
 ERROR           An error occurred during processing of the ccdc
@@ -90,6 +91,15 @@ Date        Programmer       Reason
                              checking of percentages clear, etc.
                              Also printing out that information.
                              Removed most debug prints and ifdef 0s.
+20150210    Brian Davis      Added stdin input option.
+                             Added stdout output option.
+                             Added swath overlap filtering after scene
+                             list is sorted. This needs to change to a
+                             per-pixel basis instead of per-scene.
+                             Resolved alloc and free associations, and
+                             moved some around.
+                             Added debug flag for printfs.
+                             Added some comments and general cleanup.
 
 NOTES: type ./ccdc --help for information to run the code
 
@@ -109,22 +119,25 @@ second digit:
 
 Note: The commented out parts of code is the inputs using ESPA putputs,
       the current input part is only for reading inputs from Zhe's code
-******************************************************************************/
+
+*****************************************************************************/
 int main (int argc, char *argv[])
 {
-    char FUNC_NAME[] = "main";       /* for printing error messages          */
-    char msg_str[MAX_STR_LEN];       /* input data scene name                */
-    char filename[MAX_STR_LEN];      /* input binary filenames               */
-    int status;                      /* return value from function call      */
-    Output_t *rec_cg = NULL;         /* output structure and metadata        */
-    bool verbose;                    /* verbose flag for printing messages   */
-    int i, k, m, b, k_new;           /* loop counters                        */
-    char **scene_list = NULL;        /* 2-D array for list of scene IDs      */
-    FILE *fd;                        /* file descriptor for file             */
-                                     /* containing scene names               */
-    int num_scenes = MAX_SCENE_LIST; /* number of input scenes defined       */
-    int num_c = 8;                   /* max number of coefficients for model */
-    int num_fc = 0;                  /* intialize NUM of Functional Curves   */
+    char FUNC_NAME[] = "main";       /* for printing error messages         */
+    char msg_str[MAX_STR_LEN];       /* input data scene name               */
+    char filename[MAX_STR_LEN];      /* input binary filenames              */
+    int status;                      /* return value from function call     */
+    Output_t *rec_cg = NULL;         /* output structure and metadata       */
+    bool verbose;                    /* verbose flag for printing messages  */
+    int i, k, m, b, k_new;           /* loop counters                       */
+    char **scene_list = NULL;        /* 2-D array for list of scene IDs     */
+    char **valid_scene_list = NULL;  /* 2-D array for list of filtered      */
+                                     /* scene IDs                           */
+    FILE *fd;                        /* file descriptor for file            */
+                                     /* containing scene names              */
+    int num_scenes = MAX_SCENE_LIST; /* number of input scenes defined      */
+    int num_c = 8;                   /* max number of coefficients for model*/
+    int num_fc = 0;                  /* intialize NUM of Functional Curves  */
     int rec_fc;
     float v_start[NUM_LASSO_BANDS];
     float v_end[NUM_LASSO_BANDS];
@@ -206,7 +219,29 @@ int main (int argc, char *argv[])
     char outputBinary[MAX_STR_LEN]; /* directory and file name for output.bin */
     char hdr_name[MAX_STR_LEN]; /* string for header file to read, different for LC8 */
 
-
+    int valid_num_scenes;       /* number of scenes after cfmask counts and   */
+                                /* swath overlap eliminated */
+    int non_overlap_num_scenes = 0; /* count of scenes after overlap eliminated */
+    int clear_sum = 0;
+    int water_sum = 0;
+    int shadow_sum = 0;
+    int cloud_sum = 0;
+    int fill_sum = 0;
+    bool debug = 1;
+    bool std_in = 0;             /* For doing lots of ifs.  stdin     */
+    bool std_out = 0;            /* and stdout are reserved words.    */
+    int j;                       /* Loop counter.                     */
+    int path;                    /* Row already declared above, this  */
+    int year;                    /* group of variables is for         */
+    int jday;                    /* filtering out swath overlap, and  */
+    int prev_path = 0;           /* using the first of two scenes in a*/
+    int prev_row = 0;            /* swatch, because it is recommended */
+    int prev_year = 0;           /* to use the meta  data from the    */
+    int prev_jday = 0;           /* first for things like sun able,   */
+    int valid_scene_count = 0;   /* etc. However, always removing that*/
+    int swath_overlap_count = 0; /* 2nd may not be necessary if the   */
+                                 /* x/y location specified is not in  */
+                                 /* the overlap area.                 */
     time_t now;
     time (&now);
     snprintf (msg_str, sizeof(msg_str),
@@ -225,414 +260,673 @@ int main (int argc, char *argv[])
         RETURN_ERROR ("calling get_args", FUNC_NAME, EXIT_FAILURE);
     }
 
-    printf("row,col,verbose=%d,%d,%d\n",row,col,verbose);
-    printf("Input Directory:  %s\n", inDir);
-    printf("Output Directory: %s\n", outDir);
-    printf("sceneList: %s\n", sceneList);
-
-    /* allocate memory for scene_list */
-    scene_list = (char **) allocate_2d_array (MAX_SCENE_LIST, MAX_STR_LEN,
-                                         sizeof (char));
-    if (scene_list == NULL)
+    if (verbose)
     {
-        RETURN_ERROR ("Allocating scene_list memory", FUNC_NAME, FAILURE);
+        printf("row,col,verbose=%d,%d,%d\n",row,col,verbose);
+        printf("Input Directory:  %s\n", inDir);
+        printf("Output Directory: %s\n", outDir);
+        printf("sceneList: %s\n", sceneList);
+        printf("outputBinary: %s\n", outputBinary);
     }
 
-    /* check if scene_list.txt file exists, if not, create the scene_list
-       from existing files in the current data working directory */
-    //if (access(scene_list_name, F_OK) != -1) /* File exists */
-    if (access(sceneList, F_OK) != 0) /* File does not exist */
+    /******************************************************************/
+    /*                                                                */
+    /* Check for stdin and stdout, and then allocate memory here, for */
+    /* for pointers used in both stdin and file-system I/O branches,  */
+    /* for pointers used in the ccdc algorithm portion for both cases.*/
+    /*                                                                */
+    /******************************************************************/
+
+    if (strcmp(sceneList, "stdin") == 0)
+
     {
-        strcpy (sceneListFileName, inDir);
-        strcat(sceneListFileName, "/scene_list.txt");
-        if (access(sceneListFileName, F_OK) != -1) /* File exists */
-        {
-            num_scenes = MAX_SCENE_LIST;
-        }
-        else /* Default File exists */
-        {
-            status = create_scene_list(hdr_name, sceneListFileName);
-            if(status != SUCCESS)
-            RETURN_ERROR("Running create_scene_list file", FUNC_NAME, FAILURE);
-        }
+        scanf("%d", &valid_num_scenes);
+        std_in = true;
     }
-    else /* File exists */
+    else
     {
-        strcpy(sceneListFileName, sceneList);
+        valid_num_scenes = num_scenes; // worst case
     }
 
-    //fd = fopen("scene_list.txt", "r");
-    fd = fopen(sceneListFileName, "r");
-    if (fd == NULL)
+    if (strcmp(outDir, "stdout") == 0)
     {
-        RETURN_ERROR("Opening scene_list file", FUNC_NAME, FAILURE);
+        std_out = true;
     }
 
-    for (i = 0; i < num_scenes; i++)
-    {
-        //if (fscanf(fd, "%s", scene_list[i]) == EOF)
-        if (fscanf(fd, "%s", tmpstr) == EOF)
-            break;
-        strcpy(scene_list[i], inDir);
-        strcat(scene_list[i], "/");
-        strcat(scene_list[i], tmpstr);
-    }
-    num_scenes = i;
-
-    /* allocate memory for fp_bin, need testing */
-    fp_bin = (FILE ***) allocate_2d_array (TOTAL_BANDS, num_scenes,
-                                         sizeof (FILE*));
-    if (fp_bin == NULL)
-    {
-        RETURN_ERROR ("Allocating fp_bin memory", FUNC_NAME, FAILURE);
-    }
-
-    /* Allocate memory */
-    sdate = malloc(num_scenes * sizeof(int));
-    if (sdate == NULL)
-    {
-        RETURN_ERROR("ERROR allocating sdate memory", FUNC_NAME, FAILURE);
-    }
-
-    updated_sdate_array = malloc(num_scenes * sizeof(int));
-    if (updated_sdate_array == NULL)
-    {
-        RETURN_ERROR("ERROR allocating updated_sdate memory", FUNC_NAME, FAILURE);
-    }
-
-    clrx = malloc(num_scenes * sizeof(int));
-    if (clrx == NULL)
-    {
-        RETURN_ERROR("ERROR allocating clrx memory", FUNC_NAME, FAILURE);
-    }
-
-    fmask_buf = malloc(num_scenes * sizeof(unsigned char));
-    if (fmask_buf == NULL)
-    {
-        RETURN_ERROR("ERROR allocating fmask_buf memory", FUNC_NAME, FAILURE);
-    }
-
-    updated_fmask_buf = malloc(num_scenes * sizeof(unsigned char));
+    updated_fmask_buf = malloc(valid_num_scenes * sizeof(unsigned char));
     if (updated_fmask_buf == NULL)
     {
         RETURN_ERROR("ERROR allocating updated_fmask_buf memory", FUNC_NAME, FAILURE);
     }
 
-    id_range = (int *)calloc(num_scenes, sizeof(int));
-    if (id_range == NULL)
+    updated_sdate_array = malloc(valid_num_scenes * sizeof(int));
+    if (updated_sdate_array == NULL)
     {
-        RETURN_ERROR("ERROR allocating id_range memory", FUNC_NAME, FAILURE);
+        RETURN_ERROR("ERROR allocating updated_sdate memory", FUNC_NAME, FAILURE);
     }
-
-    id_clr = (int *)calloc(num_scenes, sizeof(int));
-    if (id_clr == NULL)
-    {
-        RETURN_ERROR("ERROR allocating id_clr memory", FUNC_NAME, FAILURE);
-    }
-
-    id_all = (int *)calloc(num_scenes, sizeof(int));
-    if (id_all == NULL)
-    {
-        RETURN_ERROR("ERROR allocating id_all memory", FUNC_NAME, FAILURE);
-    }
-
-    id_sn = (int *)calloc(num_scenes, sizeof(int));
-    if (id_sn == NULL)
-    {
-        RETURN_ERROR("ERROR allocating id_sn memory", FUNC_NAME, FAILURE);
-    }
-
-    ids = (int *)calloc(num_scenes, sizeof(int));
-    if (ids == NULL)
-    {
-        RETURN_ERROR("ERROR allocating ids memory", FUNC_NAME, FAILURE);
-    }
-
-    ids_old = (int *)calloc(num_scenes, sizeof(int));
-    if (ids_old == NULL)
-    {
-        RETURN_ERROR("ERROR allocating ids_old memory", FUNC_NAME, FAILURE);
-    }
-
-    bl_ids = (int *)calloc(num_scenes, sizeof(int));
-    if (bl_ids == NULL)
-    {
-        RETURN_ERROR("ERROR allocating bl_ids memory", FUNC_NAME, FAILURE);
-    }
-
-    rm_ids = (int *)calloc(num_scenes, sizeof(int));
-    if (rm_ids == NULL)
-    {
-        RETURN_ERROR("ERROR allocating rm_ids memory", FUNC_NAME, FAILURE);
-    }
-
-    buf = (int **) allocate_2d_array (TOTAL_BANDS, num_scenes,
-                                         sizeof (int));
-    if (buf == NULL)
-    {
-        RETURN_ERROR ("Allocating buf memory", FUNC_NAME, FAILURE);
-    }
-
-    clry = (float **) allocate_2d_array (TOTAL_IMAGE_BANDS, num_scenes,
-                                         sizeof (float));
-    if (clry == NULL)
-    {
-        RETURN_ERROR ("Allocating clry memory", FUNC_NAME, FAILURE);
-    }
-
-    fit_cft = (float **) allocate_2d_array (TOTAL_IMAGE_BANDS, MAX_NUM_C, 
-                                         sizeof (float));
-    if (fit_cft == NULL)
-    {
-        RETURN_ERROR ("Allocating fit_cft memory", FUNC_NAME, FAILURE);
-    }
-
-    rmse = (float *)calloc(TOTAL_IMAGE_BANDS, sizeof(float));
-    if (rmse == NULL)
-    {
-        RETURN_ERROR ("Allocating rmse memory", FUNC_NAME, FAILURE);
-    }
-
-    vec_mag = (float *)calloc(NUM_LASSO_BANDS, sizeof(float));
-    if (vec_mag == NULL)
-    {
-        RETURN_ERROR ("Allocating vec_mag memory", FUNC_NAME, FAILURE);
-    }
-
-    /* allocate memory for v_dif_mag */ 
-    v_dif_mag = (float **) allocate_2d_array(TOTAL_IMAGE_BANDS, CONSE,
-                sizeof (float));
-    if (v_dif_mag == NULL)
-    {
-        RETURN_ERROR ("Allocating v_dif_mag memory", 
-                                 FUNC_NAME, FAILURE);
-    }
-
-    /* Allocate memory for rec_v_dif */
-    rec_v_dif = (float **)allocate_2d_array(TOTAL_IMAGE_BANDS, num_scenes,
-                                     sizeof (float));
-    if (rec_v_dif == NULL)
-    {
-        RETURN_ERROR ("Allocating rec_v_dif memory",FUNC_NAME, FAILURE);
-    }
-
-    /* Allocate memory for temp_v_dif */
-    temp_v_dif = (float **)allocate_2d_array(TOTAL_IMAGE_BANDS, num_scenes,
-                                     sizeof (float));
-    if (temp_v_dif == NULL)
-    {
-        RETURN_ERROR ("Allocating temp_v_dif memory",FUNC_NAME, FAILURE);
-    }
-
-    /* sort scene_list based on year & julian_day */
-    if (verbose)
-    {
-        printf("num_scenes %d\n", num_scenes);
-        printf("scene_list[0]=%s\n", scene_list[0]);
-    }
-    status = sort_scene_based_on_year_doy(scene_list, num_scenes, sdate);
-    if (status != SUCCESS)
-    {
-        RETURN_ERROR ("Calling sort_scene_based_on_year_jday", 
-                      FUNC_NAME, FAILURE);
-    }
-
-    /* Create the Input metadata structure */
-    meta = (Input_meta_t *)malloc(sizeof(Input_meta_t));
-    if (meta == NULL) 
-    {
-        RETURN_ERROR("allocating Input data structure", FUNC_NAME, FAILURE);
-    }
-
-    /* Get the metadata, all scene metadata are the same for stacked scenes */
-    status = read_envi_header(scene_list[0], meta);
-    //status = read_envi_header("LC80460272013120LGN01_MTLstack", meta);
-    if (status != SUCCESS)
-    {
-        RETURN_ERROR ("Calling read_envi_header", 
-                      FUNC_NAME, FAILURE);
-    }
-
-    if (verbose)
-    {
-        /* Print some info to show how the input metadata works */
-        printf ("DEBUG: Number of input lines: %d\n", meta->lines);
-        printf ("DEBUG: Number of input samples: %d\n", meta->samples);
-        printf ("DEBUG: UL_MAP_CORNER: %d, %d\n", meta->upper_left_x,
-                meta->upper_left_y);
-        printf ("DEBUG: ENVI data type: %d\n", meta->data_type);
-        printf ("DEBUG: ENVI byte order: %d\n", meta->byte_order);
-        printf ("DEBUG: UTM zone number: %d\n", meta->utm_zone);
-        printf ("DEBUG: Pixel size: %d\n", meta->pixel_size);
-        printf ("DEBUG: Envi save format: %s\n", meta->interleave);
-    }
-
-    /* Open input files 
-       Note: may need switch num_scenes and TOTAL_IMAGE_BANDS in buf/fp_bin */
-    //    FILE *fp_bin[TOTAL_BANDS][num_scenes];
-    //    short int buf[TOTAL_IMAGE_BANDS][num_scenes];
-    //    unsigned char fmask_buf[num_scenes];
-    /* Open input files */
 
     /******************************************************************/
     /*                                                                */
-    /* Read the cfmask file first, determine which pixels are valid.  */
-    /*   0: clear                                                     */
-    /*   1: water                                                     */
-    /*   1: cloudShadow                                               */
-    /*   1: snow                                                      */
-    /*   4: cloud                                                     */
-    /* 255: FILL_VALUE                                                */
-    /*                                                                */
-    /* While reading, update the counters for clear, water, cloud,    */
-    /* and snow, essentially skipping over fill values,               */
-    /* and update the number of "scenes" so that only the data bands  */
-    /* buffer and date information array are filled with values from  */
-    /* from valid "scenes".                                           */
-    /*                                                                */
-    /* Previously, all data was read, then cfmask was checked after   */
-    /* the last loop, and was accidentally checked because the cfmask */
-    /* file just happend to be the last file read.  However, when     */
-    /* checking for valid values 50 percent or greater the            */
-    /* calculation was done incorecctly, was always zero, so          */
-    /* all cases were passed along to the cced algorithm, even if     */
-    /* there were less than 50 percent valid pixels.                  */
-    /*                                                                */
-    /* Furthermore, FILL_VALUE for cfmask is defined in ccdc.h,       */
-    /* but nowhere for the image bands.  Both should really be read   */
-    /* from the .xml metadata file provided by ESPA, but it is not    */
-    /* populated along with other ARD files, currently.               */
+    /* allocate memory here, for pointers only used in the stdin I/O  */
+    /* branch.                                                        */
     /*                                                                */
     /******************************************************************/
 
-    int valid_num_scenes = 0;
-    int clear_sum = 0;
-    int water_sum = 0;
-    int shadow_sum = 0;
-    int cloud_sum = 0;
-    int fill_sum = 0;
-    for (i = 0; i < num_scenes; i++)
+    if (std_in)
+
     {
 
-        /**************************************************************/
-        /*                                                            */
-        /* Determine the cfmask file name to read.                    */
-        /*                                                            */
-        /**************************************************************/
-
-        len = strlen(scene_list[i]);
-        landsat_number = atoi(sub_string(scene_list[i],(len-19),1));
-        sprintf(filename, "%s_cfmask.img", scene_list[i]);
-
-        /**************************************************************/
-        /*                                                            */
-        /* Open the cfmask file, fseek and read.                      */
-        /*                                                            */
-        /**************************************************************/
-
-        fp_bin[CFMASK_BAND][i] = open_raw_binary(filename,"rb");
-        if (fp_bin[CFMASK_BAND][i] == NULL)
-            printf("error open %d scene, %d bands files\n",i, CFMASK_BAND+1);
-
-        fseek(fp_bin[CFMASK_BAND][i], (row * meta->samples + col)*sizeof(unsigned char), 
-            SEEK_SET);
-
-        if (read_raw_binary(fp_bin[CFMASK_BAND][i], 1, 1,
-            sizeof(unsigned char), &fmask_buf[i]) != 0)
-            printf("error reading %d scene, %d bands\n",i, CFMASK_BAND+1);
-
-        /**************************************************************/
-        /*                                                            */
-        /* If clear (0) water (1) or snow (3) update the counters and */
-        /* then read the image bands for this scene. Otherwise, save  */
-        /* time space and energy and skip this scene.                 */
-        /*                                                            */
-        /**************************************************************/
-
-        // a bitmask should probably be set up to do these.......
-        //
-        switch (fmask_buf[i])
+        buf = (int **) allocate_2d_array (TOTAL_IMAGE_BANDS, valid_num_scenes, sizeof (int));
+        if (buf == NULL)
         {
-            case CFMASK_CLEAR:
-                clear_sum++;
-                clr_sum++;
-                break;
-            case CFMASK_WATER:
-                water_sum++;
-                clr_sum++;
-                break;
-            case CFMASK_SHADOW:
-                shadow_sum++;
-                break;
-            case CFMASK_SNOW:
-                sn_sum++;
-                break;
-            case CFMASK_CLOUD:
-                cloud_sum++;
-                break;
-            case CFMASK_FILL:
-                fill_sum++;
-                break;
-            default:
-                printf ("Unknown fmask value %d", fmask_buf[i]);
-                break;
+            RETURN_ERROR ("Allocating buf memory", FUNC_NAME, FAILURE);
         }
 
-        if (fmask_buf[i] < CFMASK_FILL)
+        ids = (int *)calloc(valid_num_scenes, sizeof(int));
+        if (ids == NULL)
         {
-            /**********************************************************/
-            /*                                                        */
-            /* valid pixel according to cfmask, so read the image     */
-            /* bands and update the number of valid scenes, the date  */
-            /* array, and the updated cfmask array.                   */
-            /*                                                        */
-            /**********************************************************/
+            RETURN_ERROR("ERROR allocating ids memory", FUNC_NAME, FAILURE);
+        }
+    
+        ids_old = (int *)calloc(valid_num_scenes, sizeof(int));
+        if (ids_old == NULL)
+        {
+            RETURN_ERROR("ERROR allocating ids_old memory", FUNC_NAME, FAILURE);
+        }
+    
+        bl_ids = (int *)calloc(valid_num_scenes, sizeof(int));
+        if (bl_ids == NULL)
+        {
+            RETURN_ERROR("ERROR allocating bl_ids memory", FUNC_NAME, FAILURE);
+        }
 
+        rm_ids = (int *)calloc(valid_num_scenes, sizeof(int));
+        if (rm_ids == NULL)
+        {
+            RETURN_ERROR("ERROR allocating rm_ids memory", FUNC_NAME, FAILURE);
+        }
+
+        clrx = malloc(valid_num_scenes * sizeof(int));
+        if (clrx == NULL)
+        {
+            RETURN_ERROR("ERROR allocating clrx memory", FUNC_NAME, FAILURE);
+        }
+
+        clry = (float **) allocate_2d_array (TOTAL_IMAGE_BANDS, valid_num_scenes,
+                                             sizeof (float));
+        if (clry == NULL)
+        {
+            RETURN_ERROR ("Allocating clry memory", FUNC_NAME, FAILURE);
+        }
+
+        id_range = (int *)calloc(valid_num_scenes, sizeof(int));
+        if (id_range == NULL)
+        {
+            RETURN_ERROR("ERROR allocating id_range memory", FUNC_NAME, FAILURE);
+        }
+
+        /* Allocate memory for temp_v_dif */
+        temp_v_dif = (float **)allocate_2d_array(TOTAL_IMAGE_BANDS, valid_num_scenes,
+                                         sizeof (float));
+        if (temp_v_dif == NULL)
+        {
+            RETURN_ERROR ("Allocating temp_v_dif memory",FUNC_NAME, FAILURE);
+        }
+
+        fit_cft = (float **) allocate_2d_array (TOTAL_IMAGE_BANDS, MAX_NUM_C, 
+                                             sizeof (float));
+        if (fit_cft == NULL)
+        {
+            RETURN_ERROR ("Allocating fit_cft memory", FUNC_NAME, FAILURE);
+        }
+
+        rmse = (float *)calloc(TOTAL_IMAGE_BANDS, sizeof(float));
+        if (rmse == NULL)
+        {
+            RETURN_ERROR ("Allocating rmse memory", FUNC_NAME, FAILURE);
+        }
+
+        vec_mag = (float *)calloc(NUM_LASSO_BANDS, sizeof(float));
+        if (vec_mag == NULL)
+        {
+            RETURN_ERROR ("Allocating vec_mag memory", FUNC_NAME, FAILURE);
+        }
+    
+        /* allocate memory for v_dif_mag */ 
+        v_dif_mag = (float **) allocate_2d_array(TOTAL_IMAGE_BANDS, CONSE,
+                    sizeof (float));
+        if (v_dif_mag == NULL)
+        {
+            RETURN_ERROR ("Allocating v_dif_mag memory", 
+                                     FUNC_NAME, FAILURE);
+        }
+    
+        /* Allocate memory for rec_v_dif */
+        rec_v_dif = (float **)allocate_2d_array(TOTAL_IMAGE_BANDS, valid_num_scenes,
+                                         sizeof (float));
+        if (rec_v_dif == NULL)
+        {
+            RETURN_ERROR ("Allocating rec_v_dif memory",FUNC_NAME, FAILURE);
+        }
+    
+        /**************************************************************/
+        /*                                                            */
+        /* this assumes order of cfmask band value, then 7 SR and     */
+        /* thermal band values, then cfmask band values, each         */
+        /* set/group together per scene for number  of scenes.        */
+        /*                                                            */
+        /**************************************************************/
+        for (i = 0; i < valid_num_scenes; i++)
+        {
             all_sum++;
 
-            for (k = 0; k < TOTAL_BANDS - 1; k++)
-            {
-                len = strlen(scene_list[i]);
-                landsat_number = atoi(sub_string(scene_list[i],(len-19),1));
-                if (landsat_number != 8)
-                {
-                    if (k == 5)
-        	        sprintf(filename, "%s_sr_band%d.img", scene_list[i], k+2);
-                    else if (k == 6)
-                        sprintf(filename, "%s_toa_band6.img", scene_list[i]);
-                    else
-                        sprintf(filename, "%s_sr_band%d.img", scene_list[i], k+1);
-                }
-                else
-                {
-                    if (k == 6)
-                        sprintf(filename, "%s_toa_band10.img", scene_list[i]);
-                    else 
-                        sprintf(filename, "%s_sr_band%d.img", scene_list[i], k+2);
-                }
-        
-                fp_bin[k][valid_num_scenes] = open_raw_binary(filename,"rb");
-                if (fp_bin[k][valid_num_scenes] == NULL)
-                    printf("error open %d scene, %d bands files\n",valid_num_scenes, k+1);
-                if (k != 7)
-                    
-                fseek(fp_bin[k][valid_num_scenes], (row * meta->samples + col)*sizeof(short int), SEEK_SET);
-                if (read_raw_binary(fp_bin[k][valid_num_scenes], 1, 1,
-                    sizeof(short int), &buf[k][valid_num_scenes]) != 0)
-                    printf("error reading %d scene, %d bands\n",valid_num_scenes, k+1);
-                
-                close_raw_binary(fp_bin[k][valid_num_scenes]);
+            //scanf("%u", &updated_fmask_buf[i]);
+            scanf("%hhu", &updated_fmask_buf[i]);
+            printf( "You entered: %u\n", updated_fmask_buf[i]);
 
+            /* this needs to be put in a function call because it exists in 2 places */
+            switch (updated_fmask_buf[i])
+            {
+                case CFMASK_CLEAR:
+                    clear_sum++;
+                    clr_sum++;
+                    break;
+                case CFMASK_WATER:
+                    water_sum++;
+                    clr_sum++;
+                    break;
+                case CFMASK_SHADOW:
+                    shadow_sum++;
+                    break;
+                case CFMASK_SNOW:
+                    sn_sum++;
+                    break;
+                case CFMASK_CLOUD:
+                    cloud_sum++;
+                    break;
+                case CFMASK_FILL:
+                    fill_sum++;
+                    break;
+                default:
+                    printf ("Unknown fmask value %d", updated_fmask_buf[i]);
+                    break;
             }
 
-            // update stuff
-            updated_fmask_buf[valid_num_scenes] = fmask_buf[i];
-            updated_sdate_array[valid_num_scenes] = sdate[i];
-            valid_num_scenes++;
+            for (j = 0; j < TOTAL_IMAGE_BANDS; j++)
+            {
+                scanf("%d", &buf[j][i]);
+                printf( "You entered: %d\n", buf[j][i]);
+            }
+            scanf("%d", &updated_sdate_array[i]);
+            printf( "You entered: %d\n", updated_sdate_array[i]);
+        }
+   
+        printf ("\n");
+        //return -1;
+
+    }
+
+    else
+
+    {
+
+        /* allocate memory for scene_list */
+        scene_list = (char **) allocate_2d_array (MAX_SCENE_LIST, MAX_STR_LEN,
+                                             sizeof (char));
+        if (scene_list == NULL)
+        {
+            RETURN_ERROR ("Allocating scene_list memory", FUNC_NAME, FAILURE);
+        }
+        valid_scene_list = (char **) allocate_2d_array (MAX_SCENE_LIST, MAX_STR_LEN,
+                                             sizeof (char));
+        if (valid_scene_list == NULL)
+        {
+            RETURN_ERROR ("Allocating valid_scene_list memory", FUNC_NAME, FAILURE);
         }
 
-        close_raw_binary(fp_bin[CFMASK_BAND][i]);
-    }
+        /* check if scene_list.txt file exists, if not, create the scene_list
+           from existing files in the current data working directory */
+        //if (access(scene_list_name, F_OK) != -1) /* File exists */
+        if (access(sceneList, F_OK) != 0) /* File does not exist */
+        {
+            strcpy (sceneListFileName, inDir);
+            strcat(sceneListFileName, "/scene_list.txt");
+            if (access(sceneListFileName, F_OK) != -1) /* File exists */
+            {
+                num_scenes = MAX_SCENE_LIST;
+            }
+            else /* Default File exists */
+            {
+                status = create_scene_list(hdr_name, sceneListFileName);
+                if(status != SUCCESS)
+                RETURN_ERROR("Running create_scene_list file", FUNC_NAME, FAILURE);
+            }
+        }
+        else /* File exists */
+        {
+            strcpy(sceneListFileName, sceneList);
+        }
+    
+        fd = fopen(sceneListFileName, "r");
+        if (fd == NULL)
+        {
+            RETURN_ERROR("Opening scene_list file", FUNC_NAME, FAILURE);
+        }
+
+        /******************************************************************/
+        /*                                                                */
+        /* Fill the scene list array with full path names.                */
+        /*                                                                */
+        /******************************************************************/
+
+        for (i = 0; i < num_scenes; i++)
+        {
+            if (fscanf(fd, "%s", tmpstr) == EOF)
+                break;
+            strcpy(scene_list[i], inDir);
+            strcat(scene_list[i], "/");
+            strcat(scene_list[i], tmpstr);
+        }
+        num_scenes = i;
+        
+        /* Now that we konw the actual number of scenes, allocate     */
+        /* memory for date array.                                     */
+
+        sdate = malloc(num_scenes * sizeof(int));
+        if (sdate == NULL)
+        {
+            RETURN_ERROR("ERROR allocating sdate memory", FUNC_NAME, FAILURE);
+        }
+    
+        /* sort scene_list based on year & julian_day */ // then do the swath filter, but read it above first
+        if (verbose)
+        {
+            printf("num_scenes %d\n", num_scenes);
+            printf("scene_list[0]=%s\n", scene_list[0]);
+        }
+        status = sort_scene_based_on_year_doy(scene_list, num_scenes, sdate);
+        if (status != SUCCESS)
+        {
+            RETURN_ERROR ("Calling sort_scene_based_on_year_jday", 
+                          FUNC_NAME, FAILURE);
+        }
+    
+        /******************************************************************/
+        /*                                                                */
+        /* Eliminate swath overlap.  So, if path and year and day are the */
+        /* same, and row is 1 less than previous, remove the first of the */
+        /* two scenes.  This assumes the scenes are sorted above and      */
+        /* before arriving here.  One would think the result of the sort  */
+        /* would be a smaller row number would preceed a larger row       */
+        /* number, but the reverse is the case.  Therefore, remove the    */
+        /* first of the two adjacent scenes of the same swath in the      */
+        /* list, not the second.                                          */
+        /*                                                                */
+        /******************************************************************/
+
+        for (i = 0; i < num_scenes; i++)
+        {
+            len = strlen(scene_list[i]);
+            path = atoi(sub_string(scene_list[i],(len-18),3));
+            row =  atoi(sub_string(scene_list[i],(len-15),3));
+            year = atoi(sub_string(scene_list[i],(len-12),4));
+            jday = atoi(sub_string(scene_list[i],(len- 8),3));
+    
+            if ((path == prev_path) && (row == (prev_row - 1)) && (year == prev_year) && (jday == prev_jday))
+            {
+                swath_overlap_count++;
+                strcpy(valid_scene_list[valid_scene_count - 1], scene_list[i]);
+                if (debug)
+                {
+                    printf("i = %d swath overlap %s\n", i, scene_list[i -1]);
+                }
+            }
+            else
+            {
+                strcpy(valid_scene_list[valid_scene_count], scene_list[i]);
+                valid_scene_count++;
+            }
+    
+            prev_path = path;
+            prev_row  = row;
+            prev_year = year;
+            prev_jday = jday;
+        }
+        non_overlap_num_scenes = valid_scene_count;
+    
+        /* allocate memory for fp_bin, need testing */
+        fp_bin = (FILE ***) allocate_2d_array (TOTAL_BANDS, non_overlap_num_scenes,
+                                             sizeof (FILE*));
+        if (fp_bin == NULL)
+        {
+            RETURN_ERROR ("Allocating fp_bin memory", FUNC_NAME, FAILURE);
+        }
+    
+        clrx = malloc(non_overlap_num_scenes * sizeof(int));
+        if (clrx == NULL)
+        {
+            RETURN_ERROR("ERROR allocating clrx memory", FUNC_NAME, FAILURE);
+        }
+    
+        fmask_buf = malloc(non_overlap_num_scenes * sizeof(unsigned char));
+        if (fmask_buf == NULL)
+        {
+            RETURN_ERROR("ERROR allocating fmask_buf memory", FUNC_NAME, FAILURE);
+        }
+    
+        id_range = (int *)calloc(non_overlap_num_scenes, sizeof(int));
+        if (id_range == NULL)
+        {
+            RETURN_ERROR("ERROR allocating id_range memory", FUNC_NAME, FAILURE);
+        }
+    
+        id_clr = (int *)calloc(non_overlap_num_scenes, sizeof(int));
+        if (id_clr == NULL)
+        {
+            RETURN_ERROR("ERROR allocating id_clr memory", FUNC_NAME, FAILURE);
+        }
+    
+        id_all = (int *)calloc(non_overlap_num_scenes, sizeof(int));
+        if (id_all == NULL)
+        {
+            RETURN_ERROR("ERROR allocating id_all memory", FUNC_NAME, FAILURE);
+        }
+    
+        id_sn = (int *)calloc(non_overlap_num_scenes, sizeof(int));
+        if (id_sn == NULL)
+        {
+            RETURN_ERROR("ERROR allocating id_sn memory", FUNC_NAME, FAILURE);
+        }
+    
+        ids = (int *)calloc(non_overlap_num_scenes, sizeof(int));
+        if (ids == NULL)
+        {
+            RETURN_ERROR("ERROR allocating ids memory", FUNC_NAME, FAILURE);
+        }
+    
+        ids_old = (int *)calloc(non_overlap_num_scenes, sizeof(int));
+        if (ids_old == NULL)
+        {
+            RETURN_ERROR("ERROR allocating ids_old memory", FUNC_NAME, FAILURE);
+        }
+    
+        bl_ids = (int *)calloc(non_overlap_num_scenes, sizeof(int));
+        if (bl_ids == NULL)
+        {
+            RETURN_ERROR("ERROR allocating bl_ids memory", FUNC_NAME, FAILURE);
+        }
+    
+        rm_ids = (int *)calloc(non_overlap_num_scenes, sizeof(int));
+        if (rm_ids == NULL)
+        {
+            RETURN_ERROR("ERROR allocating rm_ids memory", FUNC_NAME, FAILURE);
+        }
+    
+        clry = (float **) allocate_2d_array (TOTAL_IMAGE_BANDS, non_overlap_num_scenes,
+                                             sizeof (float));
+        if (clry == NULL)
+        {
+            RETURN_ERROR ("Allocating clry memory", FUNC_NAME, FAILURE);
+        }
+    
+        fit_cft = (float **) allocate_2d_array (TOTAL_IMAGE_BANDS, MAX_NUM_C, 
+                                             sizeof (float));
+        if (fit_cft == NULL)
+        {
+            RETURN_ERROR ("Allocating fit_cft memory", FUNC_NAME, FAILURE);
+        }
+    
+        rmse = (float *)calloc(TOTAL_IMAGE_BANDS, sizeof(float));
+        if (rmse == NULL)
+        {
+            RETURN_ERROR ("Allocating rmse memory", FUNC_NAME, FAILURE);
+        }
+    
+        vec_mag = (float *)calloc(NUM_LASSO_BANDS, sizeof(float));
+        if (vec_mag == NULL)
+        {
+            RETURN_ERROR ("Allocating vec_mag memory", FUNC_NAME, FAILURE);
+        }
+    
+        /* allocate memory for v_dif_mag */ 
+        v_dif_mag = (float **) allocate_2d_array(TOTAL_IMAGE_BANDS, CONSE,
+                    sizeof (float));
+        if (v_dif_mag == NULL)
+        {
+            RETURN_ERROR ("Allocating v_dif_mag memory", 
+                                     FUNC_NAME, FAILURE);
+        }
+    
+        /* Allocate memory for rec_v_dif */
+        rec_v_dif = (float **)allocate_2d_array(TOTAL_IMAGE_BANDS, non_overlap_num_scenes,
+                                         sizeof (float));
+        if (rec_v_dif == NULL)
+        {
+            RETURN_ERROR ("Allocating rec_v_dif memory",FUNC_NAME, FAILURE);
+        }
+    
+        /* Allocate memory for temp_v_dif */
+        temp_v_dif = (float **)allocate_2d_array(TOTAL_IMAGE_BANDS, non_overlap_num_scenes,
+                                         sizeof (float));
+        if (temp_v_dif == NULL)
+        {
+            RETURN_ERROR ("Allocating temp_v_dif memory",FUNC_NAME, FAILURE);
+        }
+    
+        buf = (int **) allocate_2d_array (TOTAL_BANDS, non_overlap_num_scenes, sizeof (int));
+        if (buf == NULL)
+        {
+            RETURN_ERROR ("Allocating buf memory", FUNC_NAME, FAILURE);
+        }
+    
+        /* Create the Input metadata structure */
+        meta = (Input_meta_t *)malloc(sizeof(Input_meta_t));
+        if (meta == NULL) 
+        {
+            RETURN_ERROR("allocating Input data structure", FUNC_NAME, FAILURE);
+        }
+    
+        /* Get the metadata, all scene metadata are the same for stacked scenes */
+        status = read_envi_header(scene_list[0], meta);
+        //status = read_envi_header("LC80460272013120LGN01_MTLstack", meta);
+        if (status != SUCCESS)
+        {
+            RETURN_ERROR ("Calling read_envi_header", 
+                          FUNC_NAME, FAILURE);
+        }
+    
+        if (verbose)
+        {
+            /* Print some info to show how the input metadata works */
+            printf ("DEBUG: Number of input lines: %d\n", meta->lines);
+            printf ("DEBUG: Number of input samples: %d\n", meta->samples);
+            printf ("DEBUG: UL_MAP_CORNER: %d, %d\n", meta->upper_left_x,
+                    meta->upper_left_y);
+            printf ("DEBUG: ENVI data type: %d\n", meta->data_type);
+            printf ("DEBUG: ENVI byte order: %d\n", meta->byte_order);
+            printf ("DEBUG: UTM zone number: %d\n", meta->utm_zone);
+            printf ("DEBUG: Pixel size: %d\n", meta->pixel_size);
+            printf ("DEBUG: Envi save format: %s\n", meta->interleave);
+            printf ("DEBUG: Number of swath overlap scenes removed: %d\n", swath_overlap_count);
+        }
+    
+        /* Open input files 
+           Note: may need switch num_scenes and TOTAL_IMAGE_BANDS in buf/fp_bin */
+        //    FILE *fp_bin[TOTAL_BANDS][num_scenes];
+        //    short int buf[TOTAL_IMAGE_BANDS][num_scenes];
+        //    unsigned char fmask_buf[num_scenes];
+        /* Open input files */
+    
+        /******************************************************************/
+        /*                                                                */
+        /* Read the cfmask file first, determine which pixels are valid.  */
+        /*   0: clear                                                     */
+        /*   1: water                                                     */
+        /*   1: cloudShadow                                               */
+        /*   1: snow                                                      */
+        /*   4: cloud                                                     */
+        /* 255: FILL_VALUE                                                */
+        /*                                                                */
+        /* While reading, update the counters for clear, water, cloud,    */
+        /* and snow, essentially skipping over fill values,               */
+        /* and update the number of "scenes" so that only the data bands  */
+        /* buffer and date information array are filled with values from  */
+        /* from valid "scenes".                                           */
+        /*                                                                */
+        /* Previously, all data was read, then cfmask was checked after   */
+        /* the last loop, and was accidentally checked because the cfmask */
+        /* file just happend to be the last file read.  However, when     */
+        /* checking for valid values 50 percent or greater the            */
+        /* calculation was done incorecctly, was always zero, so          */
+        /* all cases were passed along to the cced algorithm, even if     */
+        /* there were less than 50 percent valid pixels.                  */
+        /*                                                                */
+        /* Furthermore, FILL_VALUE for cfmask is defined in ccdc.h,       */
+        /* but nowhere for the image bands.  Both should really be read   */
+        /* from the .xml metadata file provided by ESPA, but it is not    */
+        /* populated along with other ARD files, currently.               */
+        /*                                                                */
+        /******************************************************************/
+    
+        valid_num_scenes = 0;
+        for (i = 0; i < non_overlap_num_scenes; i++)
+        {
+    
+            /**************************************************************/
+            /*                                                            */
+            /* Determine the cfmask file name to read.                    */
+            /*                                                            */
+            /**************************************************************/
+    
+            len = strlen(valid_scene_list[i]);
+            landsat_number = atoi(sub_string(valid_scene_list[i],(len-19),1));
+            sprintf(filename, "%s_cfmask.img", valid_scene_list[i]);
+    
+            /**************************************************************/
+            /*                                                            */
+            /* Open the cfmask file, fseek and read.                      */
+            /*                                                            */
+            /**************************************************************/
+    
+            fp_bin[CFMASK_BAND][i] = open_raw_binary(filename,"rb");
+            if (fp_bin[CFMASK_BAND][i] == NULL)
+                printf("error open %d scene, %d bands files\n",i, CFMASK_BAND+1);
+    
+            fseek(fp_bin[CFMASK_BAND][i], (row * meta->samples + col)*sizeof(unsigned char), 
+                SEEK_SET);
+    
+            if (read_raw_binary(fp_bin[CFMASK_BAND][i], 1, 1,
+                sizeof(unsigned char), &fmask_buf[i]) != 0)
+                printf("error reading %d scene, %d bands\n",i, CFMASK_BAND+1);
+    
+            /**************************************************************/
+            /*                                                            */
+            /* If clear (0) water (1) or snow (3) update the counters and */
+            /* then read the image bands for this scene. Otherwise, save  */
+            /* time space and energy and skip this scene.                 */
+            /*                                                            */
+            /**************************************************************/
+    
+            // a bitmask should probably be set up to do these.......
+            //
+            switch (fmask_buf[i])
+            {
+                case CFMASK_CLEAR:
+                    clear_sum++;
+                    clr_sum++;
+                    break;
+                case CFMASK_WATER:
+                    water_sum++;
+                    clr_sum++;
+                    break;
+                case CFMASK_SHADOW:
+                    shadow_sum++;
+                    break;
+                case CFMASK_SNOW:
+                    sn_sum++;
+                    break;
+                case CFMASK_CLOUD:
+                    cloud_sum++;
+                    break;
+                case CFMASK_FILL:
+                    fill_sum++;
+                    break;
+                default:
+                    printf ("Unknown fmask value %d", fmask_buf[i]);
+                    break;
+            }
+    
+            if (fmask_buf[i] < CFMASK_FILL)
+            {
+                /**********************************************************/
+                /*                                                        */
+                /* valid pixel according to cfmask, so read the image     */
+                /* bands and update the number of valid scenes, the date  */
+                /* array, and the updated cfmask array.                   */
+                /*                                                        */
+                /**********************************************************/
+    
+                all_sum++;
+    
+                if (debug)
+                {
+                    printf("%d ", (int)fmask_buf[i]);
+                }
+    
+                for (k = 0; k < TOTAL_BANDS - 1; k++)
+                {
+                    len = strlen(scene_list[i]);
+                    landsat_number = atoi(sub_string(valid_scene_list[i],(len-19),1));
+                    if (landsat_number != 8)
+                    {
+                        if (k == 5)
+            	        sprintf(filename, "%s_sr_band%d.img", valid_scene_list[i], k+2);
+                        else if (k == 6)
+                            sprintf(filename, "%s_toa_band6.img", valid_scene_list[i]);
+                        else
+                            sprintf(filename, "%s_sr_band%d.img", valid_scene_list[i], k+1);
+                    }
+                    else
+                    {
+                        if (k == 6)
+                            sprintf(filename, "%s_toa_band10.img", valid_scene_list[i]);
+                        else 
+                            sprintf(filename, "%s_sr_band%d.img", valid_scene_list[i], k+2);
+                    }
+            
+                    fp_bin[k][valid_num_scenes] = open_raw_binary(filename,"rb");
+                    if (fp_bin[k][valid_num_scenes] == NULL)
+                        printf("error open %d scene, %d bands files\n",valid_num_scenes, k+1);
+                    if (k != 7)
+                        
+                    fseek(fp_bin[k][valid_num_scenes], (row * meta->samples + col)*sizeof(short int), SEEK_SET);
+                    if (read_raw_binary(fp_bin[k][valid_num_scenes], 1, 1,
+                        sizeof(short int), &buf[k][valid_num_scenes]) != 0)
+                        printf("error reading %d scene, %d bands\n",valid_num_scenes, k+1);
+                    
+                    close_raw_binary(fp_bin[k][valid_num_scenes]);
+    
+                    if (debug)
+                    {
+                        printf("%d ", (short int)buf[k][valid_num_scenes]);
+                    }
+    
+                }
+    
+                // update stuff
+                updated_fmask_buf[valid_num_scenes] = fmask_buf[i];
+                if (debug)
+                {
+                    printf("%d ", sdate[i]);
+                }
+                updated_sdate_array[valid_num_scenes] = sdate[i];
+                valid_num_scenes++;
+            }
+    
+            close_raw_binary(fp_bin[CFMASK_BAND][i]);
+        }
+
+    } // end of elseif stdin bracket
 
     snprintf (msg_str, sizeof(msg_str), "CCDC read_time=%s\n", ctime (&now));
         LOG_MESSAGE (msg_str, FUNC_NAME);
@@ -649,6 +943,7 @@ int main (int argc, char *argv[])
     if (verbose)
     {
         printf("  Number of total       pixels = %d\n", num_scenes);
+        printf("  Number of non-overlap pixels = %d\n", non_overlap_num_scenes);
         printf("  Number of fill (255)  pixels = %d\n", fill_sum);
         printf("  Number of non-fill    pixels = %d\n", all_sum);
         printf("  Number of clear  (0)  pixels = %d\n", clear_sum);
@@ -664,7 +959,8 @@ int main (int argc, char *argv[])
     }
 
     // if clr pct less than 50, return error, this syntax is invalid
-    if (clr_sum < (int) (0.5 * valid_num_scenes))
+    //if (clr_sum < (int) (0.5 * valid_num_scenes))
+    if (clr_sum < (int) (0.5 * all_sum))
         {
             RETURN_ERROR ("Not enough clear-sky pixels", FUNC_NAME, FAILURE);
         }
@@ -965,14 +1261,6 @@ int main (int argc, char *argv[])
         end = n_clr;
         printf("end_clr=%d\n",end);
 
-        free(fmask_buf);
-        free(updated_fmask_buf);
-        status = free_2d_array ((void **) buf);
-        if (status != SUCCESS)
-        {
-            RETURN_ERROR ("Freeing memory: buf\n", 
-                          FUNC_NAME, FAILURE);
-        }
 
         /* calculate median variogram */
 	for (k = 0; k < TOTAL_IMAGE_BANDS; k++)
@@ -1898,30 +2186,24 @@ int main (int argc, char *argv[])
         }
     }
 
+    free(updated_fmask_buf);
+    status = free_2d_array ((void **) buf);
+    if (status != SUCCESS)
+    {
+        RETURN_ERROR ("Freeing memory: buf\n", 
+                      FUNC_NAME, FAILURE);
+    }
+
     /* Free memory allocation */
-    free(sdate);
     free(updated_sdate_array);
     free(clrx);
     free(rmse);
-    free(id_range);
-    free(id_clr);
-    free(id_all);
-    free(id_sn);
-    free(ids);
-    free(ids_old);
-    free(bl_ids);
-    free(rm_ids);
     free(vec_mag);
+    free(id_range);
     status = free_2d_array ((void **) rec_v_dif);
     if (status != SUCCESS)
     {
         RETURN_ERROR ("Freeing memory: rec_v_dif\n", 
-                      FUNC_NAME, FAILURE);
-    }
-    status = free_2d_array ((void **) temp_v_dif);
-    if (status != SUCCESS)
-    {
-        RETURN_ERROR ("Freeing memory: temp_v_dif\n", 
                       FUNC_NAME, FAILURE);
     }
     status = free_2d_array ((void **) v_dif_mag);
@@ -1931,18 +2213,43 @@ int main (int argc, char *argv[])
                    FUNC_NAME, FAILURE);
     }
 
-    status = free_2d_array ((void **) scene_list);
-    if (status != SUCCESS)
+    if (!std_in)
     {
-        RETURN_ERROR ("Freeing memory: scene_list\n", FUNC_NAME,
+        free(fmask_buf);
+        free(meta);
+        free(sdate);
+        free(id_clr);
+        free(id_all);
+        free(id_sn);
+        status = free_2d_array ((void **) fp_bin);
+        if (status != SUCCESS)
+        {
+            RETURN_ERROR ("Freeing memory: fp_bin\n", FUNC_NAME,
+                          FAILURE);
+        }
+        status = free_2d_array ((void **) scene_list);
+        if (status != SUCCESS)
+        {
+            RETURN_ERROR ("Freeing memory: scene_list\n", FUNC_NAME,
                       FAILURE);
+        }
+        status = free_2d_array ((void **) valid_scene_list);
+        if (status != SUCCESS)
+        {
+            RETURN_ERROR ("Freeing memory: valid_scene_list\n", FUNC_NAME,
+                      FAILURE);
+        }
     }
 
-    status = free_2d_array ((void **) fp_bin);
+    free(ids);
+    free(ids_old);
+    free(rm_ids);
+    free(bl_ids);
+    status = free_2d_array ((void **) temp_v_dif);
     if (status != SUCCESS)
     {
-        RETURN_ERROR ("Freeing memory: fp_bin\n", FUNC_NAME,
-                      FAILURE);
+        RETURN_ERROR ("Freeing memory: temp_v_dif\n", 
+                      FUNC_NAME, FAILURE);
     }
 
     status = free_2d_array ((void **) clry);
@@ -1961,32 +2268,34 @@ int main (int argc, char *argv[])
 
     /* Output rec_cg structure to the output file 
        note: can use fread to read out the structure from the output file */
-    strcpy(outputBinary, outDir);
-    strcat(outputBinary, "/output.bin");
-    //fp_bin_out = fopen("output.bin", "wb");
-    fp_bin_out = fopen(outputBinary, "wb");
-    if (fp_bin_out == NULL)
+    if (!std_out)
     {
-        RETURN_ERROR ("Opening output.bin file\n", FUNC_NAME,
-                      FAILURE);
-    }
-    if (num_fc == 0)
-    {
-        status = fwrite(rec_cg, sizeof(Output_t), 1, fp_bin_out);
-        if (status != 1)
+        strcpy(outputBinary, outDir);
+        strcat(outputBinary, "/output.bin");
+        fp_bin_out = fopen(outputBinary, "wb");
+        if (fp_bin_out == NULL)
         {
-            RETURN_ERROR ("Writing output.bin file\n", FUNC_NAME, FAILURE);
+            RETURN_ERROR ("Opening output.bin file\n", FUNC_NAME,
+                          FAILURE);
         }
-    }
-    else
-    {
-        status = fwrite(rec_cg, sizeof(Output_t), num_fc, fp_bin_out);
-        if (status != num_fc)
+        if (num_fc == 0)
         {
-            RETURN_ERROR ("Writing output.bin file\n", FUNC_NAME, FAILURE);
+            status = fwrite(rec_cg, sizeof(Output_t), 1, fp_bin_out);
+            if (status != 1)
+            {
+                RETURN_ERROR ("Writing output.bin file\n", FUNC_NAME, FAILURE);
+            }
         }
+        else
+        {
+            status = fwrite(rec_cg, sizeof(Output_t), num_fc, fp_bin_out);
+            if (status != num_fc)
+            {
+                RETURN_ERROR ("Writing output.bin file\n", FUNC_NAME, FAILURE);
+            }
+        }
+        fclose(fp_bin_out);   
     }
-    fclose(fp_bin_out);   
 
     if (verbose)
     {
@@ -2003,13 +2312,17 @@ int main (int argc, char *argv[])
             {
                 for (k = 0; k < update_num_c; k++)
 		{
-                    // bdavis debug
-                    printf("i_b,k,rec_cg[0].coefs[i_b][k] = %d,%d,%f\n", 
-                         i_b,k,rec_cg[0].coefs[i_b][k]); 
+                    if (debug)
+                    {
+                        printf("i_b,k,rec_cg[0].coefs[i_b][k] = %d,%d,%f\n", 
+                                i_b,k,rec_cg[0].coefs[i_b][k]); 
+                    }
 		}
-                // bdavis debug
-                printf("rec_cg[0].rmse[i_b] = %f\n",rec_cg[0].rmse[i_b]);
-                printf("rec_cg[0].magnitude[i_b]=%f\n",rec_cg[0].magnitude[i_b]); 
+                if (debug)
+                {
+                    printf("rec_cg[0].rmse[i_b] = %f\n",rec_cg[0].rmse[i_b]);
+                    printf("rec_cg[0].magnitude[i_b]=%f\n",rec_cg[0].magnitude[i_b]); 
+                }
             }
 	}
 	else
@@ -2048,9 +2361,13 @@ int main (int argc, char *argv[])
     free(rec_cg);
 
     time (&now);
-    snprintf (msg_str, sizeof(msg_str),
-              "CCDC end_time=%s\n", ctime (&now));
-    LOG_MESSAGE (msg_str, FUNC_NAME);
+
+    if (!std_out)
+    {
+        snprintf (msg_str, sizeof(msg_str),
+                  "CCDC end_time=%s\n", ctime (&now));
+        LOG_MESSAGE (msg_str, FUNC_NAME);
+    }
 
     return SUCCESS;
 }
