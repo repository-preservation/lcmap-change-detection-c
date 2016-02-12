@@ -227,6 +227,7 @@ int main (int argc, char *argv[])
     int shadow_sum = 0;
     int cloud_sum = 0;
     int fill_sum = 0;
+    int inputs_specified;
     bool debug = 1;
     bool std_in = 0;             /* For doing lots of ifs.  stdin     */
     bool std_out = 0;            /* and stdout are reserved words.    */
@@ -275,6 +276,7 @@ int main (int argc, char *argv[])
 
     {
         scanf("%d", &valid_num_scenes);
+        inputs_specified = valid_num_scenes;
         std_in = true;
     }
     else
@@ -533,6 +535,7 @@ int main (int argc, char *argv[])
             strcat(scene_list[i], tmpstr);
         }
         num_scenes = i;
+        inputs_specified = num_scenes;
         
         /* Now that we konw the actual number of scenes, allocate     */
         /* memory for date array.                                     */
@@ -950,7 +953,7 @@ int main (int argc, char *argv[])
 
     if (verbose)
     {
-        printf("  Number of total       pixels = %d\n", num_scenes);
+        printf("  Number inputs specified      = %d\n", inputs_specified);
         printf("  Number of non-overlap pixels = %d\n", non_overlap_num_scenes);
         printf("  Number of fill (255)  pixels = %d\n", fill_sum);
         printf("  Number of non-fill    pixels = %d\n", all_sum);
@@ -968,10 +971,17 @@ int main (int argc, char *argv[])
 
     // if clr pct less than 50, return error, this syntax is invalid
     //if (clr_sum < (int) (0.5 * valid_num_scenes))
+    // bdavis 
+    // 20160211, per zhezhu, not that we are processing from gridded
+    // inputs, everything is pixel-based, not scene-based, so the
+    // algorithm itslef can determine whether there are enough pixels
+    // to make a judgement.
+    /*
     if (clr_sum < (int) (0.5 * all_sum))
         {
             RETURN_ERROR ("Not enough clear-sky pixels", FUNC_NAME, FAILURE);
         }
+     */
 
 
     /* CHANGE: need change back to 0-6 from 1-7 if original 
