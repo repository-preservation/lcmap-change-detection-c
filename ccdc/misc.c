@@ -1376,7 +1376,8 @@ int auto_mask
     w = TWO_PI / AVE_DAYS_IN_A_YEAR;
     w2 = w / (float)year;
 
-    printf("start=%d\n",start);
+    // bdavis 
+    //printf("start=%d\n",start);
     for (i = 0; i < nums; i++)
     {
         x[i][0] = cos(w * (float)clrx[i+start]);
