@@ -2444,14 +2444,14 @@ int main (int argc, char *argv[])
 		{
                     if ((debug) || (std_out))
                     {
-                        printf("%d %d %f\n", 
-                                i_b,k,rec_cg[0].coefs[i_b][k]); 
+                        printf("%f\n", 
+                                rec_cg[0].coefs[i_b][k]); 
                     }
 		}
                 if ((debug) || (std_out))
                 {
-                    printf("%d %f\n",i_b,rec_cg[0].rmse[i_b]);
-                    printf("%d %f\n",i_b,rec_cg[0].magnitude[i_b]); 
+                    printf("%f\n",rec_cg[0].rmse[i_b]);
+                    printf("%f\n",rec_cg[0].magnitude[i_b]); 
                 }
             }
 	}
@@ -2460,13 +2460,13 @@ int main (int argc, char *argv[])
             for (i = 0; i < num_fc; i++)
             {
                 //printf("i=%d\n",i);
-                printf("%d %d\n",i,rec_cg[i].t_start);
-                printf("%d %d\n",i,rec_cg[i].t_end);
-                printf("%d %d\n",i,rec_cg[i].t_break);
-                printf("%d %d\n",i,rec_cg[i].pos.row);
-                printf("%d %d\n",i,rec_cg[i].pos.col);
-                printf("%d %d\n",i,rec_cg[i].num_obs);
-                printf("%d %d\n",i,rec_cg[i].category);
+                printf("%d\n",rec_cg[i].t_start);
+                printf("%d\n",rec_cg[i].t_end);
+                printf("%d\n",rec_cg[i].t_break);
+                printf("%d\n",rec_cg[i].pos.row);
+                printf("%d\n",rec_cg[i].pos.col);
+                printf("%d\n",rec_cg[i].num_obs);
+                printf("%d\n",rec_cg[i].category);
                 for (i_b = 0; i_b < TOTAL_IMAGE_BANDS; i_b++)
                 {
                     for (k = 0; k < update_num_c; k++)
@@ -2475,13 +2475,13 @@ int main (int argc, char *argv[])
                         // I belive the indecies being printed were incorrect.
                         // changed i_b,k,i
                         // to      i,i_b,k
-                        printf("%d %d %d %f\n", 
-                             i,i_b,k,rec_cg[i].coefs[i_b][k]); 
+                        printf("%f\n", 
+                             rec_cg[i].coefs[i_b][k]); 
                         //printf("i_b,k,rec_cg[%d].coefs[i_b][k] = %d,%d,%f\n", 
                         //     i_b,k,i,rec_cg[i].coefs[i_b][k]); 
 		    }
-                    printf("%d %f\n",i,rec_cg[i].rmse[i_b]);
-                    printf("%d %f\n",i,rec_cg[i].magnitude[i_b]); 
+                    printf("%f\n",rec_cg[i].rmse[i_b]);
+                    printf("%f\n",rec_cg[i].magnitude[i_b]); 
                 }
 	    }
         }
