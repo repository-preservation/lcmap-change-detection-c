@@ -1,6 +1,6 @@
 # Configuration
-SRC_DIR = ./
-SCRIPTS ?= ./scripts
+SRC_DIR = .
+SCRIPTS = ./scripts
 BIN ?= ../bin
 XML2INC ?= /usr/include/libxml2/libxml
 ESPAINC ?=
@@ -8,12 +8,12 @@ GSL_SCI_INC ?= /usr/include/gsl
 GSL_SCI_LIB ?= /usr/lib
 
 # Set up compile options
-CC ?= gcc
-FORTRAN ?= gfortran
+CC = gcc
+FORTRAN = gfortran
 RM = rm -f
 MV = mv
 EXTRA = -Wall -Wextra -g
-FFLAGS = -g -fdefault-real-8
+FFLAGS=-g -fdefault-real-8
 
 # Define the include files
 INC = $(wildcard $(SRC_DIR)/*.h)

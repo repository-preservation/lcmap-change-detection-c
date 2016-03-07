@@ -3,6 +3,7 @@
 #include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/timeb.h>
 
 #include "const.h"
 #include "2d_array.h"
@@ -39,10 +40,6 @@
 
 const char scene_list_name[] = {"scene_list.txt"};
 int lasso_blist[NUM_LASSO_BANDS] = {1, 2, 3, 4, 5}; /* This is band index */
-int cmpfunc (const void * a, const void * b)
-{
-   return ( *(float*)a - *(float*)b );
-}
 
 char *sub_string
 (
@@ -64,8 +61,9 @@ char *sub_string
     return target;
 }
 
-/*****************************************************************************
- *
+
+/******************************************************************************
+
 METHOD:  ccdc
 
 PURPOSE:  the main routine for CCDC (Continuous Change Detection and 
@@ -107,13 +105,11 @@ Date        Programmer       Reason
                              overlap in two scenes in a swath is very
                              small, we do not want to throw away the
                              entire "scene".  However, this requires
-                             calculation of the x/y distances from the
-                             bottom of upper scene and top of lower
-                             scene.  No known such table exists.
-http://www.oneonta.edu/faculty/baumanpr/geosat2/RS%20Landsat/RS-Landsat.htm
-Landsats 1-3 scene centers are chosen at approximately 25-second increments of spacecraft time in either direction from the equator with each scene equal to approximately 163 km (101 miles) on the Earth's surface plus about 10 percent in-track overlap (5 percent for Landsat 3) added by the ground processor.
-
-However, in ESPA "grids", this is much harder to determine.
+                             checking the fmask values for fill.  Only
+                             if both upper scene and lower scene cfmask
+                             values are non-fill is the x/y location in
+                             an area of "pixel overlap", otherwise it is
+                             "scene overlap" if one of them is fill.
 
 When reading fmask values to detmermine fill vs. usability,
 those "scenes" have been sorted, so one could test for:
@@ -121,8 +117,7 @@ If  current fmask and prev fmask are not FILL AND
     current path   =  prev path               AND
     current row    =  prev row -1             AND
     current year   =  prev year               AND
-    current jdate  =  prev jdate             (AND perhaps)
-    current sr val =  prev sr val ( for all bands -test this)
+    current jdate  =  prev jdate             
 then assume "pixel overlap".
 
 NOTES: type ./ccdc --help for information to run the code
@@ -141,27 +136,24 @@ second digit:
 6: model has 5 coefs + 1 const
 8: model has 7 coefs + 1 const
 
-Note: The commented out parts of code is the inputs using ESPA putputs,
-      the current input part is only for reading inputs from Zhe's code
-
-*****************************************************************************/
+*******************************************************************************/
 int main (int argc, char *argv[])
 {
-    char FUNC_NAME[] = "main";       /* for printing error messages         */
-    char msg_str[MAX_STR_LEN];       /* input data scene name               */
-    char filename[MAX_STR_LEN];      /* input binary filenames              */
-    int status;                      /* return value from function call     */
-    Output_t *rec_cg = NULL;         /* output structure and metadata       */
-    bool verbose;                    /* verbose flag for printing messages  */
-    int i, k, m, b, k_new;           /* loop counters                       */
-    char **scene_list = NULL;        /* 2-D array for list of scene IDs     */
-    char **valid_scene_list = NULL;  /* 2-D array for list of filtered      */
-                                     /* scene IDs                           */
-    FILE *fd;                        /* file descriptor for file            */
-                                     /* containing scene names              */
-    int num_scenes = MAX_SCENE_LIST; /* number of input scenes defined      */
-    int num_c = 8;                   /* max number of coefficients for model*/
-    int num_fc = 0;                  /* intialize NUM of Functional Curves  */
+    char FUNC_NAME[] = "main";       /* for printing error messages           */
+    char msg_str[MAX_STR_LEN];       /* input data scene name                 */
+    char filename[MAX_STR_LEN];      /* input binary filenames                */
+    int status;                      /* return value from function call       */
+    Output_t *rec_cg = NULL;         /* output structure and metadata         */
+    bool verbose;                    /* verbose flag for printing messages    */
+    int i, k, m, b, k_new;           /* loop counters                         */
+    char **scene_list = NULL;        /* 2-D array for list of scene IDs       */
+    char **valid_scene_list = NULL;  /* 2-D array for list of filtered        */
+                                     /* scene IDs                             */
+    FILE *fd;                        /* file descriptor for file              */
+                                     /* containing scene names                */
+    int num_scenes = MAX_SCENE_LIST; /* number of input scenes defined        */
+    int num_c = 8;                   /* max number of coefficients for model  */
+    int num_fc = 0;                  /* intialize NUM of Functional Curves    */
     int rec_fc;
     float v_start[NUM_LASSO_BANDS];
     float v_end[NUM_LASSO_BANDS];
@@ -173,11 +165,11 @@ int main (int argc, char *argv[])
     Input_meta_t *meta;
     int row, col;
     int landsat_number;
-    int clr_sum = 0;
-    int sn_sum = 0;
-    int all_sum = 0;
-    float sn_pct;
-    float clr_pct;
+    int clr_sum = 0;                 /* total number of clear cfmask pixels   */
+    int sn_sum = 0;                  /* total number of snow  cfmask pixels   */
+    int all_sum = 0;                 /* total of all cfmask pixels            */
+    float sn_pct;                    /* percent snow cfmask pixels            */
+    float clr_pct;                   /* percent clear cfmask pixels           */
     int n_sn = 0;
     int n_clr = 0;
     int *id_clr;
@@ -212,6 +204,7 @@ int main (int argc, char *argv[])
     float v_dif_mean;
     float vec_magg_min;
     float **rec_v_dif;
+    float **rec_v_dif_copy;
     float **temp_v_dif;
     float adj_rmse[TOTAL_IMAGE_BANDS];
     float mini_rmse;
@@ -229,63 +222,68 @@ int main (int argc, char *argv[])
     int ini_conse;
     float break_mag;
     int ids_len;
-    unsigned char *fmask_buf;
-    unsigned char *updated_fmask_buf;
+    unsigned char *fmask_buf;       /* cfmask pixel value array.              */
+    unsigned char *updated_fmask_buf;/*sub-set of fmask buf, valid pixels only*/
     int **buf;
     FILE ***fp_bin;
 
-    char inDir[MAX_STR_LEN];    /* directory location of input data/files     */
-    char outDir[MAX_STR_LEN];   /* directory location for output files        */
-    char sceneListFileName[MAX_STR_LEN];   /* file name containing list of input sceneIDs */
-    char sceneList[MAX_STR_LEN]; /* optional input argument for file of list of scenes */
-    char tmpstr[MAX_STR_LEN];   /* char string for text manipulation */
-    int len;                    /* return of strlen for manipulating strings */
-    char outputBinary[MAX_STR_LEN]; /* directory and file name for output.bin */
-    char hdr_name[MAX_STR_LEN]; /* string for header file to read, different for LC8 */
+    char in_path[MAX_STR_LEN];      /* directory location of input data/files */
+    char out_path[MAX_STR_LEN];     /* directory location for output files    */
+    char data_type[MAX_STR_LEN];    /* tifs, bip, stdin. Future: bsq, "rods". */
+    char scene_list_filename[MAX_STR_LEN]; /* file name containing list of input sceneIDs */
+    char scene_list_file[MAX_STR_LEN]; /* optional input argument for file of list of scenes */
+    char tmpstr[MAX_STR_LEN];       /* char string for text manipulation      */
+    char short_scene[MAX_STR_LEN];  /* char string for text manipulation      */
+    int len;                        /* return of strlen for manipulating strings */
+    char output_binary[MAX_STR_LEN];/* directory and file name for output.bin */
+    char directory[MAX_STR_LEN];
+    char scene_name[MAX_STR_LEN];
 
-    int valid_num_scenes;       /* number of scenes after cfmask counts and   */
-                                /* swath overlap eliminated */
-    //int non_overlap_num_scenes = 0; /* count of scenes after overlap eliminated */
-    int clear_sum = 0;
-    int water_sum = 0;
-    int shadow_sum = 0;
-    int cloud_sum = 0;
-    int fill_sum = 0;
-    int inputs_specified;
-    bool debug = 1;
-    bool std_in = 0;             /* For doing lots of ifs.  stdin     */
-    bool std_out = 0;            /* and stdout are reserved words.    */
-    bool end_of_file = 0;        /* to identify end of stdin.         */
-    int j;                       /* Loop counter.                     */
-    int wrs_path;                /* Worldwide Reference System row    */
-    int wrs_row = 0;             /* for the current swath, this       */
-    int year;                    /* group of variables is for         */
-    int jday;                    /* filtering out swath overlap, and  */
-    int prev_wrs_path = 0;       /* using the first of two scenes in a*/
-    int prev_wrs_row = 0;        /* swath, because it is recommended  */
-    int prev_year = 0;           /* to use the meta  data from the    */
-    int prev_jday = 0;           /* first for things like sun able,   */
-    unsigned char prev_fmask_buf;/* etc. However, always removing that*/
-    int valid_scene_count = 0;
-    int swath_overlap_count = 0;
-                                 /* x/y location specified is not in  */
-                                 /* the overlap area.                 */
+    int inputs_specified;        /* the number input scenes defined.          */
+    int valid_num_scenes;        /* number of scenes after cfmask counts and  */
+                                 /* swath overlap eliminated                  */
+    int water_sum = 0;           /* counter for cfmask water pixels.          */
+    int shadow_sum = 0;          /* counter for cfmask shadow pixels.         */
+    int cloud_sum = 0;           /* counter for cfmask cloud pixels.          */
+    int fill_sum = 0;            /* counter for cfmask fill pixels.           */
+    bool debug = 1;              /* This replaces the "ifdef 0" convention.   */
+    bool std_in = 0;             /* For doing lots of ifs.  "stdin"           */
+    bool std_out = 0;            /* and "stdout" are reserved words.          */
+    bool end_of_file = 0;        /* To identify end of stdin.                 */
+    int j;                       /* Loop counter.                             */
+    int wrs_path;                /* Worldwide Reference System row            */
+    int wrs_row = 0;             /* for the current swath, this               */
+    int year;                    /* group of variables is for                 */
+    int jday;                    /* filtering out swath overlap, and          */
+    int prev_wrs_path = 0;       /* using the first of two scenes in a        */
+    int prev_wrs_row = 0;        /* swath, because it is recommended          */
+    int prev_year = 0;           /* to use the meta  data from the            */
+    int prev_jday = 0;           /* first for things like sun anle,           */
+    unsigned char prev_fmask_buf;/* etc. However, always removing a specific  */
+    int valid_scene_count = 0;   /* x/y location specified is not valid be-   */
+    int swath_overlap_count = 0; /* it may or may not be in an overlap area.  */
     time_t now;
     time (&now);
 
     if (verbose)
     {
-        snprintf (msg_str, sizeof(msg_str), "CCDC start_time=%s\n", ctime (&now));
+        snprintf (msg_str, sizeof(msg_str), "CCDC version 05.00 start_time=%s\n", ctime (&now));
         LOG_MESSAGE (msg_str, FUNC_NAME);
     }
 
-    /* Initialize the input and output directory specification, */
-    /* because they are optional.                               */
-    strcpy(inDir, "");
-    strcpy(outDir, "");
+    /******************************************************************/
+    /*                                                                */
+    /* Initialize the input and output directory specification.       */
+    /* Because they are optional, this prevents fails of strcmp.      */
+    /*                                                                */
+    /******************************************************************/
+
+    strcpy(in_path, "");
+    strcpy(out_path, "");
 
     /* Read the command-line arguments */
-    status = get_args (argc, argv, &row, &col, inDir, outDir, sceneList, &verbose);
+    status = get_args (argc, argv, &row, &col, in_path, out_path, data_type,
+                       scene_list_file, &verbose);
     if (status != SUCCESS)
     {
         RETURN_ERROR ("calling get_args", FUNC_NAME, EXIT_FAILURE);
@@ -294,16 +292,14 @@ int main (int argc, char *argv[])
     /******************************************************************/
     /*                                                                */
     /* Check for stdin and stdout, and then allocate memory here, for */
-    /* for pointers used in both stdin and file-system I/O branches,  */
+    /* pointers used in both stdin and file-system I/O branches,  and */
     /* for pointers used in the ccdc algorithm portion for both cases.*/
     /*                                                                */
     /******************************************************************/
 
-    if (strcmp(sceneList, "stdin") == 0)
+    if (strcmp(data_type, "stdin") == 0)
 
     {
-        //scanf("%d", &valid_num_scenes);
-        //inputs_specified = valid_num_scenes;
         std_in = true;
         valid_num_scenes = num_scenes; // worst case
         // bdavis 
@@ -314,7 +310,7 @@ int main (int argc, char *argv[])
         valid_num_scenes = num_scenes; // worst case
     }
 
-    if (strcmp(outDir, "stdout") == 0)
+    if (strcmp(out_path, "stdout") == 0)
     {
         std_out = true;
         verbose = false;
@@ -324,10 +320,10 @@ int main (int argc, char *argv[])
     if (verbose)
     {
         printf("row,col,verbose=%d,%d,%d\n",row,col,verbose);
-        printf("Input Directory:  %s\n", inDir);
-        printf("Output Directory: %s\n", outDir);
-        printf("sceneList: %s\n", sceneList);
-        printf("outputBinary: %s\n", outputBinary);
+        printf("Input Directory:  %s\n", in_path);
+        printf("Output Directory: %s\n", out_path);
+        printf("scene_list_file: %s\n", scene_list_file);
+        printf("output_binary: %s\n", output_binary);
     }
 
     updated_fmask_buf = malloc(valid_num_scenes * sizeof(unsigned char));
@@ -445,16 +441,25 @@ int main (int argc, char *argv[])
         {
             RETURN_ERROR ("Allocating rec_v_dif memory",FUNC_NAME, FAILURE);
         }
+        rec_v_dif_copy = (float **)allocate_2d_array(TOTAL_IMAGE_BANDS, valid_num_scenes,
+                                         sizeof (float));
+        if (rec_v_dif_copy == NULL)
+        {
+            RETURN_ERROR ("Allocating rec_v_dif_copy memory",FUNC_NAME, FAILURE);
+        }
     
         /**************************************************************/
         /*                                                            */
-        /* this assumes order of cfmask band value, then 7 SR and     */
+        /* For stdin:                                                 */
+        /* this assumes order of: julian date value, then 6 SR and 1  */
         /* thermal band values, then cfmask band values, each         */
-        /* set/group together per scene for number  of scenes.        */
+        /* set/group together, culiminated with a newline per scene,  */
+        /* for number of scenes. For example:                         */
+        /* 2456445 94 156 164 758 807 492 2809 0                      */
         /*                                                            */
         /**************************************************************/
+
         i = 0;
-        //for (i = 0; i < valid_num_scenes; i++)
         while (!end_of_file)
         {
             if (scanf("%d", &updated_sdate_array[i]) == EOF)
@@ -475,16 +480,15 @@ int main (int argc, char *argv[])
                     printf( "You entered: %d\n", buf[j][i]);
             }
 
-            //scanf("%u", &updated_fmask_buf[i]);
             scanf("%hhu", &updated_fmask_buf[i]);
             if (debug)
                 printf( "You entered: %u\n", updated_fmask_buf[i]);
 
-            /* this needs to be put in a function call because it exists in 2 places */
+            // bdavis 
+            /* this needs to be put in a function call cause it exists in 2 places */
             switch (updated_fmask_buf[i])
             {
                 case CFMASK_CLEAR:
-                    clear_sum++;
                     clr_sum++;
                     break;
                 case CFMASK_WATER:
@@ -514,7 +518,6 @@ int main (int argc, char *argv[])
    
         valid_num_scenes = i;
         printf ("\n");
-        //return -1;
 
     }
 
@@ -538,28 +541,27 @@ int main (int argc, char *argv[])
 
         /* check if scene_list.txt file exists, if not, create the scene_list
            from existing files in the current data working directory */
-        //if (access(scene_list_name, F_OK) != -1) /* File exists */
-        if (access(sceneList, F_OK) != 0) /* File does not exist */
+        if (access(scene_list_file, F_OK) != 0) /* File does not exist */
         {
-            strcpy (sceneListFileName, inDir);
-            strcat(sceneListFileName, "/scene_list.txt");
-            if (access(sceneListFileName, F_OK) != -1) /* File exists */
+            strcpy (scene_list_filename, in_path);
+            strcat(scene_list_filename, "/scene_list.txt");
+            if (access(scene_list_filename, F_OK) != -1) /* File exists */
             {
                 num_scenes = MAX_SCENE_LIST;
             }
             else /* Default File exists */
             {
-                status = create_scene_list(hdr_name, sceneListFileName);
+                status = create_scene_list("L*", &num_scenes, scene_list_filename);
                 if(status != SUCCESS)
                 RETURN_ERROR("Running create_scene_list file", FUNC_NAME, FAILURE);
             }
         }
         else /* File exists */
         {
-            strcpy(sceneListFileName, sceneList);
+            strcpy(scene_list_filename, scene_list_file);
         }
     
-        fd = fopen(sceneListFileName, "r");
+        fd = fopen(scene_list_filename, "r");
         if (fd == NULL)
         {
             RETURN_ERROR("Opening scene_list file", FUNC_NAME, FAILURE);
@@ -575,7 +577,7 @@ int main (int argc, char *argv[])
         {
             if (fscanf(fd, "%s", tmpstr) == EOF)
                 break;
-            strcpy(scene_list[i], inDir);
+            strcpy(scene_list[i], in_path);
             strcat(scene_list[i], "/");
             strcat(scene_list[i], tmpstr);
         }
@@ -597,7 +599,7 @@ int main (int argc, char *argv[])
             printf("num_scenes %d\n", num_scenes);
             printf("scene_list[0]=%s\n", scene_list[0]);
         }
-        status = sort_scene_based_on_year_doy(scene_list, num_scenes, sdate);
+        status = sort_scene_based_on_year_doy_row(scene_list, num_scenes, sdate);
         if (status != SUCCESS)
         {
             RETURN_ERROR ("Calling sort_scene_based_on_year_jday", 
@@ -606,18 +608,17 @@ int main (int argc, char *argv[])
     
         /******************************************************************/
         /*                                                                */
-        /* Eliminate swath overlap.  So, if path and year and day are the */
-        /* same, and row is 1 less than previous, remove the first of the */
-        /* two scenes.  This assumes the scenes are sorted above and      */
-        /* before arriving here.  One would think the result of the sort  */
-        /* would be a smaller row number would preceed a larger row       */
-        /* number, but the reverse is the case.  Therefore, remove the    */
-        /* first of the two adjacent scenes of the same swath in the      */
-        /* list, not the second.                                          */
+        /* Do all of the me memory allocations for buffers/arrays which   */
+        /* required to do the reading of files for pixel value assessment */
+        /* and storage. Fill value pixels and "pixel overlap" pixels      */
+        /* will not be saved and used to update counters.                 */
+        /* Also, do the remaining allocations for all buffers/arrays      */
+        /* necessary for the ccdc algorithm, because after filling the    */
+        /* band data arrays here, that will be the next step.             */
         /*                                                                */
         /******************************************************************/
 
-        /* allocate memory for fp_bin, need testing */
+        /* allocate memory for fp_bin */
         fp_bin = (FILE ***) allocate_2d_array (TOTAL_BANDS, num_scenes,
                                              sizeof (FILE*));
         if (fp_bin == NULL)
@@ -727,6 +728,12 @@ int main (int argc, char *argv[])
         {
             RETURN_ERROR ("Allocating rec_v_dif memory",FUNC_NAME, FAILURE);
         }
+        rec_v_dif_copy = (float **)allocate_2d_array(TOTAL_IMAGE_BANDS, valid_num_scenes,
+                                         sizeof (float));
+        if (rec_v_dif_copy == NULL)
+        {
+            RETURN_ERROR ("Allocating rec_v_dif_copy memory",FUNC_NAME, FAILURE);
+        }
     
         /* Allocate memory for temp_v_dif */
         temp_v_dif = (float **)allocate_2d_array(TOTAL_IMAGE_BANDS, num_scenes,
@@ -750,8 +757,26 @@ int main (int argc, char *argv[])
         }
     
         /* Get the metadata, all scene metadata are the same for stacked scenes */
-        status = read_envi_header(scene_list[0], meta);
-        //status = read_envi_header("LC80460272013120LGN01_MTLstack", meta);
+        if (strcmp(data_type, "tifs") == 0)
+        {
+            //strcpy(filename, scene_list[0]);
+            sprintf(filename, "%s_sr_band1.hdr", scene_list[0]);
+        }
+        else
+        {
+            len = strlen(scene_list[0]);
+            strncpy(short_scene, scene_list[0], len-5);
+            split_directory_scenename(scene_list[0], directory, scene_name);
+            if (strncmp(short_scene, ".", 1) == 0)
+            {
+                strncpy(tmpstr, short_scene + 2, len - 2);
+                sprintf(filename, "%s/%s_MTLstack.hdr", tmpstr, scene_name);
+            }
+            else
+                sprintf(filename, "%s/%s_MTLstack.hdr", short_scene, scene_name);
+        }
+
+        status = read_envi_header(filename, meta);
         if (status != SUCCESS)
         {
             RETURN_ERROR ("Calling read_envi_header", 
@@ -777,15 +802,18 @@ int main (int argc, char *argv[])
         /* Previously, all data was read, then cfmask was checked after   */
         /* the last loop, and was accidentally checked because the cfmask */
         /* file just happend to be the last file read.  However, when     */
-        /* checking for valid values 50 percent or greater the            */
+        /* checking for valid values of 50 percent or greater the         */
         /* calculation was done incorecctly, was always zero, so          */
-        /* all cases were passed along to the cced algorithm, even if     */
-        /* there were less than 50 percent valid pixels.                  */
+        /* all cases were passed along to the ccdc algorithm, even if     */
+        /* there were less than 50 percent valid pixels, and sometimes,   */
+        /* even if there was no valid data, or not enough valid data,     */
+        /* which caused data-dependent crashes.                           */
         /*                                                                */
         /* Furthermore, FILL_VALUE for cfmask is defined in ccdc.h,       */
         /* but nowhere for the image bands.  Both should really be read   */
         /* from the .xml metadata file provided by ESPA, but it is not    */
-        /* populated along with other ARD files, currently.               */
+        /* populated along with other ARD files, currently. Optionally,   */
+        /* user environment variables could be defined and parsed.        */
         /*                                                                */
         /******************************************************************/
     
@@ -816,7 +844,7 @@ int main (int argc, char *argv[])
             /* the same, and the rows are different by 1, and both fmask  */
             /* values are NOT fill, then this is a case of swath (pixel)  */
             /* overlap, so use the lesser row number of the two, and      */
-            /* throw away the grerater row of the tow, and update the     */
+            /* throw away the grerater row of the two, and update the     */
             /* valid scene list accordingly.   If only one of the two     */
             /* fmask values are FILL, then we are not in an area of swath */
             /* overlap, and the later check for fill will elinimate the   */
@@ -858,12 +886,11 @@ int main (int argc, char *argv[])
                 /*                                                            */
                 /**************************************************************/
 
-                // a bitmask should probably be set up to do these.......
+                // a bitmask could probably be set up to do these.......
                 //
                 switch (fmask_buf[i])
                 {
                     case CFMASK_CLEAR:
-                        clear_sum++;
                         clr_sum++;
                         break;
                     case CFMASK_WATER:
@@ -997,7 +1024,7 @@ int main (int argc, char *argv[])
         printf("  Number of non-overlap pixels = %d\n", (inputs_specified - swath_overlap_count));
         printf("  Number of fill (255)  pixels = %d\n", fill_sum);
         printf("  Number of non-fill    pixels = %d\n", all_sum);
-        printf("  Number of clear  (0)  pixels = %d\n", clear_sum);
+        printf("  Number of clear  (0)  pixels = %d\n", clr_sum);
         printf("  Number of water  (1)  pixels = %d\n", water_sum);
         printf("  Number of shadow (2)  pixels = %d\n", shadow_sum);
         printf("  Number of snow   (3)  pixels = %d\n", sn_sum);
@@ -1023,7 +1050,8 @@ int main (int argc, char *argv[])
         }
      */
 
-
+    // bdavis 
+    // not sure what this means.....
     /* CHANGE: need change back to 0-6 from 1-7 if original 
        inputs are used ???????? */
     /* pixel value ranges should follow physical rules */
@@ -1063,6 +1091,7 @@ int main (int argc, char *argv[])
     {
         if (sn_pct > T_SN)
         {
+            n_sn = 0;
             /* snow observations are "good" now */
             for (i = 0; i < valid_num_scenes; i++)
             { 
@@ -1078,6 +1107,9 @@ int main (int argc, char *argv[])
                 }
             }  
             end = n_sn;
+
+            /* Remove repeated ids */
+            matlab_unique(clrx, clry, n_sn, &end);
 
             free(updated_fmask_buf);
             status = free_2d_array ((void **) buf);
@@ -1157,7 +1189,7 @@ int main (int argc, char *argv[])
             rec_cg[num_fc].pos.col = col; 
             for (i_b = 0; i_b < TOTAL_IMAGE_BANDS; i_b++)
             {
-                for (k = 0; k < MIN_NUM_C; k++)
+                for (k = 0; k < MAX_NUM_C; k++)
 		{
                     /* record fitted coefficients */
                     rec_cg[num_fc].coefs[i_b][k] = fit_cft[i_b][k];
@@ -1189,6 +1221,7 @@ int main (int argc, char *argv[])
         else
         {
             /* snow observations are "good" now */
+            n_clr = 0;
             for (i = 0; i < valid_num_scenes; i++)
             { 
                 if (id_range[i] == 1)
@@ -1200,6 +1233,9 @@ int main (int argc, char *argv[])
                 }   
             }
             end = n_clr;
+
+            /* Remove repeated ids */
+            matlab_unique(clrx, clry, n_clr, &end);
 
             free(updated_fmask_buf);
             status = free_2d_array ((void **) buf);
@@ -1215,8 +1251,10 @@ int main (int argc, char *argv[])
 
 	    n_clr = 0;
 	    float band2_median;
+            quick_sort_float(clry[1], 0, end - 1);
             matlab_2d_float_median(clry, 1, end, &band2_median);
 
+            n_clr = 0;
             for (i = 0; i < end; i++)
             {
 		if (clry[1][i] < (band2_median + 400.0))
@@ -1266,7 +1304,7 @@ int main (int argc, char *argv[])
             rec_cg[num_fc].pos.col = col; 
             for (i_b = 0; i_b < TOTAL_IMAGE_BANDS; i_b++)
             {
-                for (k = 0; k < MIN_NUM_C; k++)
+                for (k = 0; k < MAX_NUM_C; k++)
 		{
                     /* record fitted coefficients */
                     rec_cg[num_fc].coefs[i_b][k] = fit_cft[i_b][k];
@@ -1307,6 +1345,7 @@ int main (int argc, char *argv[])
             printf("Fmask works, clear pixels (land/water) = %f\n", 100.0 * clr_pct);
         }
 
+        n_clr = 0;
         for (i = 0; i < valid_num_scenes; i++)
         { 
             if ((updated_fmask_buf[i] < 2) && (id_range[i] == 1))
@@ -1314,7 +1353,7 @@ int main (int argc, char *argv[])
                 clrx[n_clr] = updated_sdate_array[i];
                 for (k = 0; k < TOTAL_IMAGE_BANDS; k++)
 		{
-		  clry[k][n_clr] = (float)buf[k][i];
+		    clry[k][n_clr] = (float)buf[k][i];
 		}
                 n_clr++;
             }   
@@ -1325,6 +1364,8 @@ int main (int argc, char *argv[])
             printf("end_clr=%d\n",end);
         }
 
+        /* Remove repeated ids */
+        matlab_unique(clrx, clry, n_clr, &end);
 
         /* calculate median variogram */
 	for (k = 0; k < TOTAL_IMAGE_BANDS; k++)
@@ -1485,7 +1526,7 @@ int main (int argc, char *argv[])
                         continue;    /* not enough time */
                     }
 
-                    /* remove noise */
+                    /* remove noise in original arrays */
                     for (k = 0; k < end; k++)
                     {
                         clrx[k] = cpx[k];
@@ -1677,6 +1718,7 @@ int main (int argc, char *argv[])
 				    }
                                 }
                                 i--;
+                                end--;
 
                                 /* update i_start if i_ini is not a confirmed break */
                                 i_start = i_ini;
@@ -1737,6 +1779,7 @@ int main (int argc, char *argv[])
                         /* record change magnitude */
                         for (i_b = 0; i_b < TOTAL_IMAGE_BANDS; i_b++)
                         {
+                            quick_sort_float(v_dif_mag[i_b], 0, ini_conse-1);
                             matlab_2d_float_median(v_dif_mag, i_b, ini_conse, 
                                                   &v_dif_mean);
                             rec_cg[num_fc].magnitude[i_b] = -v_dif_mean; 
@@ -1787,6 +1830,8 @@ int main (int argc, char *argv[])
                     update_cft(i_span, N_TIMES, MIN_NUM_C, MID_NUM_C, MAX_NUM_C, 
                               num_c, &update_num_c);
 
+                    /* initial model fit when there are not many obs */
+                    // if (i_count == 0 || ids_old_len < (N_TIMES * MAX_NUM_C))
                     if (i_count == 0 || i_span <= (N_TIMES * MAX_NUM_C))
                     {
                        /* update i_count at each iteration */
@@ -1816,7 +1861,7 @@ int main (int argc, char *argv[])
                        rec_cg[num_fc].pos.col = col; 
                        for (i_b = 0; i_b < TOTAL_IMAGE_BANDS; i_b++)
                        {
-                           for (k = 0; k < update_num_c; k++)
+                           for (k = 0; k < MAX_NUM_C; k++)
 			   {
                                /* record fitted coefficients */
                                rec_cg[num_fc].coefs[i_b][k] = fit_cft[i_b][k]; 
@@ -1900,7 +1945,7 @@ int main (int argc, char *argv[])
                             /* record fitted coefficients */
                             for (i_b = 0; i_b < TOTAL_IMAGE_BANDS; i_b++)
                             {
-                                for (k = 0; k < update_num_c; k++)
+                                for (k = 0; k < MAX_NUM_C; k++)
 				{
                                     /* record fitted coefficients */
                                     rec_cg[num_fc].coefs[i_b][k] = fit_cft[i_b][k];
@@ -1955,37 +2000,42 @@ int main (int argc, char *argv[])
                             d_yr[m] = fabs(round((float)d_rt / NUM_YEARS) * NUM_YEARS - (float)d_rt);
                         }
 
-                        /* sort the d_yr */
-                        qsort(d_yr, ids_old_len, sizeof(float), cmpfunc);
+                        for (b = 0; b < TOTAL_IMAGE_BANDS; b++)
+                        {
+                            for (m = 0; m < ids_old_len; m++)
+                                rec_v_dif_copy[b][m] = rec_v_dif[b][m];
+                        }
 
+                        /* sort the rec_v_dif based on d_yr */
+                        quick_sort_2d_float(d_yr, rec_v_dif_copy, 0, ids_old_len-1);
                         for(b = 0; b < NUM_LASSO_BANDS; b++)
                             tmpcg_rmse[b] = 0.0;
 
                         /* temporarily changing RMSE */
                         for (b = 0; b < NUM_LASSO_BANDS; b++)
                         {
-                            matlab_2d_array_norm(rec_v_dif, lasso_blist[b], n_rmse,
-                                             &tmpcg_rmse[lasso_blist[b]]);
-                            tmpcg_rmse[lasso_blist[b]] /= sqrt(n_rmse - update_num_c);
-
+                            matlab_2d_array_norm(rec_v_dif_copy, lasso_blist[b], n_rmse,
+                                             &tmpcg_rmse[b]);
+                            tmpcg_rmse[b] /= sqrt(n_rmse - rec_cg[num_fc].category);
                         }
 
                         /* free allocated memories */
                         free(d_yr);
 
                         /* move the ith col to i-1th col */
-                        for (b = 0; b < NUM_LASSO_BANDS; b++)
+                        for (m = 0; m < CONSE-1; m++)
                         {
-                            for (m = 0; m < CONSE-1; m++)
-                            {
+                            vec_mag[m] = vec_mag[m+1];
+                            for (b = 0; b < NUM_LASSO_BANDS; b++)
                                 v_diff[b][m] = v_diff[b][m+1];
+                            for (b = 0; b < TOTAL_IMAGE_BANDS; b++)
                                 v_dif_mag[b][m] = v_dif_mag[b][m+1];
-                                vec_mag[m] = vec_mag[m+1];
-                            }
-
-                            v_diff[b][CONSE-1] = 0.0;
-                            v_dif_mag[b][CONSE-1] = 0.0;
                         }
+
+                        for (b = 0; b < NUM_LASSO_BANDS; b++)
+                            v_diff[b][CONSE-1] = 0.0;
+                        for (b = 0; b < TOTAL_IMAGE_BANDS; b++)
+                            v_dif_mag[b][CONSE-1] = 0.0;
                         vec_mag[CONSE-1] = 0.0;
 
                         for (i_b = 0; i_b < TOTAL_IMAGE_BANDS; i_b++)
@@ -1994,13 +2044,14 @@ int main (int argc, char *argv[])
         		    auto_ts_predict(clrx, fit_cft, update_num_c, i_b, i+CONSE-1, 
                                  i+CONSE-1, &ts_pred_temp);
                             v_dif_mag[i_b][CONSE-1] = clry[i_b][i+CONSE-1] - ts_pred_temp;
+
                             /* normalized to z-scores */
                             for (b = 0; b < NUM_LASSO_BANDS; b++)
                             {
                                 if (i_b == lasso_blist[b])
                                 {
                                     /* mini rmse */
-                                    mini_rmse = max(adj_rmse[i_b], tmpcg_rmse[i_b]);
+                                    mini_rmse = max(adj_rmse[i_b], tmpcg_rmse[b]);
 
                                     /* z-score */
                                     v_diff[b][CONSE-1] = v_dif_mag[i_b][CONSE-1] / mini_rmse;
@@ -2020,12 +2071,19 @@ int main (int argc, char *argv[])
                     }
 
                     if (break_mag > T_CG)
-                    {    
+                    {
+
+                        if (verbose)
+                        {
+                            printf("Change Magnitude = %.2f\n", break_mag - T_CG);
+                        }
+
                         /* record break time */
                         rec_cg[num_fc].t_break = clrx[i];
                         rec_cg[num_fc].change_prob = 1.0;
                         for (i_b = 0; i_b < TOTAL_IMAGE_BANDS; i_b++)
 			{
+                            quick_sort_float(v_dif_mag[i_b], 0, CONSE-1);
                             matlab_2d_array_mean(v_dif_mag, 0, CONSE, 
                                 &rec_cg[num_fc].magnitude[i_b]);
 			}
@@ -2049,13 +2107,12 @@ int main (int argc, char *argv[])
                     }
                     else if (vec_mag[0] > T_MAX_CG)
                     {
-                        for (b = 0; b < TOTAL_IMAGE_BANDS; b++)
+                        /* remove noise */
+                        for (m = i; m < end -1; m++)
                         {
-                            for (m = i; m < valid_num_scenes - 1; m++)
-			    {
-                                clrx[m] = clrx[m+1];
+                            clrx[m] = clrx[m+1];
+                            for (b = 0; b < TOTAL_IMAGE_BANDS; b++)
                                 clry[b][m] = clry[b][m+1];
-			    }
                         }
                         end--; /* check if this is needed */
 
@@ -2103,6 +2160,7 @@ int main (int argc, char *argv[])
                 /* update magnitude of change */
                 for (i_b = 0; i_b < TOTAL_IMAGE_BANDS; i_b++)
 		{
+                    quick_sort_float(v_dif_mag[i_b], id_last, CONSE-2);
                     matlab_2d_partial_mean(v_dif_mag, i_b, id_last, CONSE-1, 
                                          &rec_cg[num_fc].magnitude[i_b]);
 		}
@@ -2122,9 +2180,9 @@ int main (int argc, char *argv[])
             {
                 for (k = 0; k < valid_num_scenes; k++) 
                 {
-                     if (clrx[k] > rec_cg[num_fc-1].t_break)
+                     if (clrx[k] >= rec_cg[num_fc-1].t_break)
 		     {
-                         i_start  = k + 1;
+                         i_start = k + 1;
 			 break;
 		     }
                 }
@@ -2224,7 +2282,7 @@ int main (int argc, char *argv[])
                 /* record fitted coefficients */
                 for (i_b = 0; i_b < TOTAL_IMAGE_BANDS; i_b++)
                 {
-                    for (k = 0; k < update_num_c; k++)
+                    for (k = 0; k < MAX_NUM_C; k++)
 		    {
                         rec_cg[num_fc].coefs[i_b][k] = fit_cft[i_b][k];
 		    }
@@ -2274,6 +2332,12 @@ int main (int argc, char *argv[])
     if (status != SUCCESS)
     {
         RETURN_ERROR ("Freeing memory: rec_v_dif\n", 
+                      FUNC_NAME, FAILURE);
+    }
+    status = free_2d_array ((void **) rec_v_dif_copy);
+    if (status != SUCCESS)
+    {
+        RETURN_ERROR ("Freeing memory: rec_v_dif_copy\n",
                       FUNC_NAME, FAILURE);
     }
     status = free_2d_array ((void **) v_dif_mag);
@@ -2340,9 +2404,12 @@ int main (int argc, char *argv[])
        note: can use fread to read out the structure from the output file */
     if (!std_out)
     {
-        strcpy(outputBinary, outDir);
-        strcat(outputBinary, "/output.bin");
-        fp_bin_out = fopen(outputBinary, "wb");
+        strcpy(output_binary, out_path);
+        strcat(output_binary, "/output.bin");
+        if (access(output_binary, F_OK) != 0) /* File does not exist */
+            fp_bin_out = fopen(output_binary, "wb");
+        else
+            fp_bin_out = fopen(output_binary, "ab");
         if (fp_bin_out == NULL)
         {
             RETURN_ERROR ("Opening output.bin file\n", FUNC_NAME,
@@ -2358,7 +2425,7 @@ int main (int argc, char *argv[])
         }
         else
         {
-            status = fwrite(rec_cg, sizeof(Output_t), num_fc, fp_bin_out);
+            status = fwrite(rec_cg, sizeof(Output_t), num_fc-1, fp_bin_out);
             if (status != num_fc)
             {
                 RETURN_ERROR ("Writing output.bin file\n", FUNC_NAME, FAILURE);
@@ -2382,13 +2449,13 @@ int main (int argc, char *argv[])
             {
                 for (k = 0; k < update_num_c; k++)
 		{
-                    if ((debug) || (std_out))
+                    if (debug)
                     {
                         printf("i_b,k,rec_cg[0].coefs[i_b][k] = %d,%d,%f\n", 
                                 i_b,k,rec_cg[0].coefs[i_b][k]); 
                     }
 		}
-                if ((debug) || (std_out))
+                if (debug)
                 {
                     printf("rec_cg[0].rmse[%d] = %f\n",i_b,rec_cg[0].rmse[i_b]);
                     printf("rec_cg[0].magnitude[%d]=%f\n",i_b,rec_cg[0].magnitude[i_b]); 
@@ -2411,14 +2478,8 @@ int main (int argc, char *argv[])
                 {
                     for (k = 0; k < update_num_c; k++)
 		    {
-                        // bdavis
-                        // I belive the indecies being printed were incorrect.
-                        // changed i_b,k,i
-                        // to      i,i_b,k
                         printf("i_b,k,rec_cg[%d].coefs[i_b][k] = %d,%d,%f\n", 
                              i,i_b,k,rec_cg[i].coefs[i_b][k]); 
-                        //printf("i_b,k,rec_cg[%d].coefs[i_b][k] = %d,%d,%f\n", 
-                        //     i_b,k,i,rec_cg[i].coefs[i_b][k]); 
 		    }
                     printf("rec_cg[%d].rmse[i_b] = %f\n",i,rec_cg[i].rmse[i_b]);
                     printf("rec_cg[%d].magnitude[i_b]=%f\n",i,rec_cg[i].magnitude[i_b]); 
@@ -2494,8 +2555,7 @@ int main (int argc, char *argv[])
 
     if (verbose)
     {
-        snprintf (msg_str, sizeof(msg_str),
-                  "CCDC end_time=%s\n", ctime (&now));
+        snprintf (msg_str, sizeof(msg_str), "CCDC end_time=%s\n", ctime (&now));
         LOG_MESSAGE (msg_str, FUNC_NAME);
     }
 
@@ -2521,42 +2581,55 @@ void
 usage ()
 {
     printf ("Continuous Change Detection and Classification\n");
+    printf ("Version 05.00\n");
     printf ("\n");
     printf ("usage:\n");
     printf ("ccdc"
             " --row=<input row number>"
             " --col=<input col number>"
-            " --inDir=<input directory>"
-            " --outDir=<output directory>"
-            " [--sceneList=<file with list of sceneIDs>]"
+            " --in-path=<input directory>"
+            " --out-path=<output directory>"
+            " --data-type=<tifs|bip|stdin>"
+            " [--scene-list-file=<file with list of sceneIDs>]"
             " [--verbose]\n");
 
     printf ("\n");
     printf ("where the following parameters are required:\n");
     printf ("    --row=: input row number\n");
     printf ("    --col=: input col number\n");
-    printf ("    --inDir=: input data directory location\n");
-    printf ("    --outDir=: directory location for output files\n");
+    printf ("    --in-path=: input data directory location\n");
+    printf ("    --out-path=: directory location for output files\n");
+    printf ("    --data-type=: type of input data files to ingest\n");
     printf ("\n");
     printf ("and the following parameters are optional:\n");
-    printf ("    --sceneList=: file name containing list of sceneIDs"
-            " (default is all files in inDir)\n");
+    printf ("    --scene-list-file=: file name containing list of sceneIDs"
+            " (default is all files in in-path)\n");
     printf ("    -verbose: should intermediate messages be printed?"
             " (default is false)\n");
     printf ("\n");
     printf ("ccdc --help will print the usage statement\n");
-    printf ("\n");
+    printf ("\n\n");
     printf ("Example:\n");
     printf ("ccdc"
             " --row=3845"
             " --col=2918"
-            " --inDir=/data/user/in"
-            " --outDir=/home/user/out"
-            " --sceneList=/home/user/scene_list.txt"
-            " --verbose\n");
-    printf ("Note: Previously, the ccdc had to be run from the directory"
+            " --in-path=/data/user/in"
+            " --out-path=/home/user/out"
+            " --data-type=bip"
+            " --scene-list-file=/home/user/scene_list.txt"
+            " --verbose\n\n");
+    printf ("An example of how to pipe input from stdin and output to stdout:\n");
+    printf ("ccdc"
+            " --row=3845"
+            " --col=2918"
+            " --in-path=/data/user/in"
+            " --out-path=stdout"
+            " --data-type=stdin"
+            " --verbose < pixel_value_text_file.txt > coeffs_results_text_file.txt\n\n");
+    printf ("The stdout option eliminates the creation of the output binary file, \n");
+    printf ("coeffs are just printed to stdout.  It could be "
+            "re-directed to a text file, or piped to another program.\n");
+    printf ("\nNote: Previously, the ccdc had to be run from the directory"
             " where the input data are located.\n");
     printf ("      Now, input and output directory locations specifications are required.\n\n");
-    //printf ("Note: The ccdc must run from the directory"
-    //        " where the input data are located.\n\n");
 }

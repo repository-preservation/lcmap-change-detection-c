@@ -137,7 +137,7 @@ NOTES:
 *****************************************************************************/
 int read_envi_header
 (
-    char *scene_name,      /* I: scene name*/
+    char *filename,        /* I: scene name*/
     Input_meta_t *meta     /* O: saved header file info */
 )
 {
@@ -150,12 +150,7 @@ int read_envi_header
     FILE *in;
     int ib;
     char map_info[10][MAX_STR_LEN]; 
-    char filename[MAX_STR_LEN];
     char FUNC_NAME[] = "read_envi_header"; /* function name */
-
-    sprintf(filename, "%s_sr_band1.hdr", scene_name);
-    //    sprintf(filename, "%s_sr_band2.hdr", scene_name);
-    //    sprintf(filename, "%s.hdr", scene_name);
 
     in=fopen(filename, "r");
     if (in == NULL)

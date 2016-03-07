@@ -13,14 +13,15 @@
 
 int get_args
 (
-    int argc,                 /* I: number of cmd-line args */
-    char *argv[],             /* I: string of cmd-line args */
-    int *row,                 /* O: row number for the pixel */
-    int *col,                 /* O: col number for the pixel */
-    char *inDir,              /* O: directory location of input data */
-    char *outDir,             /* O: direcotry location of output files */
-    char *sceneList,          /* O: optional file name of list of sceneIDs */
-    bool *verbose             /* O: verbose flag */
+    int argc,        /* I: number of cmd-line args                         */
+    char *argv[],    /* I: string of cmd-line args                         */
+    int *row,        /* O: row number for the pixel                        */
+    int *col,        /* O: col number for the pixel                        */
+    char *in_path,   /* O: directory location of input data                */
+    char *out_path,  /* O: direcotry location of output files              */
+    char *data_type, /* O: data type: tifs, bip, stdin.  Future: bsq, "rods*/
+    char *sceneList, /* O: optional file name of list of sceneIDs          */
+    bool *verbose    /* O: verbose flag                                    */
 );
 
 void get_scenename
@@ -34,6 +35,7 @@ void get_scenename
 int create_scene_list
 (
     const char *item,         /* I: string of file items be found */
+    int *num_scenes,          /* I/O: number of scenes */
     char *sceneListFileName   /* I: file name containing list of scene IDs */
 );
 
@@ -44,18 +46,19 @@ int convert_year_doy_to_jday_from_0000
     int *jday      /* O: julian date since year 0000 */
 );
 
-int convert_jday_from_0000_to_year_doy
-(
-    int jday,      /* I: julian date since year 0000 */
-    int *year,     /* O: year */
-    int *doy       /* O: day of the year */
-);
-
-int sort_scene_based_on_year_doy
+int sort_scene_based_on_year_doy_row
 (
     char **scene_list,      /* I/O: scene_list, sorted as output */
     int num_scenes,         /* I: number of scenes in the scene list */
     int *sdate              /* O: year plus date since 0000 */
+);
+
+void quick_sort_2d_float
+(
+    float arr[],
+    float *brr[],
+    int left,
+    int right
 );
 
 void update_cft
@@ -76,6 +79,13 @@ int median_variogram
     int dim2_start,     /* I: dimension 2 start index */
     int dim2_end,       /* I: dimension 2 end index */
     float *output_array /* O: output array */
+);
+
+void split_directory_scenename
+(
+    const char *filename,       /* I: Name of scene with path to split */
+    char *directory,            /* O: Directory portion of file name */
+    char *scene_name            /* O: Scene name portion of the file name */
 );
 
 void rmse_from_square_root_mean
@@ -122,14 +132,13 @@ void matlab_2d_partial_mean
     float  *output_mean  /* O: output norm value */
 );
 
-void matlab_int_2d_partial_mean
+void matlab_float_2d_partial_median
 (
     float **array,       /* I: input array */
     int dim1_index,      /* I: 1st dimension index */   
     int start,           /* I: number of start elements in 2nd dim */
     int end,             /* I: number of end elements in 2nd dim */
-
-    float  *output_mean  /* O: output norm value */
+    float *output_median /* O: output norm value */
 );
 
 void matlab_2d_partial_square_mean
@@ -155,6 +164,14 @@ void get_ids_length
     int start,            /* I: array start index */
     int end,              /* I: array end index */
     int *id_len           /* O: number of non-zero number in the array */
+);
+
+void matlab_unique
+(
+    int *clrx,
+    float **clry,
+    int nums,
+    int *new_nums
 );
 
 int auto_mask
@@ -334,6 +351,30 @@ extern void spelnet_(
 			//            after maxit (see above) iterations.
 			//         jerr = -10000-k => number of non zero coefficients along path
 			//            exceeds nx (see above) at kth lamda value.
+);
+
+/*--------------------------------------------------------------------
+c uncompress coefficient vectors for all solutions:
+c
+c call solns(ni,nx,lmu,ca,ia,nin,b)
+c
+c input:
+c
+c    ni,nx = input to elnet
+c    lmu,ca,ia,nin = output from elnet
+c
+c output:
+c
+c    b(ni,lmu) = all elnet returned solutions in uncompressed format
+----------------------------------------------------------------------*/
+extern int solns_(
+    int *ni,            //   ni = number of predictor variables
+    int *nx,            //   nx = maximum number of variables allowed to enter all models
+    int *lmu,           //   lmu = actual number of lamda values (solutions)
+    double *ca,         //   ca(nx,lmu) = compressed coefficient values for each solution
+    int *ia,            //   ia(nx) = pointers to compressed coefficients
+    int *nin,           //   nin(lmu) = number of compressed coefficients for each solution
+    double *b           //   b(ni,lmu) = compressed coefficient values for each solution
 );
 
 extern int c_glmnet(
