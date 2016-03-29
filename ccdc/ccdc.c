@@ -229,7 +229,7 @@ int main (int argc, char *argv[])
 
     char in_path[MAX_STR_LEN];      /* directory location of input data/files */
     char out_path[MAX_STR_LEN];     /* directory location for output files    */
-    char data_type[MAX_STR_LEN];    /* tifs, bip, stdin. Future: bsq, "rods". */
+    char data_type[MAX_STR_LEN];    /* tifs, bip. Future: bsq, "rods".        */
     char scene_list_filename[MAX_STR_LEN]; /* file name containing list of input sceneIDs */
     char scene_list_file[MAX_STR_LEN]; /* optional input argument for file of list of scenes */
     char tmpstr[MAX_STR_LEN];       /* char string for text manipulation      */
@@ -297,7 +297,7 @@ int main (int argc, char *argv[])
     /*                                                                */
     /******************************************************************/
 
-    if (strcmp(data_type, "stdin") == 0)
+    if (strcmp(in_path, "stdin") == 0)
 
     {
         std_in = true;
@@ -991,7 +991,7 @@ int main (int argc, char *argv[])
 
     } // end of elseif stdin bracket
 
-    if (verbose)
+    if ((verbose) && (!std_in))
     {
         snprintf (msg_str, sizeof(msg_str), "CCDC read_time=%s\n", ctime (&now));
         LOG_MESSAGE (msg_str, FUNC_NAME);
@@ -2426,7 +2426,7 @@ int main (int argc, char *argv[])
         else
         {
             status = fwrite(rec_cg, sizeof(Output_t), num_fc-1, fp_bin_out);
-            if (status != num_fc)
+            if ( status != (num_fc -1) )
             {
                 RETURN_ERROR ("Writing output.bin file\n", FUNC_NAME, FAILURE);
             }
@@ -2580,6 +2580,7 @@ Date        Programmer       Reason
 void
 usage ()
 {
+    printf ("\n");
     printf ("Continuous Change Detection and Classification\n");
     printf ("Version 05.00\n");
     printf ("\n");
@@ -2587,9 +2588,9 @@ usage ()
     printf ("ccdc"
             " --row=<input row number>"
             " --col=<input col number>"
-            " --in-path=<input directory>"
-            " --out-path=<output directory>"
-            " --data-type=<tifs|bip|stdin>"
+            " [--in-path=<input directory>"
+            " [--out-path=<output directory[>"
+            " [--data-type=<tifs|bip[>"
             " [--scene-list-file=<file with list of sceneIDs>]"
             " [--verbose]\n");
 
@@ -2597,11 +2598,11 @@ usage ()
     printf ("where the following parameters are required:\n");
     printf ("    --row=: input row number\n");
     printf ("    --col=: input col number\n");
+    printf ("\n");
+    printf ("and the following parameters are optional:\n");
     printf ("    --in-path=: input data directory location\n");
     printf ("    --out-path=: directory location for output files\n");
     printf ("    --data-type=: type of input data files to ingest\n");
-    printf ("\n");
-    printf ("and the following parameters are optional:\n");
     printf ("    --scene-list-file=: file name containing list of sceneIDs"
             " (default is all files in in-path)\n");
     printf ("    -verbose: should intermediate messages be printed?"
@@ -2622,14 +2623,15 @@ usage ()
     printf ("ccdc"
             " --row=3845"
             " --col=2918"
-            " --in-path=/data/user/in"
+            " --in-path=stdin"
             " --out-path=stdout"
-            " --data-type=stdin"
             " --verbose < pixel_value_text_file.txt > coeffs_results_text_file.txt\n\n");
     printf ("The stdout option eliminates the creation of the output binary file, \n");
     printf ("coeffs are just printed to stdout.  It could be "
             "re-directed to a text file, or piped to another program.\n");
     printf ("\nNote: Previously, the ccdc had to be run from the directory"
             " where the input data are located.\n");
-    printf ("      Now, input and output directory locations specifications are required.\n\n");
+    printf ("      Now, input and output directory locations specifications are used.\n");
+    printf ("      If in-path or out-path are not specified, current working directory is assumed.\n");
+    printf ("      If scene-file-name is not specified, all scenes in in-path are processed.\n\n");
 }

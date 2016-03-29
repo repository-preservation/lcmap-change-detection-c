@@ -209,12 +209,14 @@ int get_args
     /*                                                                */
     /******************************************************************/
 
-    if ((strcmp(data_type, "tifs" ) != 0) &&
-        (strcmp(data_type, "bip"  ) != 0) &&
-        (strcmp(data_type, "stdin") != 0))
+    if (strcmp(in_path, "stdin") != 0)
     {
-        sprintf (errmsg, "data-type must be one of: tifs, bip, stdin");
-        RETURN_ERROR(errmsg, FUNC_NAME, FAILURE);
+        if ((strcmp(data_type, "tifs" ) != 0) &&
+            (strcmp(data_type, "bip") != 0))
+        {
+            sprintf (errmsg, "data-type must be one of: tifs, bip");
+            RETURN_ERROR(errmsg, FUNC_NAME, FAILURE);
+        }
     }
 
 
@@ -309,6 +311,7 @@ void get_scenename
         strcpy (appendix, "");
     }
 }
+
 
 /******************************************************************************
 MODULE:  create_scene_list
@@ -1490,7 +1493,7 @@ void auto_robust_fit
 )
 {
     int i, j;
-    const size_t p = 5; /* linear fit */
+    const int p = 5; /* linear fit */
     gsl_matrix *x, *cov;
     gsl_vector *y, *c;
 
@@ -1997,11 +2000,8 @@ int auto_ts_fit
             }
 
 	    for (i = 0; i < LASSO_COEFFS; i++)
-	        coefs[band_index][i] = 0.0;
-
-            for (i = 0; i < lmu; i++) 
             {
-	        for (j = 0; j < df; j++) 
+                for (j = 0; j < df; j++)
                 {
 	            coefs[band_index][j]= cfs[i][j];
 	        }
