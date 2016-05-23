@@ -22,6 +22,7 @@
       - Log Message Format:
             yyyy-mm-dd HH:mm:ss pid:module [filename]:line message
 *****************************************************************************/
+
 void write_message
 (
     const char *message, /* I: message to write to the log */
@@ -53,3 +54,35 @@ void write_message
              time_info->tm_sec,
              pid, module, basename (file), line, type, message);
 }
+
+
+/*****************************************************************************
+  NAME:  sub_string
+
+  PURPOSE:  To control the specific way in with a string is manipulated.
+
+  RETURN VALUE:  Sub-setted character string
+
+  NOTES:  Probably dangerous.
+*****************************************************************************/
+
+char *sub_string         /* explicit control of a substring function  */
+(
+    const char *source,  /* I: input string                           */
+    size_t start,        /* I: index for start of sub string          */
+    size_t length        /* I: number of characters to grab           */
+)
+{
+    size_t i;
+    char *target;
+
+    target = malloc(length*sizeof(char));
+
+    for(i = 0; i != length; ++i)
+    {
+        target[i] = source[start + i];
+    }
+    target[i] = 0;
+    return target;
+}
+

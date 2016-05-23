@@ -1,9 +1,7 @@
 #ifndef OUTPUT_H
 #define OUTPUT_H
 
-#define FILL_VALUE 255
-#define NUM_COEFFS 8
-#define NUM_BANDS 7
+#include "defines.h"
 
 typedef struct {
   int row;
