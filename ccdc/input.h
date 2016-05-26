@@ -6,8 +6,10 @@
 #include <ctype.h>
 #include <string.h>
 #include <stdbool.h>
-//#include "envi_header.h"
 #include "const.h"
+
+/* possible cfmask values */
+#include "defines.h"
 
 /* Input file type definition */
 typedef enum {
@@ -73,8 +75,100 @@ int read_raw_binary
 
 int read_envi_header
 (
-    char *filename,     /* I: header filename with full path */
-    Input_meta_t *meta  /* O: saved header file info */
+    char *data_type,       /* I: input data type        */
+    char *scene_name,      /* I: scene name             */
+    Input_meta_t *meta     /* O: saved header file info */
+);
+
+int read_cfmask
+(
+    int  curr_scene_num, /* I:   current num. in list of scenes to read       */
+    char *data_type,     /* I:   type of flies, tifs or single BIP            */
+    char **scene_list,   /* I:   current scene name in list of sceneIDs       */
+    int  row,            /* I:   the row (Y) location within img/grid         */
+    int  col,            /* I:   the col (X) location within img/grid         */
+    int  num_samples,    /* I:   number of image samples (X width)            */
+    FILE ***fp_tifs,     /* I/O: file ptr array for tif band file names       */
+    FILE **fp_bip,       /* I/O: file pointer array for BIP file names        */
+    unsigned char *fmask_buf,/* O:   pointer to cfmask band values            */
+                         /* I/O: Worldwide Reference System path and row for  */
+                         /* I/O: the current swath, this group of variables   */
+                         /* I/O: is for filtering out swath overlap, and      */
+    int *prev_wrs_path,  /* I/O: using the first of two scenes in a swath,    */
+    int *prev_wrs_row,   /* I/O: , because it is recommended to use the meta  */
+    int *prev_year,      /* I/O: data from the first for things like sun      */
+    int *prev_jday,      /* I/O: angle, etc. However, always removing a       */
+    unsigned char *prev_fmask_buf,/* I/O: redundant x/y location specified    */
+    int *valid_scene_count,/* I/O: x/y is not always valid for gridded data,  */
+    int *swath_overlap_count,/* I/O: it may/may not be in swap overlap area.  */
+    char **valid_scene_list,/* I/O: 2-D array for list of filtered            */
+    int *clear_sum,      /* I/O: Total number of clear cfmask pixels          */
+    int *water_sum,      /* I/O: counter for cfmask water pixels.             */
+    int *shadow_sum,     /* I/O: counter for cfmask shadow pixels.            */
+    int *sn_sum,         /* I/O: Total number of snow cfmask pixels           */
+    int *cloud_sum,      /* I/O: counter for cfmask cloud pixels.             */
+    int *fill_sum,       /* I/O: counter for cfmask fill pixels.              */
+    int *all_sum,         /* I/O: Total of all cfmask pixels                   */
+    unsigned char *updated_fmask_buf, /* I/O: new entry in valid fmask values */
+    int *updated_sdate_array, /* I/O: new buf of valid date values            */
+    int *sdate,          /* I:   Original array of julian date values         */
+    int *valid_num_scenes/* I/O: number of valid scenes after reading cfmask  */
+);
+
+
+int read_stdin
+(
+    int           *updated_sdate_array, /* pointer to date values buffer. */
+    int           **buf,                /* pointer to image bands buffer. */
+    unsigned char *updated_cfmask_buf,  /* pointer to cfmask pixel buffer.*/
+    int           num_bands,            /* total number of bands.         */
+    int           *clear_sum,           /* accumulator for clear  pixels. */
+    int           *water_sum,           /* accumulator for water  pixels. */
+    int           *shadow_sum,          /* accumulator for shadow pixels. */
+    int           *snow_sum,            /* accumulator for snow   pixels. */
+    int           *cloud_sum,           /* accumulator for cloud  pixels. */
+    int           *fill_sum,            /* accumulator for fill   pixels. */
+    int           *all_sum,             /* accumulator for all    pixels. */
+    int           *valid_num_scenes,    /* total scenes read.             */
+    bool          debug                 /* flag for printing mesgs/info.  */
+);
+
+
+int assign_cfmask_values
+(
+    unsigned char cfmask_value,         /* I: current cfmask pixel value.   */
+    int           *clear_sum,           /* O: accumulator for clear  pixels */
+    int           *water_sum,           /* O: accumulator for water  pixels */
+    int           *shadow_sum,          /* O: accumulator for shadow pixels */
+    int           *snow_sum,            /* O: accumulator for snow   pixels */
+    int           *cloud_sum,           /* O: accumulator for cloud  pixels */
+    int           *fill_sum,            /* O: accumulator for full   pixels */
+    int           *all_sum              /* O: accumulator for all    pixels */
+);
+
+
+int read_tifs
+(
+    char *sceneID_name,  /* I:   current file name in list of sceneIDs  */
+    FILE ***fp_tifs,     /* I/O: file pointer array for band file names */
+    int  curr_scene_num, /* I:   current num. in list of scenes to read */
+    int  row,            /* I:   the row (Y) location within img/grid   */
+    int  col,            /* I:   the col (X) location within img/grid   */
+    int  num_samples,    /* I:   number of image samples (X width)      */
+    bool debug,          /* I:   flag for printing debug messages       */
+    int  **image_buf     /* O:   pointer to 2-D image band values array */
+);
+
+
+int read_bip
+(
+    char *current_scene_name, /* I:   current file name in list of sceneIDs  */
+    FILE **fp_bip,           /* I/O: file pointer array for BIP  file names */
+    int  curr_scene_num,      /* I:   current num. in list of scenes to read */
+    int  row,                 /* I:   the row (Y) location within img/grid   */
+    int  col,                 /* I:   the col (X) location within img/grid   */
+    int  num_samples,         /* I:   number of image samples (X width)      */
+    int  **image_buf          /* O:   pointer to 2-D image band values array */
 );
 
 

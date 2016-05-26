@@ -13,44 +13,44 @@
 
 int get_args
 (
-    int argc,        /* I: number of cmd-line args                         */
-    char *argv[],    /* I: string of cmd-line args                         */
-    int *row,        /* O: row number for the pixel                        */
-    int *col,        /* O: col number for the pixel                        */
-    char *in_path,   /* O: directory location of input data                */
-    char *out_path,  /* O: direcotry location of output files              */
-    char *data_type, /* O: data type: tifs, bip, stdin.  Future: bsq, "rods*/
-    char *sceneList, /* O: optional file name of list of sceneIDs          */
-    bool *verbose    /* O: verbose flag                                    */
+    int argc,              /* I: number of cmd-line args                    */
+    char *argv[],          /* I: string of cmd-line args                    */
+    int *row,              /* O: row number for the pixel                   */
+    int *col,              /* O: col number for the pixel                   */
+    char *in_path,         /* O: directory location of input data           */
+    char *out_path,        /* O: direcotry location of output files         */
+    char *data_type,       /* O: data type: tifs, bip, stdin, bip_lines.    */
+    char *scene_list_file, /* O: optional file name of list of sceneIDs     */
+    bool *verbose          /* O: verbose flag                               */
 );
 
 void get_scenename
 (
-    const char *filename, /* I: Name of file to split */
-    char *directory,      /* O: Directory portion of file name */
+    const char *filename, /* I: Name of file to split               */
+    char *directory,      /* O: Directory portion of file name      */
     char *scene_name,     /* O: Scene name portion of the file name */
-    char *appendix        /* O: Appendix portion of the file name */
+    char *appendix        /* O: Appendix portion of the file name   */
 );
 
 int create_scene_list
 (
-    const char *item,         /* I: string of file items be found */
-    int *num_scenes,          /* I/O: number of scenes */
+    const char *item,         /* I: string of file items be found          */
+    int *num_scenes,          /* I/O: number of scenes                     */
     char *sceneListFileName   /* I: file name containing list of scene IDs */
 );
 
 int convert_year_doy_to_jday_from_0000
 (
-    int year,      /* I: year */
-    int doy,       /* I: day of the year */
+    int year,      /* I: year                        */
+    int doy,       /* I: day of the year             */
     int *jday      /* O: julian date since year 0000 */
 );
 
 int sort_scene_based_on_year_doy_row
 (
-    char **scene_list,      /* I/O: scene_list, sorted as output */
+    char **scene_list,      /* I/O: scene_list, sorted as output     */
     int num_scenes,         /* I: number of scenes in the scene list */
-    int *sdate              /* O: year plus date since 0000 */
+    int *sdate              /* O: year plus date since 0000          */
 );
 
 void quick_sort_2d_float
@@ -74,88 +74,88 @@ void update_cft
 
 int median_variogram
 (
-    float **array,      /* I: input array */
+    float **array,      /* I: input array                       */
     int dim1_len,       /* I: dimension 1 length in input array */
-    int dim2_start,     /* I: dimension 2 start index */
-    int dim2_end,       /* I: dimension 2 end index */
-    float *output_array /* O: output array */
+    int dim2_start,     /* I: dimension 2 start index           */
+    int dim2_end,       /* I: dimension 2 end index             */
+    float *output_array /* O: output array                      */
 );
 
 void split_directory_scenename
 (
-    const char *filename,       /* I: Name of scene with path to split */
-    char *directory,            /* O: Directory portion of file name */
+    const char *filename,       /* I: Name of scene with path to split    */
+    char *directory,            /* O: Directory portion of file name      */
     char *scene_name            /* O: Scene name portion of the file name */
 );
 
 void rmse_from_square_root_mean
 (
-    float **array,      /* I: input array */
-    float fit_cft,      /* I: input fit_cft value */
+    float **array,      /* I: input array                      */
+    float fit_cft,      /* I: input fit_cft value              */
     int dim1_index,     /* I: dimension 1 index in input array */
-    int dim2_len,       /* I: dimension 2 length */
-    float *rmse         /* O: output rmse */
+    int dim2_len,       /* I: dimension 2 length               */
+    float *rmse         /* O: output rmse                      */
 );
 
 void partial_square_root_mean
 (
-    float **array,       /* I: input array */
-    int dim1_index,      /* I: 1st dimension index */   
+    float **array,       /* I: input array                         */
+    int dim1_index,      /* I: 1st dimension index                 */   
     int start,           /* I: number of start elements in 1st dim */
-    int end,             /* I: number of end elements in 1st dim */
-    float **fit_ctf,     /* I: */
-    float  *rmse         /* O: output rmse value */
+    int end,             /* I: number of end elements in 1st dim   */
+    float **fit_ctf,     /* I:                                     */
+    float  *rmse         /* O: output rmse value                   */
 );
 
 void matlab_2d_array_mean
 (
-    float **array,       /* I: input array */
-    int dim1_index,      /* I: 1st dimension index */   
+    float **array,       /* I: input array                         */
+    int dim1_index,      /* I: 1st dimension index                 */   
     int dim2_len,        /* I: number of input elements in 2nd dim */
-    float  *output_mean  /* O: output norm value */
+    float  *output_mean  /* O: output norm value                   */
 );
 
 void matlab_2d_float_median
 (
-    float **array,       /* I: input array */
-    int dim1_index,      /* I: 1st dimension index */   
+    float **array,       /* I: input array                         */
+    int dim1_index,      /* I: 1st dimension index                 */   
     int dim2_len,        /* I: number of input elements in 2nd dim */
-    float *output_median /* O: output norm value */
+    float *output_median /* O: output norm value                   */
 );
 
 void matlab_2d_partial_mean
 (
-    float **array,       /* I: input array */
-    int dim1_index,      /* I: 1st dimension index */   
+    float **array,       /* I: input array                         */
+    int dim1_index,      /* I: 1st dimension index                 */
     int start,           /* I: number of start elements in 2nd dim */
-    int end,             /* I: number of end elements in 2nd dim */
-    float  *output_mean  /* O: output norm value */
+    int end,             /* I: number of end elements in 2nd dim   */
+    float  *output_mean  /* O: output norm value                   */
 );
 
 void matlab_float_2d_partial_median
 (
-    float **array,       /* I: input array */
-    int dim1_index,      /* I: 1st dimension index */   
+    float **array,       /* I: input array                         */
+    int dim1_index,      /* I: 1st dimension index                 */
     int start,           /* I: number of start elements in 2nd dim */
-    int end,             /* I: number of end elements in 2nd dim */
-    float *output_median /* O: output norm value */
+    int end,             /* I: number of end elements in 2nd dim   */
+    float *output_median /* O: output norm value                   */
 );
 
 void matlab_2d_partial_square_mean
 (
-    float **array,       /* I: input array */
-    int dim1_index,      /* I: 1st dimension index */   
+    float **array,       /* I: input array                         */
+    int dim1_index,      /* I: 1st dimension index                 */   
     int start,           /* I: number of start elements in 2nd dim */
-    int end,             /* I: number of end elements in 2nd dim */
-    float  *output_mean  /* O: output norm value */
+    int end,             /* I: number of end elements in 2nd dim   */
+    float  *output_mean  /* O: output norm value                   */
 );
 
 void matlab_2d_array_norm
 (
-    float **array,       /* I: input array */
-    int dim1_index,      /* I: 1st dimension index */   
+    float **array,       /* I: input array                         */
+    int dim1_index,      /* I: 1st dimension index                 */
     int dim2_len,        /* I: number of input elements in 2nd dim */
-    float  *output_norm  /* O: output norm value */
+    float  *output_norm  /* O: output norm value                   */
 );
 
 void get_ids_length
@@ -378,16 +378,16 @@ extern int solns_(
 );
 
 extern int c_glmnet(
-    int no,		// number of observations (no)
-    int ni,		// number of predictor variables (ni)
-    double *x,		// input matrix, x[ni][no]
-    double *y,		// response vaiable, of dimentions (no)
-    int nlam,		// number of lambda values
-    double *ulam,	// value of lambda values, of dimentions (nlam)
-    double parm,	// the alpha variable
+    int no,		   // number of observations (no)
+    int ni,		   // number of predictor variables (ni)
+    double *x,		   // input matrix, x[ni][no]
+    double *y,		   // response vaiable, of dimentions (no)
+    int nlam,		   // number of lambda values
+    double *ulam,	   // value of lambda values, of dimentions (nlam)
+    double parm,	   // the alpha variable
 
-    int *lmu,		// lmu = actual number of lamda values (solutions)
-    double cfs[nlam][ni+1]	// results = cfs[lmu][ni + 1]
+    int *lmu,		   // lmu = actual number of lamda values (solutions)
+    double cfs[nlam][ni+1] // results = cfs[lmu][ni + 1]
 );
 
 #endif /* CCDC_H */

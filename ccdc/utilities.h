@@ -39,4 +39,12 @@ void write_message
 );
 
 
+char *sub_string         /* explicit control of a substring function  */
+(
+    const char *source,  /* I: input string                           */
+    size_t start,        /* I: index for start of sub string          */
+    size_t length        /* I: number of characters to grab           */
+);
+
+
 #endif /* UTILITIES_H */

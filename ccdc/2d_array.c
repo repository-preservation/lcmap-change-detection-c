@@ -5,6 +5,7 @@
 #include "const.h"
 #include "2d_array.h"
 #include "utilities.h"
+#include "defines.h"
 
 
 /* The 2D_ARRAY maintains a 2D array that can be sized at run-time. */
@@ -27,18 +28,6 @@ typedef struct lsrd_2d_array
                                Note: the type is double to force the worst case
                                memory alignment on sparc boxes. */
 } LSRD_2D_ARRAY;
-
-
-/* Define a unique (i.e. random) value that can be used to verify a pointer
-   points to an LSRD_2D_ARRAY. This is used to verify the operation succeeds to
-   get an LSRD_2D_ARRAY pointer from a row pointer. */
-#define SIGNATURE 0x326589ab
-
-
-/* Given an address returned by the allocate routine, get a pointer to the
-   entire structure. */
-#define GET_ARRAY_STRUCTURE_FROM_PTR(ptr) \
-    ((LSRD_2D_ARRAY *)((char *)(ptr) - offsetof(LSRD_2D_ARRAY, memory_block)))
 
 
 /*************************************************************************

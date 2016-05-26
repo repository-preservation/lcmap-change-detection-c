@@ -15,17 +15,8 @@
 #include <gsl/gsl_multifit.h>
 #include <gsl/gsl_randist.h>
 
-/* 12-31-1972 is 720624 in julian day since year 0000 */
-#define JULIAN_DATE_LAST_DAY_1972 720624 
-#define LANDSAT_START_YEAR 1973
-#define LEAP_YEAR_DAYS 366
-#define NON_LEAP_YEAR_DAYS 365
-#define AVE_DAYS_IN_A_YEAR 365.25
-#define ROBUST_COEFFS 5
-#define LASSO_COEFFS 8
-#define TOTAL_IMAGE_BANDS 7
+#include "defines.h"
 
-const char scene_list_fname[] = {"scene_list.txt"};
 /******************************************************************************
 MODULE:  get_args
 
@@ -54,6 +45,7 @@ NOTES:
   2. chi2inv(T_cg, num_bands) = chi2inv(0.99, 5) = 15.0863 
   3. chi2inv(T_max_cg, num_bands) = chi2inv(1-1e-6, 5) = 35.8882 
 ******************************************************************************/
+
 int get_args
 (
     int argc,              /* I: number of cmd-line args                    */
@@ -67,11 +59,11 @@ int get_args
     bool *verbose          /* O: verbose flag                               */
 )
 {
-    int c;                          /* current argument index */
-    int option_index;               /* index for the command-line option */
-    static int verbose_flag = 0;    /* verbose flag */
-    char errmsg[MAX_STR_LEN];       /* error message */
-    char FUNC_NAME[] = "get_args";  /* function name */
+    int c;                         /* current argument index                */
+    int option_index;              /* index for the command-line option     */
+    static int verbose_flag = 0;   /* verbose flag                          */
+    char errmsg[MAX_STR_LEN];      /* error message                         */
+    char FUNC_NAME[] = "get_args"; /* function name                         */
     static struct option long_options[] = {
         {"verbose", no_argument, &verbose_flag, 1},
         {"row", required_argument, 0, 'r'},
@@ -84,8 +76,20 @@ int get_args
         {0, 0, 0, 0}
     };
 
-    /* Loop through all the cmd-line options */
-    opterr = 0; /* turn off getopt_long error msgs as we'll print our own */
+    /******************************************************************/
+    /*                                                                */
+    /* Turn off getopt_long error msgs as we'll print our own         */
+    /*                                                                */
+    /******************************************************************/
+
+    opterr = 0;
+
+    /******************************************************************/
+    /*                                                                */
+    /* Loop through all the cmd-line options                          */
+    /*                                                                */
+    /******************************************************************/
+
     while (1)
     {
         /* optstring in call to getopt_long is empty since we will only
@@ -209,12 +213,15 @@ int get_args
     /*                                                                */
     /******************************************************************/
 
-    if ((strcmp(data_type, "tifs" ) != 0) &&
-        (strcmp(data_type, "bip"  ) != 0) &&
-        (strcmp(data_type, "stdin") != 0))
+    if (strcmp(in_path, "stdin") != 0)
     {
-        sprintf (errmsg, "data-type must be one of: tifs, bip, stdin");
-        RETURN_ERROR(errmsg, FUNC_NAME, FAILURE);
+        if ((strcmp(data_type, "tifs"     ) != 0) &&
+            (strcmp(data_type, "bip"      ) != 0)   &&
+            (strcmp(data_type, "bip-lines") != 0))
+        {
+            sprintf (errmsg, "data-type must be one of: tifs, bip, bip-lines");
+            RETURN_ERROR(errmsg, FUNC_NAME, FAILURE);
+        }
     }
 
 
@@ -231,9 +238,10 @@ int get_args
 
     /******************************************************************/
     /*                                                                */
-    /* We need to do this back in main, after determining whether     */
-    /* stdin/stdout are being used or not, because if they are, we    */
-    /* limit the printed output to only that required for stdout.     */
+    /* We should to do this only here, not back in main. After        */
+    /* determining whether stdin/stdout are being used or not,        */
+    /* limit the printed output to only that required for stdout, if .*/
+    /* that is the case.                                              */
     /*                                                                */
     /******************************************************************/
     
@@ -244,14 +252,15 @@ int get_args
         printf ("in-path = %s\n", in_path);
         printf ("out-path = %s\n", out_path);
         printf ("scene-list-file = %s\n", scene_list_file);
+        printf ("data-type = %s\n", data_type);
         printf ("verbose = %d\n", *verbose);
     }
 
-    return SUCCESS;
+    return (SUCCESS);
 }
 
 
-/******************************************************************************
+/*****************************************************************************
 MODULE:  get_scenename
 
 PURPOSE:  get scene name based on full filename even with path
@@ -264,23 +273,34 @@ Date        Programmer       Reason
 1/21/2015   Song Guo         Original Development
 
 NOTES:
-******************************************************************************/
+*****************************************************************************/
+
 void get_scenename
 (
-    const char *filename, /* I: Name of file to split */
-    char *directory,      /* O: Directory portion of file name */
-    char *scene_name,     /* O: Scene name portion of the file name */
-    char *appendix        /* O: Appendix portion of the file name */
+    const char *filename, /* I: Name of file to split                       */
+    char *directory,      /* O: Directory portion of file name              */
+    char *scene_name,     /* O: Scene name portion of the file name.        */
+    char *appendix        /* O: Appendix portion of the file name           */
 )
 {
-    char file_name[PATH_MAX];   /* Local copy of filename */
-    char *ptr;                  /* String pointer */
+    char file_name[PATH_MAX];   /* Local copy of filename                   */
+    char *ptr;                  /* String pointer                           */
 
-    /* Make a local copy of filename so it is not destroyed */
+    /******************************************************************/
+    /*                                                                */
+    /* Make a local copy of filename so it is not destroyed           */
+    /*                                                                */
+    /******************************************************************/
+
     strcpy (file_name, filename);
 
-    /* Check for a directory path */
-    /* Find ending '/' */
+    /******************************************************************/
+    /*                                                                */
+    /* Check for a directory path                                     */
+    /* Find ending '/'                                                */
+    /*                                                                */
+    /******************************************************************/
+
     ptr = (char *) strrchr (file_name, '/');
     if (ptr != NULL)
     {
@@ -295,7 +315,12 @@ void get_scenename
         strcpy (directory, "");
     }
 
-    /* Check for the first "_" */
+    /******************************************************************/
+    /*                                                                */
+    /* Check for the first "_"                                        */
+    /*                                                                */
+    /******************************************************************/
+
     ptr = (char *) strchr (file_name, '_');
     if (ptr != NULL)
     {
@@ -310,7 +335,8 @@ void get_scenename
     }
 }
 
-/******************************************************************************
+
+/*****************************************************************************
 MODULE:  create_scene_list
 
 PURPOSE:  Create scene list from existing files under working data 
@@ -331,25 +357,25 @@ Date        Programmer       Reason
 20151203    Brian Davis      Added argument for scene list file name.
 
 NOTES:
-******************************************************************************/
+*****************************************************************************/
 int create_scene_list
 (
-    const char *item,         /* I: string of file items be found */
-    int *num_scenes,          /* I/O: number of scenes */
-    char *scene_list_filename /* I: file name of list of scene IDs */
+    const char *item,         /* I: string of file items be found           */
+    int *num_scenes,          /* I/O: number of scenes                      */
+    char *scene_list_filename /* I: file name of list of scene IDs          */
 )
 {
     DIR *dirp;
     DIR *dirsubp;
-    struct dirent *dp;
-    struct dirent *sub_dp;
-    FILE *fd;
-    char FUNC_NAME[] = "create_scene_list"; /* function name */
-    char directory[MAX_STR_LEN];     
-    char scene_name[MAX_STR_LEN];   
-    char scene_fullname[MAX_STR_LEN];
-    char appendix[MAX_STR_LEN];       
-    int scene_counter = 0;
+    struct dirent *dp;        /* structure for directory entries            */
+    struct dirent *sub_dp;    /* structure for sub-directory entries        */
+    FILE *fd;                 /* file descriptor for scene list file        */
+    char FUNC_NAME[] = "create_scene_list"; /* function name for messages   */
+    char directory[MAX_STR_LEN]; /* directory portion of path               */    
+    char scene_name[MAX_STR_LEN]; /* scene name portion of path             */  
+    char scene_fullname[MAX_STR_LEN]; /* scene name including ground station*/
+    char appendix[MAX_STR_LEN]; /* possible extension of file name          */
+    int scene_counter = 0;     /* to record number of scenes                */
 
     fd = fopen(scene_list_filename, "w");
     if (fd == NULL)
@@ -386,7 +412,7 @@ int create_scene_list
     fclose(fd);
     *num_scenes = scene_counter;
 
-    return SUCCESS;
+    return (SUCCESS);
 }
 
 
@@ -598,6 +624,11 @@ HISTORY:
 Date        Programmer       Reason
 --------    ---------------  -------------------------------------
 1/23/2015   Song Guo         Original Development
+20160513    Brian Davis      At some point, a fix was made to add doy only
+                             after the last year.  Previously, (v04.03) it
+                             was erroneously being added in the loop for each
+                             of the years, resulting in creating future dates
+                             and time travel......
 
 NOTES:
 ******************************************************************************/
@@ -637,7 +668,7 @@ int convert_year_doy_to_jday_from_0000
     }
     *jday += doy;
 
-    return SUCCESS;
+    return (SUCCESS);
 }
 
 
@@ -663,26 +694,31 @@ NOTES:
 ******************************************************************************/
 int sort_scene_based_on_year_doy_row
 (
-    char **scene_list,      /* I/O: scene_list, sorted as output */
-    int num_scenes,         /* I: number of scenes in the scene list */
-    int *sdate              /* O: year plus date since 0000 */
+    char **scene_list,      /* I/O: scene_list, sorted as output             */
+    int num_scenes,         /* I: number of scenes in the scene list         */
+    int *sdate              /* O: year plus date since 0000                  */
 )
 {
-    int i;
-    int status;
-    int year, doy;
-    int *yeardoy;
-    int *row;
-    char temp_string[8];
-    char temp_string2[5];
-    char temp_string3[4];
-    char temp_string4[4];
-    char errmsg[MAX_STR_LEN];
-    char FUNC_NAME[] = "sort_scene_based_on_year_doy_row"; /* function name */
-    int len; /* length of string returned from strlen for string manipulation */
-    char temp[MAX_STR_LEN];
+    int i;                  /* loop counter                                  */
+    int status;             /* return of function calls for errror handling  */
+    int year, doy;          /* to keep track of year, and day within year    */
+    int *yeardoy;           /* combined year day of year as one string       */
+    int *row;               /* row of path/row for ordering from same swath  */
+    char temp_string[8];    /* for string manipulation                       */
+    char temp_string2[5];   /* for string manipulation                       */
+    char temp_string3[4];   /* for string manipulation                       */
+    char temp_string4[4];   /* for string manipulation                       */
+    char errmsg[MAX_STR_LEN]; /* for printing error messages                 */
+    char FUNC_NAME[] = "sort_scene_based_on_year_doy_row"; /* function name  */
+    int len; /* length of string returned from strlen for string manipulation*/
+    char temp[MAX_STR_LEN]; /* for string manipuulation                      */
 
-    /* Allocate memory for yeardoy */
+    /******************************************************************/
+    /*                                                                */
+    /* Allocate memory for yeardoy                                    */
+    /*                                                                */
+    /******************************************************************/
+
     yeardoy = malloc(num_scenes * sizeof(int));
     if (yeardoy == NULL)
     {
@@ -694,8 +730,13 @@ int sort_scene_based_on_year_doy_row
     {
         RETURN_ERROR("Allocating row memory", FUNC_NAME, ERROR);
     }
+ 
+    /******************************************************************/
+    /*                                                                */
+    /* Get year plus doy from scene name                              */
+    /*                                                                */
+    /******************************************************************/
 
-    /* Get year plus doy from scene name */
     for (i = 0; i < num_scenes; i++)
     {
         len = strlen(scene_list[i]);
@@ -715,11 +756,22 @@ int sort_scene_based_on_year_doy_row
         }
     }
 
-    /* Sort the scene_list & sdate based on yeardoy */
+    /******************************************************************/
+    /*                                                                */
+    /* Sort the scene_list & sdate based on yeardoy                   */
+    /*                                                                */
+    /******************************************************************/
+
     quick_sort(yeardoy, scene_list, sdate, 0, num_scenes - 1);
-    /* If two identical date data exist (this is only the case 
-       for ARD data, then put the smaller row number data in
-       the front */
+
+    /******************************************************************/
+    /*                                                                */
+    /* If two identical date data exist (this is only the case        */
+    /* for ARD data, then put the smaller row number data in          */
+    /* the front.                                                     */
+    /*                                                                */
+    /******************************************************************/
+
     for (i = 0; i < num_scenes - 1; i++)
     {
         if (sdate[i+1] == sdate[i])
@@ -733,11 +785,16 @@ int sort_scene_based_on_year_doy_row
 	}
     }
 
-    /* Free memory */
+    /******************************************************************/
+    /*                                                                */
+    /* Free memory                                                    */
+    /*                                                                */
+    /******************************************************************/
+
     free(yeardoy);
     free(row);
 
-    return SUCCESS;
+    return (SUCCESS);
 
 }
 
@@ -881,25 +938,25 @@ Date        Programmer       Reason
 ******************************************************************************/
 int median_variogram
 (
-    float **array,      /* I: input array */
-    int dim1_len,       /* I: dimension 1 length in input array */
-    int dim2_start,     /* I: dimension 2 start index */
-    int dim2_end,       /* I: dimension 2 end index */
-    float *output_array /* O: output array */
+    float **array,      /* I: input array                                    */
+    int dim1_len,       /* I: dimension 1 length in input array              */
+    int dim2_start,     /* I: dimension 2 start index                        */
+    int dim2_end,       /* I: dimension 2 end index                          */
+    float *output_array /* O: output array                                   */
 )
 {
-    int i, j;
-    float *var; 
-    int dim2_len = dim2_end - dim2_start + 1;
-    int m = dim2_len / 2 - 1;
-    char FUNC_NAME[] = "median_variogram";
+    int i, j;           /* loop indecies                                     */
+    float *var;         /* pointer for allocation variable memory            */
+    int dim2_len = dim2_end - dim2_start + 1; /* perhaps should get defined  */
+    int m = dim2_len / 2 - 1;                 /* later?                      */
+    char FUNC_NAME[] = "median_variogram"; /* for error messages             */
 
     if (dim2_len == 1)
     {
         for (i = 0; i < dim1_len; i++)
         {
             output_array[i] = array[i][dim2_start];
-            return SUCCESS;
+            return (SUCCESS);
         }
     }
 
@@ -926,7 +983,7 @@ int median_variogram
 
     free(var);
 
-    return SUCCESS;
+    return (SUCCESS);
 }
 
 
@@ -945,26 +1002,36 @@ Date        Programmer       Reason
 2/16/2016   Song Guo         Original development
 ******************************************************************************/
 #include <string.h>
-#include <limits.h>         /* For PATH_MAX */
+#include <limits.h>           /* For PATH_MAX                                */
 #include "error.h"
 #include "input.h"
 #include "const.h"
 
 void split_directory_scenename
 (
-    const char *filename,       /* I: Name of scene with path to split */
-    char *directory,            /* O: Directory portion of file name */
-    char *scene_name            /* O: Scene name portion of the file name */
+    const char *filename,     /* I: Name of scene with path to split         */
+    char *directory,          /* O: Directory portion of file name           */
+    char *scene_name          /* O: Scene name portion of the file name      */
 )
 {
-    char file_name[PATH_MAX];      /* Local copy of filename */
-    char *ptr = NULL;              /* String pointer */
+    char file_name[PATH_MAX]; /* Local copy of filename                      */
+    char *ptr = NULL;         /* String pointer                              */
 
+    /******************************************************************/
+    /*                                                                */
     /* Make a local copy of filename so it is not destroyed */
+    /*                                                                */
+    /******************************************************************/
+
     strcpy(file_name, filename);
 
-    /* Check for a directory path */
-    /* Find ending '/' */
+    /******************************************************************/
+    /*                                                                */
+    /* Check for a directory path                                     */
+    /* Find ending '/'                                                */
+    /*                                                                */
+    /******************************************************************/
+
     ptr = (char *) strrchr(file_name, '/');
     if (ptr != NULL)
     {
@@ -974,11 +1041,18 @@ void split_directory_scenename
     else
         strcpy (directory, "");
 
-    /* Obtain the scene name */
+    /******************************************************************/
+    /*                                                                */
+    /* Obtain the scene name                                          */
+    /*                                                                */
+    /******************************************************************/
+
     strcpy(scene_name, ptr);
 
     return;
 }
+
+
 /******************************************************************************
 MODULE:  rmse_from_square_root_mean
 
@@ -1150,12 +1224,13 @@ Date        Programmer       Reason
 
 NOTES: 
 ******************************************************************************/
+
 void matlab_2d_array_norm
 (
-    float **array,       /* I: input array */
-    int dim1_index,      /* I: 1st dimension index */   
-    int dim2_len,        /* I: number of input elements in 2nd dim */
-    float  *output_norm  /* O: output norm value */
+    float **array,       /* I: input array                                   */
+    int dim1_index,      /* I: 1st dimension index                           */
+    int dim2_len,        /* I: number of input elements in 2nd dim           */
+    float  *output_norm  /* O: output norm value                             */
 )
 {
     int i;
@@ -1167,6 +1242,7 @@ void matlab_2d_array_norm
     }
     *output_norm = sqrt(sum);
 }
+
 
 /******************************************************************************
 MODULE:  matlab_2d_float_median
@@ -1247,8 +1323,8 @@ void matlab_2d_array_mean
 /******************************************************************************
 MODULE:  matlab_float_2d_partial_median
 
-PURPOSE:  simulate matlab mean function for partial part of 1 dimesion in 2d
-          array cases only
+PURPOSE: simulate matlab mean function for partial part of 1 dimesion in 2d
+         array cases only
 
 RETURN VALUE:
 Type = void
@@ -1409,7 +1485,7 @@ RETURN VALUE: None
 HISTORY:
 Date        Programmer       Reason
 --------    ---------------  -------------------------------------
- 1/11/2016   Song Guo         Original Development
+ 1/11/2016  Song Guo         Original Development
 
  NOTES:
 ******************************************************************************/
@@ -1490,18 +1566,28 @@ void auto_robust_fit
 )
 {
     int i, j;
-    const size_t p = 5; /* linear fit */
+    const int p = 5; /* linear fit */
     gsl_matrix *x, *cov;
     gsl_vector *y, *c;
 
-    /* Defines the inputs/outputs for robust fitting */
+    /******************************************************************/
+    /*                                                                */
+    /* Defines the inputs/outputs for robust fitting                  */
+    /*                                                                */
+    /******************************************************************/
+
     x = gsl_matrix_alloc (nums, p);
     y = gsl_vector_alloc (nums);
 
     c = gsl_vector_alloc (p);
     cov = gsl_matrix_alloc (p, p);
 
-    /* construct design matrix x for linear fit */
+    /******************************************************************/
+    /*                                                                */
+    /* construct design matrix x for linear fit                       */
+    /*                                                                */
+    /******************************************************************/
+
     for (i = 0; i < nums; ++i)
     {
         for (j = 0; j < p; j++)
@@ -1518,7 +1604,12 @@ void auto_robust_fit
         gsl_vector_set(y,i,clry[band_index][i+start]);
     }
 
-    /* perform robust fit */
+    /******************************************************************/
+    /*                                                                */
+    /* perform robust fit                                             */
+    /*                                                                */
+    /******************************************************************/
+
     dofit(gsl_multifit_robust_bisquare, x, y, c, cov);
 
     for (j = 0; j < c->size; j++)
@@ -1526,12 +1617,18 @@ void auto_robust_fit
         coefs[j] = gsl_vector_get(c, j);
     }
 
-    /* Free the memories */
+    /******************************************************************/
+    /*                                                                */
+    /* Free the memories                                              */
+    /*                                                                */
+    /******************************************************************/
+
     gsl_matrix_free (x);
     gsl_vector_free (y);
     gsl_vector_free (c);
     gsl_matrix_free (cov);
 }
+
 
 /******************************************************************************
 MODULE:  auto_mask
@@ -1548,6 +1645,7 @@ Date        Programmer       Reason
 --------    ---------------  -------------------------------------
 3/5/2015    Song Guo         Original Development
 20160104    Song Guo         Numerous bug fixes.
+20160513    Brian Davis      Added SUCCESS argument to int return.
 
 NOTES:
 ******************************************************************************/
@@ -1594,12 +1692,29 @@ int auto_mask
         x[i][3] = sin(w2 * (float)clrx[i+start]);
     }
 
+    /******************************************************************/
+    /*                                                                */
     /* Do robust fitting for band 2 */
+    /*                                                                */
+    /******************************************************************/
+
     auto_robust_fit(x, clry, nums, start, 1, coefs);
+
+    /******************************************************************/
+    /*                                                                */
     /* Do robust fitting for band 5 */
+    /*                                                                */
+    /******************************************************************/
+
     auto_robust_fit(x, clry, nums, start, 4, coefs2);
-    /* predict band 2 * band 5 refs, bl_ids value of 0 is clear and 
-       1 otherwise */
+
+    /******************************************************************/
+    /*                                                                */
+    /* predict band 2 * band 5 refs, bl_ids value of 0 is clear and   */
+    /* 1 otherwise                                                    */
+    /*                                                                */
+    /******************************************************************/
+
     for (i = 0; i < nums; i++)
     {
         pred_b2 = coefs[0] + coefs[1] * cos((float)clrx[i+start] * w ) + 
@@ -1627,7 +1742,7 @@ int auto_mask
         RETURN_ERROR ("Freeing memory: x\n", FUNC_NAME, ERROR);
     }
 
-    return SUCCESS;
+    return (SUCCESS);
 }
 
 /******************************************************************************
@@ -1704,7 +1819,7 @@ int auto_ts_predict
       }
     }
 
-    return SUCCESS;
+    return (SUCCESS);
 }
 
 
@@ -1728,7 +1843,8 @@ Date        Programmer       Original development
 NOTES:
 ******************************************************************************/
 
-int c_glmnet(
+int c_glmnet
+(
     int no,		// number of observations (no)
     int ni,		// number of predictor variables (ni)
     double *x,		// input matrix, x[ni][no]
@@ -1796,9 +1912,9 @@ int c_glmnet(
         }
     }
 
-
     return jerr;
 }
+
 
 /******************************************************************************
 MODULE:  auto_ts_fit
@@ -1814,8 +1930,14 @@ HISTORY:
 Date        Programmer       Reason
 --------    ---------------  -------------------------------------
 11/23/2015  Song Guo         Original Development
-20151203    Brian Davis      merge of versions.
+20151203    Brian Davis      Merge of versions.
 20160104    Song Guo         Numerous bug fixes.
+20160517    Brian Davis      Removed temporary hack of initializing lmu to 1.
+                             There now seem to be no data-dependent crashes
+                             with lmu initialized to some strange value(s).
+                             Put df and nums correctly into error message
+                             sprintf when malloc of y fails.
+                             Incorporated fix to initialize coefs to 0.0.
 
 NOTES:
 ******************************************************************************/
@@ -1851,15 +1973,6 @@ int auto_ts_fit
     nums = end - start + 1;
     w = TWO_PI / 365.25;
 
-    // bdavis
-    // not sure why lmu is 56 after declaration.  no one ever assigs
-    // a value to it.  Will force it to be 1.  It is used in c_glmnet
-    // for array index declaration, so we need it to be valid, but
-    // not sure if 1 is the correct value.  CCDC now runs, but unsure
-    // of results.
-    /* lmu = 1; */  /* remove this if numerous other "bug fixes" resolve it.....*/
-    // bdavis 
-
     /* Allocate memory */
     if (df ==2 || df ==4 || df == 6 || df == 8)
     {
@@ -1874,7 +1987,7 @@ int auto_ts_fit
 	y = malloc(nums * sizeof(double));
         if (y == NULL)
 	{
-            sprintf(errmsg, "Allocating y memory");
+            sprintf(errmsg, "Allocating y memory %d %d", df, nums);
             RETURN_ERROR(errmsg, FUNC_NAME, ERROR);
 	}
     }
@@ -1996,12 +2109,12 @@ int auto_ts_fit
                 RETURN_ERROR(errmsg, FUNC_NAME, ERROR);
             }
 
-	    for (i = 0; i < LASSO_COEFFS; i++)
-	        coefs[band_index][i] = 0.0;
+            for (i = 0; i < LASSO_COEFFS; i++)
+                coefs[band_index][i] = 0.0;
 
-            for (i = 0; i < lmu; i++) 
+	    for (i = 0; i < lmu; i++)
             {
-	        for (j = 0; j < df; j++) 
+                for (j = 0; j < df; j++)
                 {
 	            coefs[band_index][j]= cfs[i][j];
 	        }
@@ -2016,7 +2129,6 @@ int auto_ts_fit
         for (i = 0; i < nums; i++)
         {
             v_dif[band_index][i] = clry[band_index][i+start] - yhat[i];
-	    //            printf("yhat[%d]=%f\n",i,yhat[i]);
         }
         matlab_2d_array_norm(v_dif, band_index, nums, &v_dif_norm);
         *rmse = v_dif_norm / sqrt((float)(nums - df));
@@ -2033,6 +2145,6 @@ int auto_ts_fit
 	free(y);
     }
 
-    return SUCCESS;
+    return (SUCCESS);
 }
 
