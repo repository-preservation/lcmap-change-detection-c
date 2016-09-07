@@ -396,7 +396,7 @@ int main (int argc, char *argv[])
             RETURN_ERROR ("Allocating rmse memory", FUNC_NAME, FAILURE);
         }
 
-        vec_mag = (float *)calloc(NUM_LASSO_BANDS, sizeof(float));
+        vec_mag = (float *)calloc(CONSE, sizeof(float));
         if (vec_mag == NULL)
         {
             RETURN_ERROR ("Allocating vec_mag memory", FUNC_NAME, FAILURE);
@@ -1034,9 +1034,8 @@ int main (int argc, char *argv[])
                     offset = (((row_inx * meta->samples) + 
                                (col_inx * TOTAL_BANDS))  +
                                 scene_inx);
-    	            if (((updated_fmask_buf[scene_inx] == CFMASK_SNOW) || 
-                         (updated_fmask_buf[scene_inx] < 2))           &&
-                          id_range[scene_inx] == 1)
+    	            if ((updated_fmask_buf[scene_inx] == CFMASK_SNOW) || 
+                         (updated_fmask_buf[scene_inx] < 2))
                     {
                         clrx[n_sn] = updated_sdate_array[scene_inx];
                         for (k = 0; k < TOTAL_IMAGE_BANDS; k++)
@@ -1050,8 +1049,7 @@ int main (int argc, char *argv[])
 
                 if (n_sn < N_TIMES * MIN_NUM_C) // not enough snow pixels
                 {
-                    RETURN_ERROR ("Not enough good snow observations\n", 
-                         FUNC_NAME, FAILURE);
+                    continue;
                 }
 
                 /**********************************************************/
@@ -1080,49 +1078,68 @@ int main (int argc, char *argv[])
                 /*                                                        */
                 /**********************************************************/
 
-                for (k = 0; k < TOTAL_IMAGE_BANDS; k++)
+                for (b = 0; b < TOTAL_IMAGE_BANDS; b++)
                 {
                     i_span = 0;
-                    for (i = 0; i < end; i++)
+                    if (b != TOTAL_IMAGE_BANDS - 1) /* for optical bands */
                     {
-                        if (k != TOTAL_IMAGE_BANDS - 1) // for optical bands
+                        for (k = 0; k < end; k++)
                         {
-                            if (clry[i][k] > 0.0 && clry[i][k] < 10000.0)
+                           if (clry[b][k] > 0.0 && clry[b][k] < 10000.0)
                             {
-                                clrx[i_span] = clrx[i];
-                                clry[i_span][k] = clry[i][k];
+                                cpx[i_span] = clrx[k];
+                                cpy[b][i_span] = clry[b][k];
                                 i_span++;
                             }
-
-                            if (i_span < MIN_NUM_C * N_TIMES)
-                                fit_cft[i][k] = 10000; // fixed value for saturated pixels
-                            else
-                            {
-                                status = auto_ts_fit(clrx, clry, k, 0, i_span-1, MIN_NUM_C, 
-                                         fit_cft, &rmse[k], temp_v_dif); 
-                                if (status != SUCCESS)  
-                                    RETURN_ERROR ("Calling auto_ts_fit1\n", 
-                                           FUNC_NAME, EXIT_FAILURE);
-
-                            } 
                         }
-                        else // for thermal band
+
+                        if (i_span < MIN_NUM_C * N_TIMES)
                         {
-                            if (clry[i][k] > -9300.0 && clry[i][k] < 7070.0)
-                            {
-                                clrx[i_span] = clrx[i];
-                                clry[i_span][k] = clry[i][k];
-                                i_span++;
-                            }
-                            
-                            status = auto_ts_fit(clrx, clry, k, 0, i_span-1, MIN_NUM_C, fit_cft, 
-                                     &rmse[k], temp_v_dif); 
+                            for (k = 0; k < MIN_NUM_C; k++)
+                                fit_cft[b][k] = 10000; // fixed value for saturated pixels
+                        }
+                        else
+                        {
+                            status = auto_ts_fit(cpx, cpy, b, 0, i_span - 1, MIN_NUM_C, 
+                                                 fit_cft, &rmse[b], temp_v_dif); 
                             if (status != SUCCESS)  
-                                RETURN_ERROR ("Calling auto_ts_fit2\n", 
-                                      FUNC_NAME, EXIT_FAILURE);
+                                RETURN_ERROR ("Calling auto_ts_fit1\n", FUNC_NAME, EXIT_FAILURE);
                         }
+
+                    }
+                    else // for thermal band
+                    {
+                        for (k = 0; k < end; k++)
+                        {
+                            if (clry[b][k] > -9300.0 && clry[b][k] < 7070.0)
+                            {
+                                cpx[i_span] = clrx[k];
+                                cpy[b][i_span] = clry[b][k];
+                                i_span++;
+                            }
+                        }
+                            
+                        status = auto_ts_fit(cpx, cpy, b, 0, i_span - 1, MIN_NUM_C, fit_cft, 
+                                             &rmse[b], temp_v_dif); 
+                        if (status != SUCCESS)  
+                            RETURN_ERROR ("Calling auto_ts_fit2\n", FUNC_NAME, EXIT_FAILURE);
                     }
                 }
+
+
+                /******************************************************/
+                /*                                                    */
+                /* free memories                                      */
+                /*                                                    */
+                /******************************************************/
+
+                free(cpx);
+                status = free_2d_array ((void **) cpy);
+                if (status != SUCCESS)
+                {
+                    RETURN_ERROR ("Freeing memory: cpy\n", FUNC_NAME, FAILURE);
+                }
+
 
                 /******************************************************/
                 /*                                                    */
@@ -1170,7 +1187,7 @@ int main (int argc, char *argv[])
                 /*                                                        */
                 /**********************************************************/
 
-                rec_cg[num_fc].pos = (row) * ncols + col_inx + 1; 
+                rec_cg[num_fc].pos = (row_inx * ncols) + col_inx + 1; 
 
                 for (i_b = 0; i_b < TOTAL_IMAGE_BANDS; i_b++)
                 {
@@ -1182,7 +1199,7 @@ int main (int argc, char *argv[])
                         /*                                                */
                         /**************************************************/
 
-                        rec_cg[num_fc].coefs[i_b][k] = fit_cft[i_b][k];
+                        rec_cg[num_fc].coefs[k][i_b] = fit_cft[i_b][k];
                     }
 
                     /******************************************************/
@@ -1262,6 +1279,33 @@ int main (int argc, char *argv[])
                 if (verbose)
                     printf ("Fmask failed, clear pixel = %f\n", 100.0 * clr_pct); 
 
+
+                /**********************************************************/
+                /*                                                        */
+                /* allocate memory for cpx, cpy */
+                /*                                                        */
+                /**********************************************************/
+
+                cpx = malloc(end * sizeof(int));
+                if (cpx == NULL)
+                    RETURN_ERROR("ERROR allocating cpx memory", FUNC_NAME, FAILURE);
+
+                cpy = (float **) allocate_2d_array (TOTAL_IMAGE_BANDS, end,
+                             sizeof (float));
+                if (cpy == NULL)
+                {
+                    RETURN_ERROR ("Allocating cpy memory", FUNC_NAME, FAILURE);
+                }
+
+                for (i = 0; i < end; i++)
+                {
+                    cpx[i] = clrx[i];
+                    for (k = 0; k < TOTAL_IMAGE_BANDS; k++)
+                    {
+                        cpy[k][i] = clry[k][i];
+                    }
+                }
+
                 n_clr = 0;
                 float band2_median; // probably not good practice to declare here....
                 quick_sort_float(clry[1], 0, end - 1);
@@ -1269,12 +1313,12 @@ int main (int argc, char *argv[])
 
                 for (i = 0; i < end; i++)
                 {
-                    if (clry[1][i] < (band2_median + 400.0))
+                    if (cpy[1][i] < (band2_median + 400.0))
                     {
-                        clrx[n_clr] = clrx[i];
+                        clrx[n_clr] = cpx[i];
                         for (k = 0; k < TOTAL_IMAGE_BANDS; k++)
                         { 
-                            clry[k][n_clr] = clry[k+1][i]; 
+                            clry[k][n_clr] = cpy[k][i]; 
                         }
                         n_clr++;
                     }
@@ -1297,14 +1341,28 @@ int main (int argc, char *argv[])
                 {
                     for (i_b = 0; i_b < TOTAL_IMAGE_BANDS; i_b++)
                     {
-                        status = auto_ts_fit(clrx, clry, i_b, 0, end-1, MIN_NUM_C, 
-                                             fit_cft, &rmse[k], temp_v_dif); 
+                        status = auto_ts_fit(clrx, clry, i_b, 0, end - 1, MIN_NUM_C, 
+                                             fit_cft, &rmse[i_b], temp_v_dif); 
                         if (status != SUCCESS)
                         {  
                             RETURN_ERROR ("Calling auto_ts_fit for clear persistent pixels\n", 
                                           FUNC_NAME, FAILURE);
                         }
                     }
+                }
+
+
+                /******************************************************/
+                /*                                                    */
+                /* Free the memories */
+                /*                                                    */
+                /******************************************************/
+
+                free(cpx);
+                status = free_2d_array ((void **) cpy);
+                if (status != SUCCESS)
+                {
+                    RETURN_ERROR ("Freeing memory: cpy\n", FUNC_NAME, FAILURE);
                 }
 
                 /******************************************************/
@@ -1353,7 +1411,7 @@ int main (int argc, char *argv[])
                 /*                                                        */
                 /**********************************************************/
 
-                rec_cg[num_fc].pos = (row-1) * ncols + col_inx + 1; 
+                rec_cg[num_fc].pos = (row_inx * ncols) + col_inx + 1; 
 
                 for (i_b = 0; i_b < TOTAL_IMAGE_BANDS; i_b++)
                 {
@@ -1365,7 +1423,7 @@ int main (int argc, char *argv[])
                         /*                                                */
                         /**************************************************/
 
-                        rec_cg[num_fc].coefs[i_b][k] = fit_cft[i_b][k];
+                        rec_cg[num_fc].coefs[k][i_b] = fit_cft[i_b][k];
                     }
 
                     /******************************************************/
@@ -1789,7 +1847,7 @@ int main (int argc, char *argv[])
                                     /*                                        */
                                     /******************************************/
 
-                                    status = auto_ts_fit(clrx, clry, b, i_start-1, i-1, 
+                                    status = auto_ts_fit(clrx, clry, b, i_start - 1, i - 1, 
                                              MIN_NUM_C, fit_cft, &rmse[b], rec_v_dif); 
                                     if (status != SUCCESS)  
                                     {
@@ -1997,7 +2055,7 @@ int main (int argc, char *argv[])
                                                     auto_ts_predict(clrx, fit_cft, MIN_NUM_C, i_b, i_ini-i_conse,
                                                                     i_ini-i_conse, &ts_pred_temp);
                                                     v_dif_mag[i_b][i_conse] = (float)clry[i_b][i_ini-i_conse] - 
-                                                                       ts_pred_temp;
+                                                                              ts_pred_temp;
 
                                                     /**************************/
                                                     /*                        */
@@ -2103,7 +2161,7 @@ int main (int argc, char *argv[])
 
                                         for (i_b = 0; i_b < TOTAL_IMAGE_BANDS; i_b++)
                                         {
-                                            status = auto_ts_fit(clrx, clry, i_b, i_break-1, i_start-2, 
+                                            status = auto_ts_fit(clrx, clry, i_b, i_break - 1, i_start - 2, 
                                                      MIN_NUM_C, fit_cft, &rmse[i_b], temp_v_dif); 
                                             if (status != SUCCESS)
                                             {  
@@ -2120,7 +2178,7 @@ int main (int argc, char *argv[])
                                         /**************************************/
 
                                         rec_cg[num_fc].t_end = clrx[i_start-2]; 
-                                        rec_cg[num_fc].pos = (row-1) * ncols + col_inx + 1; 
+                                        rec_cg[num_fc].pos = (row_inx * ncols) + col_inx + 1; 
 
                                         for (i_b = 0; i_b < TOTAL_IMAGE_BANDS; i_b++)
                                         {
@@ -2132,7 +2190,7 @@ int main (int argc, char *argv[])
                                                 /*                            */
                                                 /******************************/
 
-                                                rec_cg[num_fc].coefs[i_b][k] = fit_cft[i_b][k]; 
+                                                rec_cg[num_fc].coefs[k][i_b] = fit_cft[i_b][k]; 
                                              }
 
                                             /**********************************/
@@ -2254,8 +2312,8 @@ int main (int argc, char *argv[])
 
                         /******************************************************/
                         /*                                                    */
-                        /* initial model fit when there are not many observations.*/
-                        /* if (i_count == 0 || ids_old_len < (N_TIMES * MAX_NUM_C))*/
+                        /* Initial model fit when there are not many          */
+                        /* observations.                                      */
                         /*                                                    */
                         /******************************************************/
 
@@ -2271,7 +2329,7 @@ int main (int argc, char *argv[])
 
                             for (i_b = 0; i_b < TOTAL_IMAGE_BANDS; i_b++)
                             {
-                                status = auto_ts_fit(clrx, clry, i_b, i_start-1, i-1, update_num_c, 
+                                status = auto_ts_fit(clrx, clry, i_b, i_start - 1, i - 1, update_num_c, 
                                                      fit_cft, &rmse[i_b], rec_v_dif); 
                                 if (status != SUCCESS) 
                                 { 
@@ -2305,7 +2363,7 @@ int main (int argc, char *argv[])
                             /*                                            */
                             /**********************************************/
 
-                            rec_cg[num_fc].pos = (row-1) * ncols + col_inx + 1; // offsets
+                            rec_cg[num_fc].pos = (row_inx * ncols) + col_inx + 1; // offsets
 
                             for (i_b = 0; i_b < TOTAL_IMAGE_BANDS; i_b++)
                             {
@@ -2317,7 +2375,7 @@ int main (int argc, char *argv[])
                                     /*                                    */
                                     /**************************************/
 
-                                    rec_cg[num_fc].coefs[i_b][k] = fit_cft[i_b][k]; 
+                                    rec_cg[num_fc].coefs[k][i_b] = fit_cft[i_b][k]; 
                                 }
                                 /******************************************/
                                 /*                                        */
@@ -2433,7 +2491,7 @@ int main (int argc, char *argv[])
 
                                 for (i_b = 0; i_b < TOTAL_IMAGE_BANDS; i_b++)
                                 {
-                                    status = auto_ts_fit(clrx, clry, i_b, i_start-1, i-1, update_num_c, 
+                                    status = auto_ts_fit(clrx, clry, i_b, i_start - 1, i - 1, update_num_c, 
                                                          fit_cft, &rmse[i_b], rec_v_dif); 
                                     if (status != SUCCESS)  
                                     {
@@ -2457,7 +2515,7 @@ int main (int argc, char *argv[])
                                         /*                                */
                                         /**********************************/
 
-                                        rec_cg[num_fc].coefs[i_b][k] = fit_cft[i_b][k];
+                                        rec_cg[num_fc].coefs[k][i_b] = fit_cft[i_b][k];
                                     } 
                                     /**************************************/
                                     /*                                    */
@@ -2790,8 +2848,8 @@ int main (int argc, char *argv[])
                 /*                                                        */
                 /**********************************************************/
 
-                rec_cg[num_fc].change_prob = (CONSE - id_last) / CONSE; 
-                rec_cg[num_fc].t_end = clrx[end - CONSE + id_last];
+                rec_cg[num_fc].change_prob = (float)(CONSE - id_last) / (float)CONSE; 
+                rec_cg[num_fc].t_end = clrx[end - CONSE + id_last - 1];
 
                 /**********************************************************/
                 /*                                                        */
@@ -2807,7 +2865,7 @@ int main (int argc, char *argv[])
                     /*                                                    */
                     /******************************************************/
 
-                    rec_cg[num_fc].t_break = clrx[end-CONSE+id_last+1];
+                    rec_cg[num_fc].t_break = clrx[end - CONSE + id_last + 1];
 
                     /******************************************************/
                     /*                                                    */
@@ -2817,9 +2875,16 @@ int main (int argc, char *argv[])
 
                     for (i_b = 0; i_b < TOTAL_IMAGE_BANDS; i_b++)
                     {
-                        quick_sort_float(v_dif_mag[i_b], id_last, CONSE-2);
-                        matlab_float_2d_partial_median(v_dif_mag, i_b, id_last, CONSE-1,
+                        if (id_last == CONSE - 1)
+                        {
+                            rec_cg[num_fc].magnitude[i_b] = v_dif_mag[i_b][id_last];
+                        }
+                        else
+                        {
+                            quick_sort_float(v_dif_mag[i_b], id_last, CONSE - 1);
+                            matlab_float_2d_partial_median(v_dif_mag, i_b, id_last, CONSE - 1,
                                                        &rec_cg[num_fc].magnitude[i_b]);
+                        }
                     }
                 }
             }
@@ -2938,7 +3003,7 @@ int main (int argc, char *argv[])
                 {
                     for (i_b = 0; i_b < TOTAL_IMAGE_BANDS; i_b++)
                     {
-                        status = auto_ts_fit(clrx, clry, i_b, i_start-1, end-1, MIN_NUM_C, 
+                        status = auto_ts_fit(clrx, clry, i_b, i_start - 1, end - 1, MIN_NUM_C, 
                                              fit_cft, &rmse[i_b], temp_v_dif); 
                         if (status != SUCCESS)  
                         {
@@ -2957,7 +3022,7 @@ int main (int argc, char *argv[])
                     rec_cg[num_fc].t_start = clrx[i_start-1];
                     rec_cg[num_fc].t_end = clrx[end-1];
                     rec_cg[num_fc].t_break = 0;
-                    rec_cg[num_fc].pos = (row-1) * ncols + col_inx + 1; // offsets
+                    rec_cg[num_fc].pos = (row_inx * ncols) + col_inx + 1; // offsets
 
                     /******************************************************/
                     /*                                                    */
@@ -2969,7 +3034,7 @@ int main (int argc, char *argv[])
                     {
                         for (k = 0; k < MAX_NUM_C; k++)
                         {
-                            rec_cg[num_fc].coefs[i_b][k] = fit_cft[i_b][k];
+                            rec_cg[num_fc].coefs[k][i_b] = fit_cft[i_b][k];
                         }
                         rec_cg[num_fc].rmse[i_b] = rmse[i_b];
                     }
