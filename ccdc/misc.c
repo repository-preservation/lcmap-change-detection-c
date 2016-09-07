@@ -37,6 +37,9 @@ Date        Programmer       Reason
 1/5/2015    Song Guo         Original Development
 20151203    Brian Davis      Added arguments for input and output
                              directories, and scene list file.
+20160401    Brian Davis      Added data type argument.
+20160536    Brian Davis      Added arguments for number of rows and
+                             number of columns.
 
 NOTES:
   1. Memory is allocated for the input and output files.  All of these should
@@ -48,10 +51,12 @@ NOTES:
 
 int get_args
 (
-    int argc,              /* I: number of cmd-line args                    */
+    int  argc,             /* I: number of cmd-line args                    */
     char *argv[],          /* I: string of cmd-line args                    */
-    int *row,              /* O: row number for the pixel                   */
-    int *col,              /* O: col number for the pixel                   */
+    int  *row,             /* O: row number for the pixel                   */
+    int  *col,             /* O: col number for the pixel                   */
+    int  *nrows,           /* O: number of rows (Y) for line reading        */
+    int  *ncols,           /* O: number of columns (X) for tile reading     */
     char *in_path,         /* O: directory locaiton for input data          */
     char *out_path,        /* O: directory location for output files        */
     char *data_type,       /* O: data type:tif,bip,stdin.Future: bsq,"rods".*/
@@ -68,6 +73,8 @@ int get_args
         {"verbose", no_argument, &verbose_flag, 1},
         {"row", required_argument, 0, 'r'},
         {"col", required_argument, 0, 'c'},
+        {"num-cols", required_argument, 0, 'n'},
+        {"num-rows", required_argument, 0, 'n'},
         {"in-path", required_argument, 0, 'i'},
         {"out-path", required_argument, 0, 'o'},
         {"data-type", required_argument, 0, 'd'},
@@ -83,6 +90,16 @@ int get_args
     /******************************************************************/
 
     opterr = 0;
+
+    /******************************************************************/
+    /*                                                                */
+    /* Initialize nrows and nocls to 1, the default.  If not          */
+    /* specified, we will process 1 row and 1 column (1 pixel) only.  */
+    /*                                                                */
+    /******************************************************************/
+
+    *nrows = 1;
+    *ncols = 1;
 
     /******************************************************************/
     /*                                                                */
@@ -159,6 +176,13 @@ int get_args
                 *col = atoi (optarg);
                 break;
 
+            case 'n':             
+                if (strcmp(long_options[option_index].name, "num-cols") == 0)
+                    *ncols = atoi (optarg);
+                else if (strcmp(long_options[option_index].name, "num-rows") == 0)
+                    *nrows = atoi (optarg);
+                break;
+
             case '?':
             default:
                 sprintf (errmsg, "Unknown option %s", argv[optind - 1]);
@@ -170,7 +194,13 @@ int get_args
 
     /******************************************************************/
     /*                                                                */
-    /* Check the input values                                         */
+    /* Check the input values.                                        */
+    /* If reading single pixel locations from tifs or bip, ncols and  */
+    /* nrows must be 1 processing just 1 x/y pixel locaiton.          */
+    /* If reading bip_lines, col must be initialized to 0 (first)     */
+    /* and then ncols will be used for seeking and reading indecies.  */
+    /* An entire row is assumed for now (start at col=0),             */
+    /* row/nrows will be added later for entire tiles.                */
     /*                                                                */
     /******************************************************************/
 
@@ -179,10 +209,53 @@ int get_args
         sprintf (errmsg, "row number must be > 0");
         RETURN_ERROR(errmsg, FUNC_NAME, FAILURE);
     }
-
     if (*col < 0)
     {
-        sprintf (errmsg, "column number must be > 0");
+        sprintf (errmsg, "col number must be > 0");
+        RETURN_ERROR(errmsg, FUNC_NAME, FAILURE);
+    }
+
+    if (strcmp(data_type, "tifs") == 0) 
+    {
+        *ncols = 1;
+        *nrows = 1;
+    }
+    else if (strcmp(data_type, "bip_lines") == 0)
+    {
+        *col = 1;
+        if (*ncols < 0)
+        {
+            sprintf (errmsg, "number of columns must be > 0");
+            RETURN_ERROR(errmsg, FUNC_NAME, FAILURE);
+        }
+    }
+    else if (strcmp(data_type, "tiles") == 0)
+    {
+        printf("data-type is tiles\n");
+        if (*nrows < 0)
+        {
+            sprintf (errmsg, "number of rows must be > 0");
+            RETURN_ERROR(errmsg, FUNC_NAME, FAILURE);
+        }
+        if (*ncols < 0)
+        {
+            sprintf (errmsg, "number of columns must be > 0");
+            RETURN_ERROR(errmsg, FUNC_NAME, FAILURE);
+        }
+    }
+
+    /******************************************************************/
+    /*                                                                */
+    /* Current valid input types are separate tif files, single pixel */
+    /* location from bip envi files, an entire line from a bip envi   */
+    /* file, a tile of data of some sort, or values streamed/piped to */
+    /* stdin, one group per pixel/scene.                              */
+    /*                                                                */
+    /******************************************************************/
+
+    else if ((strcmp(in_path, "stdin") != 0) && (strcmp(data_type, "bip") != 0))
+    {
+        sprintf (errmsg, "in-path must be stdin, or data-type must be one of: tifs; bip; bip-lines; tiles\n");
         RETURN_ERROR(errmsg, FUNC_NAME, FAILURE);
     }
 
@@ -204,14 +277,6 @@ int get_args
     }
 
 
-    /******************************************************************/
-    /*                                                                */
-    /* Current valid input types are separate tif files, single bip   */
-    /* envi files, or values streamed/piped to stdin, one group per   */
-    /* pixel/scene.                                                   */
-    /* Future options planned are bsq and "rods".                     */
-    /*                                                                */
-    /******************************************************************/
 
     if (strcmp(in_path, "stdin") != 0)
     {
@@ -249,6 +314,7 @@ int get_args
     {
         printf ("row = %d\n", *row);
         printf ("col = %d\n", *col);
+        printf ("ncols = %d\n", *ncols);
         printf ("in-path = %s\n", in_path);
         printf ("out-path = %s\n", out_path);
         printf ("scene-list-file = %s\n", scene_list_file);
@@ -358,6 +424,7 @@ Date        Programmer       Reason
 
 NOTES:
 *****************************************************************************/
+
 int create_scene_list
 (
     const char *item,         /* I: string of file items be found           */
@@ -434,10 +501,11 @@ Date        Programmer       Reason
 
 NOTES:
 ******************************************************************************/
-int partition (int arr[], char *brr[], int crr[], int left, int right)
+
+int partition (int arr[], char *brr[], int crr[], int drr[], int left, int right)
 {
     int i = left, j = right;
-    int tmp, tmp2;
+    int tmp, tmp2, tmp3;
     char temp[MAX_STR_LEN];
     int pivot = arr[(left + right) / 2];
 
@@ -456,12 +524,15 @@ int partition (int arr[], char *brr[], int crr[], int left, int right)
             tmp = arr[i];
             strcpy(&temp[0], brr[i]);
             tmp2 = crr[i];
+            tmp3 = drr[i];
             arr[i] = arr[j];
             strcpy(brr[i], brr[j]);
             crr[i] = crr[j];
+            drr[i] = drr[j];
             arr[j] = tmp;
             strcpy(brr[j],&temp[0]);
             crr[j] = tmp2;
+            drr[j] = tmp3;
             i++;
             j--;
         }
@@ -469,6 +540,7 @@ int partition (int arr[], char *brr[], int crr[], int left, int right)
 
     return i;
 }
+
 
 /******************************************************************************
 MODULE:  quick_sort
@@ -481,20 +553,22 @@ HISTORY:
 Date        Programmer       Reason
 --------    ---------------  -------------------------------------
 1/23/2015   Song Guo         Original Development
+20160523    Brian Davis      Added drr
 
 NOTES:
 ******************************************************************************/
-void quick_sort (int arr[], char *brr[], int crr[], int left, int right)
+
+void quick_sort (int arr[], char *brr[], int crr[], int drr[], int left, int right)
 {
-    int index = partition (arr, brr, crr, left, right);
+    int index = partition (arr, brr, crr, drr, left, right);
 
     if (left < index - 1)
     {
-        quick_sort (arr, brr, crr, left, index - 1);
+        quick_sort (arr, brr, crr, drr, left, index - 1);
     }
     if (index < right)
     {
-        quick_sort (arr, brr, crr, index, right);
+        quick_sort (arr, brr, crr, drr, index, right);
     }
 }
 
@@ -517,6 +591,7 @@ Date        Programmer       Reason
 
 NOTES:
 ******************************************************************************/
+
 int partition_2d_float (float arr[], float *brr[], int left, int right)
 {
     int i = left, j = right;
@@ -554,6 +629,7 @@ int partition_2d_float (float arr[], float *brr[], int left, int right)
     return i;
 }
 
+
 /******************************************************************************
 MODULE:  quick_sort_2d_float
 
@@ -568,6 +644,7 @@ Date        Programmer       Reason
 
 NOTES:
 ******************************************************************************/
+
 void quick_sort_2d_float (float arr[], float *brr[], int left, int right)
 {
     int index = partition_2d_float (arr, brr, left, right);
@@ -581,6 +658,7 @@ void quick_sort_2d_float (float arr[], float *brr[], int left, int right)
         quick_sort_2d_float (arr, brr, index, right);
     }
 }
+
 
 /************************************************************************
 FUNCTION: is_leap_year
@@ -688,10 +766,11 @@ HISTORY:
 Date        Programmer       Reason
 --------    ---------------  -------------------------------------
 1/23/2015   Song Guo         Original Development
-2/1/2016    Song Guo         Added row number 
+2/1/2016    Song Guo         Added row number to quick_sort call. 
 
 NOTES:
 ******************************************************************************/
+
 int sort_scene_based_on_year_doy_row
 (
     char **scene_list,      /* I/O: scene_list, sorted as output             */
@@ -762,7 +841,7 @@ int sort_scene_based_on_year_doy_row
     /*                                                                */
     /******************************************************************/
 
-    quick_sort(yeardoy, scene_list, sdate, 0, num_scenes - 1);
+    quick_sort(yeardoy, scene_list, sdate, row, 0, num_scenes - 1);
 
     /******************************************************************/
     /*                                                                */
@@ -934,6 +1013,10 @@ HISTORY:
 Date        Programmer       Reason
 --------    ---------------  -------------------------------------
 5/19/2015   Song Guo         Original Development
+                             Changed:
+                             output_array[i] = (var[m] + var[m+1]) / 2.0
+                             to
+                             output_array[i] = (var[m-1] + var[m]) / 2.0
 
 ******************************************************************************/
 int median_variogram
@@ -975,7 +1058,7 @@ int median_variogram
         quick_sort_float(var, dim2_start, dim2_end-1);
         if ((dim2_len-1) % 2 == 0)
 	{
-            output_array[i] = (var[m-1] + var[m]) / 2.0;
+            output_array[i] = (var[m] + var[m+1]) / 2.0;
 	}
         else
             output_array[i] = var[m];
@@ -1306,7 +1389,7 @@ void matlab_2d_array_mean
     float **array,       /* I: input array */
     int dim1_index,      /* I: 1st dimension index */   
     int dim2_len,        /* I: number of input elements in 2nd dim */
-    float  *output_mean  /* O: output norm value */
+    float *output_mean   /* O: output norm value */
 )
 {
     int i;
@@ -1346,7 +1429,7 @@ void matlab_float_2d_partial_median
     int dim1_index,        /* I: 1st dimension index */
     int start,             /* I: number of start elements in 2nd dim */
     int end,               /* I: number of end elements in 2nd dim */
-    float  *output_median  /* O: output median value */
+    float *output_median   /* O: output median value */
 )
 {
     int m = (end - start) / 2;
@@ -1484,10 +1567,16 @@ RETURN VALUE: None
 
 HISTORY:
 Date        Programmer       Reason
---------    ---------------  -------------------------------------
+----------  ---------------  -------------------------------------
  1/11/2016  Song Guo         Original Development
+05/23/2016  Song Guo         Changed:
+                                 if (clrx[k] == clrx[k-1])
+                             to
+                                 if (clrx[k] != clrx[k-1])
+                             eliminated continue branch.
+                             moved for loop index outside 2nd for loop.
 
- NOTES:
+NOTES:
 ******************************************************************************/
 
 void matlab_unique
@@ -1503,14 +1592,13 @@ void matlab_unique
 
     for (k = 1, k_new = 1; k < nums; k++)
     {
-        if (clrx[k] == clrx[k-1])
+        if (clrx[k] != clrx[k-1])
         {
-            continue;
-        }
-        clrx[k_new] = clrx[k];
-        for (b = 0; b < TOTAL_IMAGE_BANDS; b++)
-            clry[b][k_new] = clry[b][k];
+            clrx[k_new] = clrx[k];
+            for (b = 0; b < TOTAL_IMAGE_BANDS; b++)
+                clry[b][k_new] = clry[b][k];
             k_new++;
+        }
     }
     *new_nums = k_new;
 }
@@ -1537,6 +1625,7 @@ void dofit(const gsl_multifit_robust_type *T,
 {
   gsl_multifit_robust_workspace * work 
     = gsl_multifit_robust_alloc (T, X->size1, X->size2);
+
   gsl_multifit_robust (X, y, c, cov, work);
   gsl_multifit_robust_free (work);
 }
@@ -1549,9 +1638,11 @@ PURPOSE:  Robust fit for one band
 RETURN VALUE: None
 
 HISTORY:
-Date        Programmer       Reason
---------    ---------------  -------------------------------------
+Date       Programmer       Reason
+--------   ---------------  -------------------------------------
 3/5/2015   Song Guo         Original Development
+20160525   Brian Davis      p delcaration from const size_t to int for type
+                            mismatch.
 
 NOTES:
 ******************************************************************************/
