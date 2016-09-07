@@ -302,7 +302,7 @@ NOTES:
 int read_stdin
 (
     int           *updated_sdate_array, /* I/O: pointer to date values buffer */
-    int           **buf,                /* I/O: pointer to image bands buffer */
+    int           *buf,                 /* I/O: pointer to image bands buffer */
     unsigned char *updated_cfmask_buf,  /* I/O: pointer to cfmask pixel buffer*/
     int           num_bands,            /* I:   total number of bands         */
     int           *clear_sum,           /* O:   accumulator for clear pixels  */
@@ -361,9 +361,10 @@ int read_stdin
 
         for (j = 0; j < num_bands; j++)
         {
-            scanf("%d", &buf[j][i]);
+            scanf("%d", &buf[i + j]);  // offsets 
             if (debug)
-                printf( "You entered: %d\n", buf[j][i]);
+                //printf( "You entered: %d\n", buf[j][i]);
+                printf( "You entered: %d\n", buf[i + j]);  // offsets 
         }
 
         /**************************************************************/
@@ -509,18 +510,27 @@ int read_tifs
     int  curr_scene_num, /* I:   current num. in list of scenes to read */
     int  row,            /* I:   the row (Y) location within img/grid   */
     int  col,            /* I:   the col (X) location within img/grid   */
+    int  nrows,          /* I:   number of rows to read in tile of data */
+    int  ncols,          /* I:   number of colums to read (1 for bip)   */
     int  num_samples,    /* I:   number of image samples (X width)      */
     bool debug,          /* I:   flag for printing debug messages       */
-    int  **image_buf     /* O:   pointer to 2-D image band values array */
+    int  *image_buf      /* O:   pointer to 2-D image band values array */
 )
 
 {
     int  k;                     /* band loop counter.                   */
+    int  row_inx, col_inx;      /* 2d array loop counters               */
     int  len;                   /* for string length call.              */
     int  landsat_number;        /* numeric mission number to make names */
     char filename[MAX_STR_LEN]; /* file name constructed from sceneID   */
     int  status;                /* return status of system call(s)      */
+    int  offset;                /* pixel locatoffset into image buffer  */
+    int  row_size;              /* size of a row to calculate offset    */
+    int  col_size;              /* size of a col to calculate offset    */
 
+
+    row_size = num_samples;
+    col_size = TOTAL_BANDS;
 
     /******************************************************************/
     /*                                                                */
@@ -557,15 +567,25 @@ int read_tifs
         if (status != 0)
             printf("error seeking %d scene, %d bands\n", curr_scene_num, (k + 1));
 
-        if (read_raw_binary(fp_tifs[k][curr_scene_num], 1, 1, sizeof(short int), &image_buf[k][curr_scene_num]) != 0)
-            printf("error reading %d scene, %d bands\n", curr_scene_num, (k + 1));
+        for (row_inx = 0; row_inx < nrows; row_inx++)
+        {
+            for (col_inx = 0; col_inx < ncols; col_inx++)
+            {
+                offset = (row_inx * row_size) + (col_inx * col_size) + curr_scene_num + k;
+                //if (read_raw_binary(fp_tifs[k][curr_scene_num], 1, 1,
+                //                    sizeof(short int),
+                //                    &image_buf[k][curr_scene_num]) != 0)
+                if (read_raw_binary(fp_tifs[k][curr_scene_num], 1, 1, sizeof(short int), image_buf[offset]) != 0)
+                    printf("error reading %d scene, %d bands\n", curr_scene_num, (k + 1));
+                if (debug)
+                {
+                    printf("%d ", (short int)image_buf[offset]);
+                }
+            }
+        }
     
         close_raw_binary(fp_tifs[k][curr_scene_num]);
 
-        if (debug)
-        {
-            printf("%d ", (short int)image_buf[k][curr_scene_num]);
-        }
 
     }
 
@@ -595,26 +615,31 @@ NOTES:
 
 int read_bip
 (
-    char *curr_scene_name, /* I:   current file name in list of sceneIDs  */
+    char *curr_scene_name,    /* I:   current file name in list of sceneIDs  */
     FILE **fp_bip,            /* I/O: file pointer array for BIP  file names */
     int  curr_scene_num,      /* I:   current num. in list of scenes to read */
     int  row,                 /* I:   the row (Y) location within img/grid   */
     int  col,                 /* I:   the col (X) location within img/grid   */
+    int  nrows,               /* I:   number of rows to read in tile of data */
+    int  ncols,               /* I:   number of colums to read (1 for bip)   */
     int  num_samples,         /* I:   number of image samples (X width)      */
-    int  **image_buf          /* O:   pointer to 2-D image band values array */
+    int  *image_buf           /* O:   pointer to 2-D image band values array */
 )
 
 {
 
-    int  k;                     /* band loop counter.                   */
+    int  row_inx, col_inx, band_inx; /* for relative to start numbers.  */
+    int  row_count, col_count; /* row, column, band loop counters.      */
     int  len;                   /* for string length call.              */
     char filename[MAX_STR_LEN]; /* file name constructed from sceneID   */
-    char shorter_name[MAX_STR_LEN]; /* file name constructed from sceneID*/
+    char shorter_name[MAX_STR_LEN];/* file name constructed from sceneID*/
     char directory[MAX_STR_LEN];
     char scene_name[MAX_STR_LEN];
     char tmpstr[MAX_STR_LEN];   /* for string manipulation              */
     char errmsg[MAX_STR_LEN];   /* for printing error text to the log.  */
     bool debug = true;          /* for debug printing                   */
+    int  in_offset;             /* pixel location offset into input buf */
+    int  out_offset;            /* pixel location offset into output buf*/
 
 
     /******************************************************************/
@@ -646,8 +671,8 @@ int read_bip
         return (FAILURE);
     }
 
-    fseek(fp_bip[curr_scene_num], ((row - 1)* num_samples + col - 1) * 
-          TOTAL_BANDS * sizeof(short int), SEEK_SET);
+    in_offset = ((row - 1) * num_samples + col - 1) * TOTAL_BANDS * sizeof(short int);
+    fseek(fp_bip[curr_scene_num], in_offset, SEEK_SET);
 
     /******************************************************************/
     /*                                                                */
@@ -655,23 +680,53 @@ int read_bip
     /*                                                                */
     /******************************************************************/
 
-    for (k = 0; k < TOTAL_IMAGE_BANDS; k++)
+    for (row_inx = (row - 1), row_count = 0; row_count < nrows; row_count++, row_inx++)
     {
-        if (read_raw_binary(fp_bip[curr_scene_num], 1, 1,
-                sizeof(short int), &image_buf[k][curr_scene_num]) != 0)
+        for (col_inx = (col - 1), col_count = 0; col_count < ncols; col_count++, col_inx++)
         {
-    	    sprintf(errmsg, "error reading %d scene, %d bands\n",curr_scene_num, k+1);
-            printf(errmsg);
-            return (FAILURE);
+            for (band_inx = 0; band_inx < TOTAL_IMAGE_BANDS; band_inx++)
+            {
+                out_offset = (row_count * num_samples) + (col_count * TOTAL_BANDS) + curr_scene_num + band_inx;
+                if (read_raw_binary(fp_bip[curr_scene_num], 1, 1, sizeof(short int),
+                                    &image_buf[out_offset]) != 0)
+                    //sizeof(short int), &image_buf[(col_inx * TOTAL_BANDS) + band_inx][curr_scene_num]) != 0)
+                {
+        	    sprintf(errmsg, "error reading %d scene, row %d, col %d, %d bands\n",
+                            curr_scene_num, row_inx + 1, col_inx + 1, band_inx + 1);
+                    printf(errmsg);
+                    return (FAILURE);
+                }
+                if (debug)
+                    printf("%d ", (short int)image_buf[out_offset]);
+            }
         }
-        if (debug)
-            printf("%d ", (short int)image_buf[k][curr_scene_num]);
     }
-        close_raw_binary(fp_bip[curr_scene_num]);
+
+    close_raw_binary(fp_bip[curr_scene_num]);
 
     return (SUCCESS);
 }
 
+
+/*******************************************************************************
+MODULE: read_cfmask
+
+PURPOSE: Creates the cfmask file names to open and read, and fills cfmask
+         buffer with values read. For data-type=bip, all image bands are in a
+         single envi bip format image file. For tif files, all bands, including
+         cfmask, are in separate files.  Part of an on-going effort to
+         remove all read I/O from main.c.
+ 
+RETURN VALUE:
+Type = int
+
+HISTORY:
+Date         Programmer       Reason
+----------   --------------   -------------------------------------
+20160428     Brian Davis      Original development
+
+NOTES:
+*******************************************************************************/
 
 int read_cfmask
 (
@@ -680,6 +735,8 @@ int read_cfmask
     char **scene_list,   /* I:   current scene name in list of sceneIDs       */
     int  row,            /* I:   the row (Y) location within img/grid         */
     int  col,            /* I:   the col (X) location within img/grid         */
+    int  nrows,          /* I:   number of rows to read in a tile of some data*/
+    int  ncols,          /* I:   number of cols to read in a line of bip data */
     int  num_samples,    /* I:   number of image samples (X width)            */
     FILE ***fp_tifs,     /* I/O: file ptr array for tif band file names       */
     FILE **fp_bip,       /* I/O: file pointer array for BIP file names        */
@@ -726,6 +783,7 @@ int read_cfmask
     char errmsg[MAX_STR_LEN]; /* for printing errors before log/quit    */
     char FUNC_NAME[] = "read_cfmask"; /* for printing errors messages   */
     int int_buf;         /* for reading cfmask value then type cast     */
+    int row_inx, col_inx;/* for reading 2d arrays of tiles              */
 
     if (strcmp(data_type, "tifs") == 0)
     {
@@ -763,12 +821,18 @@ int read_cfmask
         if (fp_tifs[CFMASK_BAND][curr_scene_num] == NULL)
             printf("error open %d scene, %d bands files\n", curr_scene_num, CFMASK_BAND+1);
     
-        fseek(fp_tifs[CFMASK_BAND][curr_scene_num], (row * num_samples + col)*sizeof(unsigned char), 
-            SEEK_SET);
+        fseek(fp_tifs[CFMASK_BAND][curr_scene_num], ((row * num_samples) + col) *
+              sizeof(unsigned char), SEEK_SET);
     
-        if (read_raw_binary(fp_tifs[CFMASK_BAND][curr_scene_num], 1, 1,
-            sizeof(unsigned char), &fmask_buf[curr_scene_num]) != 0)
-            printf("error reading %d scene, %d bands\n", curr_scene_num, CFMASK_BAND+1);
+        for (row_inx = 0; row_inx < nrows; row_inx++)
+        {
+            for (col_inx = 0; col_inx < ncols; col_inx++)
+            {
+                if (read_raw_binary(fp_tifs[CFMASK_BAND][curr_scene_num], 1, 1,
+                    sizeof(unsigned char), &fmask_buf[curr_scene_num]) != 0)
+                    printf("error reading %d scene, %d bands\n", curr_scene_num, CFMASK_BAND+1);
+            }
+        }
 
         close_raw_binary(fp_tifs[CFMASK_BAND][curr_scene_num]);
     }
@@ -780,6 +844,14 @@ int read_cfmask
         len = strlen(scene_list[curr_scene_num]);
         strncpy(short_scene, scene_list[curr_scene_num], len-5);
         split_directory_scenename(scene_list[curr_scene_num], directory, scene_name);
+
+        len = strlen(scene_name);
+        landsat_number = atoi(sub_string(scene_name,(len-19),1));
+        wrs_path = atoi(sub_string(scene_name,(len-18),3));
+        wrs_row =  atoi(sub_string(scene_name,(len-15),3));
+        year = atoi(sub_string(scene_name,(len-12),4));
+        jday = atoi(sub_string(scene_name,(len- 8),3));
+
         if (strncmp(short_scene, ".", 1) == 0)
         {
             strncpy(tmpstr, short_scene + 2, len - 2);
@@ -793,17 +865,22 @@ int read_cfmask
             sprintf(errmsg, "Opening %d scene files\n", curr_scene_num);
             RETURN_ERROR (errmsg, FUNC_NAME, ERROR);
         }
-        fseek(fp_bip[curr_scene_num], ((row - 1)* num_samples + col - 1) *
-              TOTAL_BANDS * sizeof(short int) + (TOTAL_IMAGE_BANDS * sizeof(short int)), SEEK_SET);
 
-        if (read_raw_binary(fp_bip[curr_scene_num], 1, 1,
-                sizeof(short int), &int_buf) != 0)
+        for (row_inx = 0; row_inx < nrows; row_inx++)
         {
-            sprintf(errmsg, "error reading %d scene, %d bands\n",curr_scene_num, CFMASK_BAND+1);
-            RETURN_ERROR(errmsg, FUNC_NAME, FAILURE);
+            fseek(fp_bip[curr_scene_num], ((row - 1) * num_samples + col - 1) *
+                  TOTAL_BANDS * sizeof(short int) + (TOTAL_IMAGE_BANDS * sizeof(short int)), SEEK_SET);
+            for (col_inx = 0; col_inx < ncols; col_inx++)
+            {
+                if (read_raw_binary(fp_bip[curr_scene_num], 1, 1,
+                        sizeof(short int), &int_buf) != 0)
+                {
+                    sprintf(errmsg, "error reading %d scene, %d bands\n",curr_scene_num, CFMASK_BAND+1);
+                    RETURN_ERROR(errmsg, FUNC_NAME, FAILURE);
+                }
+                fmask_buf[curr_scene_num + ((row_inx * num_samples) + (col - 1) + col_inx)] = (unsigned char)int_buf;
+            }
         }
-
-        fmask_buf[curr_scene_num] = (unsigned char)int_buf;
 
         close_raw_binary(fp_bip[curr_scene_num]);
 
@@ -826,16 +903,11 @@ int read_cfmask
     {
         (*swath_overlap_count)++;
         strcpy(valid_scene_list[(*valid_scene_count) - 1], scene_list[curr_scene_num]);
-        if (debug)
-        {
-            printf("i = %d swath overlap %s\n", curr_scene_num, scene_list[curr_scene_num -1]);
-        }
     }
 
     else
-
+ 
     {
-        strcpy(valid_scene_list[*valid_scene_count], scene_list[curr_scene_num]);
 
         /**************************************************************/
         /*                                                            */
@@ -866,6 +938,7 @@ int read_cfmask
         {
             updated_fmask_buf[*valid_scene_count] = fmask_buf[curr_scene_num];
             updated_sdate_array[*valid_scene_count] = sdate[curr_scene_num];
+            strcpy(valid_scene_list[*valid_scene_count], scene_list[curr_scene_num]);
             (*valid_scene_count)++;
             (*valid_num_scenes)++;
         }

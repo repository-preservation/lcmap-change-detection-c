@@ -17,6 +17,8 @@ int get_args
     char *argv[],          /* I: string of cmd-line args                    */
     int *row,              /* O: row number for the pixel                   */
     int *col,              /* O: col number for the pixel                   */
+    int *nrows,            /* O: number of Y pixels for the tile            */
+    int *ncols,            /* O: number of X pixels for the tile            */
     char *in_path,         /* O: directory location of input data           */
     char *out_path,        /* O: direcotry location of output files         */
     char *data_type,       /* O: data type: tifs, bip, stdin, bip_lines.    */
@@ -112,7 +114,7 @@ void matlab_2d_array_mean
     float **array,       /* I: input array                         */
     int dim1_index,      /* I: 1st dimension index                 */   
     int dim2_len,        /* I: number of input elements in 2nd dim */
-    float  *output_mean  /* O: output norm value                   */
+    float *output_mean   /* O: output norm value                   */
 );
 
 void matlab_2d_float_median
@@ -129,7 +131,7 @@ void matlab_2d_partial_mean
     int dim1_index,      /* I: 1st dimension index                 */
     int start,           /* I: number of start elements in 2nd dim */
     int end,             /* I: number of end elements in 2nd dim   */
-    float  *output_mean  /* O: output norm value                   */
+    float *output_mean   /* O: output norm value                   */
 );
 
 void matlab_float_2d_partial_median
@@ -378,15 +380,15 @@ extern int solns_(
 );
 
 extern int c_glmnet(
-    int no,		   // number of observations (no)
-    int ni,		   // number of predictor variables (ni)
-    double *x,		   // input matrix, x[ni][no]
-    double *y,		   // response vaiable, of dimentions (no)
-    int nlam,		   // number of lambda values
-    double *ulam,	   // value of lambda values, of dimentions (nlam)
-    double parm,	   // the alpha variable
+    int no,             // number of observations (no)
+    int ni,             // number of predictor variables (ni)
+    double *x,          // input matrix, x[ni][no]
+    double *y,          // response vaiable, of dimentions (no)
+    int nlam,           // number of lambda values
+    double *ulam,       // value of lambda values, of dimentions (nlam)
+    double parm,        // the alpha variable
 
-    int *lmu,		   // lmu = actual number of lamda values (solutions)
+    int *lmu,           // lmu = actual number of lamda values (solutions)
     double cfs[nlam][ni+1] // results = cfs[lmu][ni + 1]
 );
 

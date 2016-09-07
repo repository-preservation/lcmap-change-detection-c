@@ -1,6 +1,7 @@
 #ifndef OUTPUT_H
 #define OUTPUT_H
 
+/* Aall defines in one file to avoid conflicts */
 #include "defines.h"
 
 typedef struct {
@@ -20,7 +21,8 @@ typedef struct
     float rmse[NUM_BANDS];
                            /*  RMSE for each time series model for each 
                                spectral band*/    
-    Position_t pos;        /* the location of each time series model */
+    //Position_t pos;        /* the location of each time series model */
+    int pos;               /* the pixel location of each time series model */
     float change_prob;     /* the probability of a pixel that have undergone 
                               change (between 0 and 100) */
     int num_obs;           /* the number of "good" observations used for model 
