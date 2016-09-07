@@ -46,13 +46,13 @@ typedef signed char int8;
 #endif
 
 #ifndef FALSE
-    #define FALSE 1
+    #define FALSE 0
 #endif
 
 
 #define MINSIGMA 1e-5
 
 #define MAX_STR_LEN 512
-#define MAX_SCENE_LIST 1500
+#define MAX_SCENE_LIST 8000
 
 #endif

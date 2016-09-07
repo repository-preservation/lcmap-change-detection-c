@@ -73,7 +73,7 @@ int read_raw_binary
 
 int read_envi_header
 (
-    char *scene_name,      /* I: scene name*/
+    char *filename,        /* I:header filename with full path*/
     Input_meta_t *meta    /* O: saved header file info */
 );
 

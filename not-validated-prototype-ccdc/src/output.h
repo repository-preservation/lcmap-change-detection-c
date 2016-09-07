@@ -5,10 +5,12 @@
 #define NUM_COEFFS 8
 #define NUM_BANDS 7
 
+#if 0
 typedef struct {
   int row;
   int col;
 } Position_t;
+#endif
 
 /* Structure for the 'output' data type */
 typedef struct
@@ -16,13 +18,15 @@ typedef struct
     int t_start;           /* time when series model gets started */
     int t_end;             /* time when series model gets ended */
     int t_break;           /* time when the first break (change) is observed */
-    float coefs[NUM_BANDS][NUM_COEFFS];
+    //float coefs[NUM_BANDS][NUM_COEFFS];
+    float coefs[NUM_COEFFS][NUM_COEFFS];
                            /*  coefficients for each time series model for each 
                                spectral band*/    
     float rmse[NUM_BANDS];
                            /*  RMSE for each time series model for each 
                                spectral band*/    
-    Position_t pos;        /* the location of each time series model */
+  //   Position_t pos;        /* the location of each time series model */
+    int pos;               /* the pixel location of each time series model */
     float change_prob;     /* the probability of a pixel that have undergone 
                               change (between 0 and 100) */
     int num_obs;           /* the number of "good" observations used for model 
