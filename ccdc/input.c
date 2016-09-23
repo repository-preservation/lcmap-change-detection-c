@@ -454,7 +454,7 @@ int assign_cfmask_values
             break;
         case CFMASK_WATER:
             (*water_sum)++;
-            (*clear_sum)++;
+            //(*clear_sum)++;
             break;
         case CFMASK_SHADOW:
             (*shadow_sum)++;
@@ -686,7 +686,18 @@ int read_bip
         {
             for (band_inx = 0; band_inx < TOTAL_IMAGE_BANDS; band_inx++)
             {
-                out_offset = (row_count * num_samples) + (col_count * TOTAL_BANDS) + curr_scene_num + band_inx;
+                // original
+                //out_offset = (row_count * num_samples) + (col_count * TOTAL_BANDS) + curr_scene_num + band_inx;
+                // previous, worked for 1 row 1 col...
+                out_offset = (row_count * num_samples) +
+                             (col_count * TOTAL_BANDS) +
+                             (curr_scene_num * TOTAL_IMAGE_BANDS) +
+                              band_inx;
+                // new ?
+                out_offset = (row_count * num_samples * curr_scene_num * TOTAL_IMAGE_BANDS) +
+                             (col_count * curr_scene_num * TOTAL_BANDS) +
+                             (curr_scene_num * TOTAL_IMAGE_BANDS) +
+                              band_inx;
                 if (read_raw_binary(fp_bip[curr_scene_num], 1, 1, sizeof(short int),
                                     &image_buf[out_offset]) != 0)
                     //sizeof(short int), &image_buf[(col_inx * TOTAL_BANDS) + band_inx][curr_scene_num]) != 0)

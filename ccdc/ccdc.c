@@ -95,6 +95,13 @@ Date        Programmer       Reason
                              removed intialization of update_num_c to 8.
                              removed intialization of v_dif_nrm to 0.0.
 20160901    Brian Davis      Initialized update_num_c to 8.
+20160914    Brian Davis      Made all refereces to rec_cg[].coefs dimensions
+                             [bands][coefs], they had been transposed.
+20160914    Brian Davis      fixed some kind of a problem reading/assigning....
+20160915    Brian Davis      Change calculation of position to use
+                             meta->num_samples for row size instead of ncols,
+                             which can vary depending on what was specified
+                             for --num-cols argument.
 
 When reading fmask values to detmermine fill vs. usability,
 those "scenes" have been sorted, so one could test for:
@@ -137,7 +144,9 @@ int main (int argc, char *argv[])
                                      /* containing scene names                */
     int num_scenes = MAX_SCENE_LIST; /* Number of input scenes defined        */
     int num_c = 8;                   /* Max number of coefficients for model  */
-    int num_fc = -1;                  /* Intialize NUM of Functional Curves    */
+    int num_fc = -1;                 /* Intialize NUM of Functional Curves    */
+                                     /*num_fc is cummulative,for all rows/cols*/
+                                     /* for dumping/writing all outputs.      */
     int rec_fc;                      /* Record num. of functional curves      */
     float v_start[NUM_LASSO_BANDS];  /* Vector for start of observation(s)    */
     float v_end[NUM_LASSO_BANDS];    /* Vector for end of observastion(s)     */
@@ -243,6 +252,9 @@ int main (int argc, char *argv[])
     int row_count, col_count;    /* to keep track of row/col relative to start*/
     int offset;                  /* for determining buf pointer location of pix*/
     int scene_inx;               /* for looping through scenes                */
+    int row_size;                /* size of a row in bytes.                   */
+    int col_size;                /* size of a column in bytes.                */
+    int scn_size;                /* size of a scene in bytes.                 */
 
     if (verbose)
     {
@@ -681,7 +693,7 @@ int main (int argc, char *argv[])
                                  &swath_overlap_count, valid_scene_list,
                                  &clr_sum, &water_sum, &shadow_sum, &sn_sum,
                                  &cloud_sum, &fill_sum, &all_sum, updated_fmask_buf,
-                                 updated_sdate_array, sdate, &valid_num_scenes); // offsets
+                                 updated_sdate_array, sdate, &valid_num_scenes);
 
             if (fmask_buf[i] < CFMASK_FILL)
             {
@@ -700,7 +712,7 @@ int main (int argc, char *argv[])
                 {
                     status = read_tifs(valid_scene_list[valid_scene_count - 1],
                                        fp_tifs, (valid_scene_count - 1), row, col,
-                                       nrows, ncols, meta->samples, debug, buf); // offsets
+                                       nrows, ncols, meta->samples, debug, buf);
                     if (status != SUCCESS)
                     {
                         RETURN_ERROR ("Calling read_tifs", 
@@ -713,7 +725,7 @@ int main (int argc, char *argv[])
                     printf (" reading bip ");
                     status = read_bip(valid_scene_list[valid_scene_count - 1],
                                       fp_bip, (valid_scene_count - 1), row, col,
-                                      nrows, ncols, meta->samples, buf); // offsets
+                                      nrows, ncols, meta->samples, buf);
                 }
 //                else if (strcmp(data_type, "bip_lines") == 0)
 //                {
@@ -777,95 +789,103 @@ int main (int argc, char *argv[])
         RETURN_ERROR("ERROR allocating rec_cg memory", FUNC_NAME, FAILURE);
     }
 
-        clrx = malloc(num_scenes * sizeof(int));
-        if (clrx == NULL)
-        {
-            RETURN_ERROR("ERROR allocating clrx memory", FUNC_NAME, FAILURE);
-        }
+    /**************************************************************/
+    /*                                                            */
+    /* Do the remaining allocations for all buffers/arrays        */
+    /* necessary for the ccdc algorithm, because after adjusting  */
+    /* the band data arrays, that will be the next step.          */
+    /*                                                            */
+    /**************************************************************/
+
+
+    clrx = malloc(num_scenes * sizeof(int));
+    if (clrx == NULL)
+    {
+        RETURN_ERROR("ERROR allocating clrx memory", FUNC_NAME, FAILURE);
+    }
     
-        id_range = (int *)calloc(num_scenes, sizeof(int));
-        if (id_range == NULL)
-        {
-            RETURN_ERROR("ERROR allocating id_range memory", FUNC_NAME, FAILURE);
-        }
+    id_range = (int *)calloc(num_scenes, sizeof(int));
+    if (id_range == NULL)
+    {
+        RETURN_ERROR("ERROR allocating id_range memory", FUNC_NAME, FAILURE);
+    }
     
-        ids = (int *)calloc(num_scenes, sizeof(int));
-        if (ids == NULL)
-        {
-            RETURN_ERROR("ERROR allocating ids memory", FUNC_NAME, FAILURE);
-        }
+    ids = (int *)calloc(num_scenes, sizeof(int));
+    if (ids == NULL)
+    {
+        RETURN_ERROR("ERROR allocating ids memory", FUNC_NAME, FAILURE);
+    }
     
-        ids_old = (int *)calloc(num_scenes, sizeof(int));
-        if (ids_old == NULL)
-        {
-            RETURN_ERROR("ERROR allocating ids_old memory", FUNC_NAME, FAILURE);
-        }
+    ids_old = (int *)calloc(num_scenes, sizeof(int));
+    if (ids_old == NULL)
+    {
+        RETURN_ERROR("ERROR allocating ids_old memory", FUNC_NAME, FAILURE);
+    }
     
-        bl_ids = (int *)calloc(num_scenes, sizeof(int));
-        if (bl_ids == NULL)
-        {
-            RETURN_ERROR("ERROR allocating bl_ids memory", FUNC_NAME, FAILURE);
-        }
+    bl_ids = (int *)calloc(num_scenes, sizeof(int));
+    if (bl_ids == NULL)
+    {
+        RETURN_ERROR("ERROR allocating bl_ids memory", FUNC_NAME, FAILURE);
+    }
     
-        rm_ids = (int *)calloc(num_scenes, sizeof(int));
-        if (rm_ids == NULL)
-        {
-            RETURN_ERROR("ERROR allocating rm_ids memory", FUNC_NAME, FAILURE);
-        }
+    rm_ids = (int *)calloc(num_scenes, sizeof(int));
+    if (rm_ids == NULL)
+    {
+        RETURN_ERROR("ERROR allocating rm_ids memory", FUNC_NAME, FAILURE);
+    }
     
-        clry = (float **) allocate_2d_array (TOTAL_IMAGE_BANDS, num_scenes,
+    clry = (float **) allocate_2d_array (TOTAL_IMAGE_BANDS, num_scenes,
+                                         sizeof (float));
+    if (clry == NULL)
+    {
+        RETURN_ERROR ("Allocating clry memory", FUNC_NAME, FAILURE);
+    }
+    
+    fit_cft = (float **) allocate_2d_array (TOTAL_IMAGE_BANDS, MAX_NUM_C, 
+                                         sizeof (float));
+    if (fit_cft == NULL)
+    {
+        RETURN_ERROR ("Allocating fit_cft memory", FUNC_NAME, FAILURE);
+    }
+    
+    rmse = (float *)calloc(TOTAL_IMAGE_BANDS, sizeof(float));
+    if (rmse == NULL)
+    {
+        RETURN_ERROR ("Allocating rmse memory", FUNC_NAME, FAILURE);
+    }
+    
+    vec_mag = (float *)calloc(NUM_LASSO_BANDS, sizeof(float));
+    if (vec_mag == NULL)
+    {
+        RETURN_ERROR ("Allocating vec_mag memory", FUNC_NAME, FAILURE);
+    }
+    
+    v_dif_mag = (float **) allocate_2d_array(TOTAL_IMAGE_BANDS, CONSE,
+                sizeof (float));
+    if (v_dif_mag == NULL)
+    {
+        RETURN_ERROR ("Allocating v_dif_mag memory", FUNC_NAME, FAILURE);
+    }
+    
+    rec_v_dif = (float **)allocate_2d_array(TOTAL_IMAGE_BANDS, num_scenes,
+                                            sizeof (float));
+    if (rec_v_dif == NULL)
+    {
+        RETURN_ERROR ("Allocating rec_v_dif memory",FUNC_NAME, FAILURE);
+    }
+    rec_v_dif_copy = (float **)allocate_2d_array(TOTAL_IMAGE_BANDS, valid_num_scenes,
+                                                 sizeof (float));
+    if (rec_v_dif_copy == NULL)
+    {
+        RETURN_ERROR ("Allocating rec_v_dif_copy memory",FUNC_NAME, FAILURE);
+    }
+    
+    temp_v_dif = (float **)allocate_2d_array(TOTAL_IMAGE_BANDS, num_scenes,
                                              sizeof (float));
-        if (clry == NULL)
-        {
-            RETURN_ERROR ("Allocating clry memory", FUNC_NAME, FAILURE);
-        }
-    
-        fit_cft = (float **) allocate_2d_array (TOTAL_IMAGE_BANDS, MAX_NUM_C, 
-                                             sizeof (float));
-        if (fit_cft == NULL)
-        {
-            RETURN_ERROR ("Allocating fit_cft memory", FUNC_NAME, FAILURE);
-        }
-    
-        rmse = (float *)calloc(TOTAL_IMAGE_BANDS, sizeof(float));
-        if (rmse == NULL)
-        {
-            RETURN_ERROR ("Allocating rmse memory", FUNC_NAME, FAILURE);
-        }
-    
-        vec_mag = (float *)calloc(NUM_LASSO_BANDS, sizeof(float));
-        if (vec_mag == NULL)
-        {
-            RETURN_ERROR ("Allocating vec_mag memory", FUNC_NAME, FAILURE);
-        }
-    
-        v_dif_mag = (float **) allocate_2d_array(TOTAL_IMAGE_BANDS, CONSE,
-                    sizeof (float));
-        if (v_dif_mag == NULL)
-        {
-            RETURN_ERROR ("Allocating v_dif_mag memory", 
-                                     FUNC_NAME, FAILURE);
-        }
-    
-        rec_v_dif = (float **)allocate_2d_array(TOTAL_IMAGE_BANDS, num_scenes,
-                                         sizeof (float));
-        if (rec_v_dif == NULL)
-        {
-            RETURN_ERROR ("Allocating rec_v_dif memory",FUNC_NAME, FAILURE);
-        }
-        rec_v_dif_copy = (float **)allocate_2d_array(TOTAL_IMAGE_BANDS, valid_num_scenes,
-                                         sizeof (float));
-        if (rec_v_dif_copy == NULL)
-        {
-            RETURN_ERROR ("Allocating rec_v_dif_copy memory",FUNC_NAME, FAILURE);
-        }
-    
-        temp_v_dif = (float **)allocate_2d_array(TOTAL_IMAGE_BANDS, num_scenes,
-                                         sizeof (float));
-        if (temp_v_dif == NULL)
-        {
-            RETURN_ERROR ("Allocating temp_v_dif memory",FUNC_NAME, FAILURE);
-        }
+    if (temp_v_dif == NULL)
+    {
+        RETURN_ERROR ("Allocating temp_v_dif memory",FUNC_NAME, FAILURE);
+    }
 
     for (row_inx = (row - 1), row_count = 0; row_count < nrows; row_count++, row_inx++)
     {
@@ -875,69 +895,13 @@ int main (int argc, char *argv[])
         if (debug)
             printf("row_inx %d col_inx %d\n", row_inx, col_inx);
 
-        /**************************************************************/
-        /*                                                            */
-        /* Do the remaining allocations for all buffers/arrays        */
-        /* necessary for the ccdc algorithm, because after filling    */
-        /* the band data arrays here, that will be the next step.     */
-        /*                                                            */
-        /**************************************************************/
-
-
-        /**************************************************************/
-        /*                                                            */
-        /* Clear cfmask pixel value accumulators, then call the       */
-        /* function for totalling cfmask values.                      */
-        /*                                                            */
-        /* All this was done in input.c.  Assume valid 2d arrays for  */
-        /* cfmask and buf already exist. However, we need to          */
-        /* stats to determine whether or not this pixel gets          */
-        /* processed.                                                 */
-        /*                                                            */
-        /* Correct solution is to save these values in read_cfmask.   */
-        /*                                                            */
-        /**************************************************************/
-
-//        clear_sum = 0;
-//        water_sum = 0;
-//        shadow_sum = 0;
-//        cloud_sum = 0;
-//        fill_sum = 0;
-//        clr_sum = 0;
-//        sn_sum = 0;
-//        all_sum = 0;
-//        valid_num_scenes = 0;
-//
-//        for (i = 0; i < valid_num_scenes; i++)
-//        {
-//            status = assign_cfmask_values (fmask_buf[col * valid_num_scenes + i], &clear_sum, // offsets
-//                                           &water_sum, &shadow_sum, &sn_sum,
-//                                           &cloud_sum, &fill_sum, &all_sum);
-//            if (status != SUCCESS)
-//            {
-//                RETURN_ERROR ("Calling assign_cfmask_values", FUNC_NAME, FAILURE);
-//            }
-
-// assume fmask buf and buf are already filled with only valid pixels
-//            if (fmask_buf[col * num_scenes + i] < CFMASK_FILL)
-//            {
-//                all_sum++;
-//                fmask_pix_buf[valid_num_scenes] = fmask_buf[col * num_scenes + i];
-//                sdate_pix[valid_num_scenes] = sdate[i];
-// fix this row col index offsets
-//                for (b = 0; b < TOTAL_IMAGE_BANDS; b++)
-//                    pix_buf[b][valid_num_scenes] = buf[col * TOTAL_BANDS + b][i];
-//                valid_num_scenes++;
-//            }
-//        }
-
         /******************************************************************/
         /*                                                                */
         /* Percent of clear pixels: clear (0) or water (1).               */    
         /*                                                                */
         /******************************************************************/
 
-        clr_pct = (float) clr_sum / (float) all_sum;
+        clr_pct = (float) (clr_sum + water_sum) / (float) all_sum;
 
         /******************************************************************/
         /*                                                                */
@@ -945,8 +909,8 @@ int main (int argc, char *argv[])
         /*                                                                */
         /******************************************************************/
 
-        if ((clr_sum + sn_sum) != 0)
-            sn_pct =  (float) sn_sum / (float)(clr_sum + sn_sum); 
+        if ((clr_sum + water_sum + sn_sum) != 0)
+            sn_pct =  (float) sn_sum / (float)(clr_sum + water_sum + sn_sum); 
         else
             sn_pct = (float)sn_sum;
 
@@ -961,13 +925,16 @@ int main (int argc, char *argv[])
             printf("  Number of shadow (2)  pixels = %d\n", shadow_sum);
             printf("  Number of snow   (3)  pixels = %d\n", sn_sum);
             printf("  Number of cloud  (4)  pixels = %d\n", cloud_sum);
-            printf("  Number of clear+water pixels = %d\n", clr_sum);
+            printf("  Number of clear+water pixels = %d\n", clr_sum + water_sum);
             printf("  Percent of clear pixels      = %f (of non-fill pixels)\n", clr_pct);
             printf("  Percent of clear pixels      = %f (of non-fill, non-cloud, non-shadow pixels)\n",
-                   (float) clr_sum / (float) (clr_sum + sn_sum) * 100);
+                   (float) clr_sum / (float) (clr_sum + water_sum + sn_sum) * 100);
             printf("  Percent of snow  pixels      = %f (of non-fill, non-cloud, non-shadow pixels)\n", (sn_pct * 100));
         }
 
+        row_size = ncols * valid_num_scenes * TOTAL_IMAGE_BANDS;
+        col_size =         valid_num_scenes * TOTAL_IMAGE_BANDS;
+        scn_size =                            TOTAL_IMAGE_BANDS;
         for (scene_inx = 0; scene_inx < valid_num_scenes; scene_inx++)
         { 
             /**************************************************************/
@@ -976,14 +943,9 @@ int main (int argc, char *argv[])
             /* Convert Kelvin to Celsius (for new espa data).             */
             /*                                                            */
             /**************************************************************/
-// offsets
-            //if (buf[6][i] != -9999)
-            //offset = (((row_inx * meta->samples * valid_num_scenes * TOTAL_IMAGE_BANDS) +
-            //            (col_inx * valid_num_scenes * TOTAL_IMAGE_BANDS)) +
-            //             scene_inx * TOTAL_IMAGE_BANDS);
-            offset = (((row_count * meta->samples * valid_num_scenes * TOTAL_IMAGE_BANDS) +
-                        (col_count * valid_num_scenes * TOTAL_IMAGE_BANDS)) +
-                         scene_inx * TOTAL_IMAGE_BANDS);
+
+            offset = (row_count * row_size) + (col_count * col_size) + (scene_inx * scn_size);
+
             if (buf[offset + THERMAL_BAND] != -9999)
                 buf[offset + THERMAL_BAND] = (int16)(buf[offset + THERMAL_BAND] * 10 - 27315);
 
@@ -995,11 +957,11 @@ int main (int argc, char *argv[])
                 (buf[offset + 5] > 0)     && (buf[offset + 5] < 10000) &&
                 (buf[offset + 6] > -9320) && (buf[offset + 6] < 7070))
             {
-                id_range[i] = 1;
+                id_range[scene_inx] = 1;
             }
             else
             {
-                id_range[i] = 0;
+                id_range[scene_inx] = 0;
             }
         }
 
@@ -1031,9 +993,6 @@ int main (int argc, char *argv[])
 
                 for (scene_inx = 0; scene_inx < valid_num_scenes; scene_inx++)
                 { 
-                    offset = (((row_inx * meta->samples) + 
-                               (col_inx * TOTAL_BANDS))  +
-                                scene_inx);
     	            if (((updated_fmask_buf[scene_inx] == CFMASK_SNOW) || 
                          (updated_fmask_buf[scene_inx] < 2))           &&
                           id_range[scene_inx] == 1)
@@ -1041,7 +1000,8 @@ int main (int argc, char *argv[])
                         clrx[n_sn] = updated_sdate_array[scene_inx];
                         for (k = 0; k < TOTAL_IMAGE_BANDS; k++)
                         {
-                 	    clry[k][n_sn] = (float)buf[offset + k]; // offsets
+                            offset = (row_count * row_size) + (col_count * col_size) + (scene_inx * scn_size) + k;
+                 	    clry[k][n_sn] = (float)buf[offset];
                         }
                         n_sn++;
                     }
@@ -1170,7 +1130,7 @@ int main (int argc, char *argv[])
                 /*                                                        */
                 /**********************************************************/
 
-                rec_cg[num_fc].pos = (row) * ncols + col_inx + 1; 
+                rec_cg[num_fc].pos = (row) * meta->samples + col_inx + 1; 
 
                 for (i_b = 0; i_b < TOTAL_IMAGE_BANDS; i_b++)
                 {
@@ -1232,14 +1192,14 @@ int main (int argc, char *argv[])
 
                 for (scene_inx = 0; scene_inx < valid_num_scenes; scene_inx++)
                 { 
-                    offset = (((row_inx * meta->samples) + 
-                               (col_inx * TOTAL_BANDS))  +
-                                scene_inx);
                     if (id_range[scene_inx] == 1)
                     {
                         clrx[n_clr] = updated_sdate_array[scene_inx];
                         for (k = 0; k < TOTAL_IMAGE_BANDS; k++)
-                            clry[k][n_clr] = (float)buf[offset + k]; // offsets
+                            {
+                            offset = (row_count * row_size) + (col_count * col_size) + (scene_inx * scn_size) + k;
+                            clry[k][n_clr] = (float)buf[offset];
+                            }
                         n_clr++;
                     }   
                 }
@@ -1353,7 +1313,7 @@ int main (int argc, char *argv[])
                 /*                                                        */
                 /**********************************************************/
 
-                rec_cg[num_fc].pos = (row-1) * ncols + col_inx + 1; 
+                rec_cg[num_fc].pos = (row-1) * meta->samples + col_inx + 1; 
 
                 for (i_b = 0; i_b < TOTAL_IMAGE_BANDS; i_b++)
                 {
@@ -1409,15 +1369,13 @@ int main (int argc, char *argv[])
             n_clr = 0;
             for (scene_inx = 0; scene_inx < valid_num_scenes; scene_inx++)
             { 
-                offset = (((row_inx * meta->samples) + 
-                           (col_inx * TOTAL_BANDS))  +
-                            scene_inx);
                 if ((updated_fmask_buf[scene_inx] < 2) && (id_range[scene_inx] == 1)) // offsets
                 {
                     clrx[n_clr] = updated_sdate_array[scene_inx]; // offsets
                     for (k = 0; k < TOTAL_IMAGE_BANDS; k++)
                     {
-                        clry[k][n_clr] = (float)buf[offset + k]; // offsets
+                        offset = (row_count * row_size) + (col_count * col_size) + (scene_inx * scn_size) + k;
+                        clry[k][n_clr] = (float)buf[offset];
                     }
                     n_clr++;
                 }   
@@ -2120,7 +2078,7 @@ int main (int argc, char *argv[])
                                         /**************************************/
 
                                         rec_cg[num_fc].t_end = clrx[i_start-2]; 
-                                        rec_cg[num_fc].pos = (row-1) * ncols + col_inx + 1; 
+                                        rec_cg[num_fc].pos = (row-1) * meta->samples + col_inx + 1; 
 
                                         for (i_b = 0; i_b < TOTAL_IMAGE_BANDS; i_b++)
                                         {
@@ -2305,7 +2263,7 @@ int main (int argc, char *argv[])
                             /*                                            */
                             /**********************************************/
 
-                            rec_cg[num_fc].pos = (row-1) * ncols + col_inx + 1; // offsets
+                            rec_cg[num_fc].pos = (row-1) * meta->samples + col_inx + 1; // offsets
 
                             for (i_b = 0; i_b < TOTAL_IMAGE_BANDS; i_b++)
                             {
@@ -2957,7 +2915,7 @@ int main (int argc, char *argv[])
                     rec_cg[num_fc].t_start = clrx[i_start-1];
                     rec_cg[num_fc].t_end = clrx[end-1];
                     rec_cg[num_fc].t_break = 0;
-                    rec_cg[num_fc].pos = (row-1) * ncols + col_inx + 1; // offsets
+                    rec_cg[num_fc].pos = (row-1) * meta->samples + col_inx + 1; // offsets
 
                     /******************************************************/
                     /*                                                    */
