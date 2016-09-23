@@ -650,7 +650,6 @@ int read_bip
 
     len = strlen(curr_scene_name);
     strncpy(shorter_name, curr_scene_name, len-5);
-    // somebody is trashing memory and I cannot find him...
     shorter_name[len-5] = '\0';
 
     split_directory_scenename(curr_scene_name, directory, scene_name);
@@ -689,18 +688,17 @@ int read_bip
                 // original
                 //out_offset = (row_count * num_samples) + (col_count * TOTAL_BANDS) + curr_scene_num + band_inx;
                 // previous, worked for 1 row 1 col...
-                out_offset = (row_count * num_samples) +
-                             (col_count * TOTAL_BANDS) +
-                             (curr_scene_num * TOTAL_IMAGE_BANDS) +
-                              band_inx;
-                // new ?
+                //out_offset = (row_count * num_samples) +
+                //             (col_count * TOTAL_BANDS) +
+                //             (curr_scene_num * TOTAL_IMAGE_BANDS) +
+                //              band_inx;
+                // new
                 out_offset = (row_count * num_samples * curr_scene_num * TOTAL_IMAGE_BANDS) +
                              (col_count * curr_scene_num * TOTAL_BANDS) +
                              (curr_scene_num * TOTAL_IMAGE_BANDS) +
                               band_inx;
                 if (read_raw_binary(fp_bip[curr_scene_num], 1, 1, sizeof(short int),
                                     &image_buf[out_offset]) != 0)
-                    //sizeof(short int), &image_buf[(col_inx * TOTAL_BANDS) + band_inx][curr_scene_num]) != 0)
                 {
         	    sprintf(errmsg, "error reading %d scene, row %d, col %d, %d bands\n",
                             curr_scene_num, row_inx + 1, col_inx + 1, band_inx + 1);
