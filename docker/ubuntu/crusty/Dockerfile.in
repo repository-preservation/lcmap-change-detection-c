@@ -25,7 +25,7 @@ ENV LD_LIBRARY_PATH $LD_LIBRARY_PATH:/home/science/lib
 RUN echo "DEVELOP_MODE_FLAG"
 # end c develop mode
 
-RUN git clone https://github.com/oubiwann/lcmap-change-detection-c.git
+RUN git clone https://github.com/USGS-EROS/lcmap-change-detection-c.git
 RUN cd lcmap-change-detection-c && git checkout topic/c-function-type && \
     BIN=$CCDC_BIN make
 
