@@ -1,3 +1,5 @@
+TAGNAME=crusty
+
 build: Dockerfile
 	docker build -t crusty .
 
@@ -8,10 +10,10 @@ cache-bust-Dockerfile:
 	sed "s/DEVELOP_MODE_FLAG/`date`/g" Dockerfile.in > Dockerfile
 
 rebuild-c: cache-bust-Dockerfile
-	make 
+	make
 
 shell:
-	docker run -it --entrypoint /bin/bash crusty  -s
+	docker run -it --entrypoint /bin/bash $(TAGNAME) -s
 
 run:
-	docker run crusty
+	docker run $(TAGNAME)
