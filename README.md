@@ -21,6 +21,10 @@ has been modified and used so other applications can link to a clean copy of
 the gsl lib.
 The Matalb-formatted output file(s) (.mat) depend on the MAT File I/O Library:
 https://sourceforge.net/projects/matio/files/matio/1.5.2/
+
+Therefore, in the ccdc source sub-directory, make.sh has been added to define
+these (and any other dependencies) using environment variables in the call to
+make, which uses Makefile.
 ```
 
 The executables and scripts will be installed into ``./bin`` by default. This
