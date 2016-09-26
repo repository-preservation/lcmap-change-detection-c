@@ -2,3 +2,4 @@ Y_hat.txt
 *.o
 *~
 bin/*
+docker/ubuntu/crusty/Dockerfile
