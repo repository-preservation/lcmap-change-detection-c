@@ -56,9 +56,10 @@ clean:
 	$(RM) $(BIN)/$(EXE)
 	$(RM) $(BIN)/*.r
 	$(RM) *.o
+	$(RM) *.so
 
 $(OBJ): $(INC)
 
 .c.o:
-	$(CC) $(NCFLAGS) $(INCDIR) -c $<
+	$(CC) $(NCFLAGS) $(INCDIR) -fPIC -c $<
 
