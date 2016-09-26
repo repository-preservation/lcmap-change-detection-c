@@ -5,6 +5,7 @@ RUN apt-get update
 RUN apt-get install -y python3-nose python3-click python3-requests
 RUN apt-get install -y python3-termcolor python3-dateutil
 RUN apt-get install -y python3-pandas python3-zope.interface python3-tz
+RUN apt-get install -y vim
 RUN curl -O https://bootstrap.pypa.io/get-pip.py
 RUN python3 get-pip.py
 RUN pip install git+https://github.com/usgs-eros/lcmap-client-py
@@ -18,7 +19,7 @@ RUN mkdir -p /home/science/lib
 
 # set env vars
 ENV CCDC_BIN /home/science/lib
-ENV LD_LIBRARY_PATH /home/science/lib
+ENV LD_LIBRARY_PATH $LD_LIBRARY_PATH:/home/science/lib
 
 # comment this out if you aren't developing the c code
 RUN echo "DEVELOP_MODE_FLAG"

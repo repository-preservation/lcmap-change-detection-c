@@ -32,10 +32,10 @@ LIB = -L$(GSL_SCI_LIB) -lz -lpthread -lrt -lgsl -lgslcblas -lgfortran -lm
 EXE = ccdc
 
 # Target for the executable
-all: $(EXE) shared
+all: $(EXE) 
 
 ccdc: $(OBJ) glmnet5 $(INC)
-	$(CC) $(NCFLAGS) -o ccdc $(OBJ) glmnet5.o $(LIB)
+	$(CC) $(NCFLAGS) -shared -fpic -o ccdc $(OBJ) glmnet5.o $(LIB)
 
 # This task must be called after ccdc.
 shared:  
