@@ -25,10 +25,10 @@ ENV LD_LIBRARY_PATH $LD_LIBRARY_PATH:/home/science/lib
 RUN echo "DEVELOP_MODE_FLAG"
 # end c develop mode
 
-RUN git clone https://github.com/USGS-EROS/lcmap-change-detection-c.git
+RUN git clone https://github.com/oubiwann/lcmap-change-detection-c.git
 RUN cd lcmap-change-detection-c && git checkout topic/c-function-type && \
     BIN=$CCDC_BIN make
 
 COPY    science /home/science
-RUN ln -s /home/science/lcmap-change-detection-c/ccdc/the_ccd.so /home/science/lib/
+RUN cp /home/science/lcmap-change-detection-c/ccdc/*.so /home/science/lib/
 ENTRYPOINT ["/usr/bin/python3", "cli.py"]
