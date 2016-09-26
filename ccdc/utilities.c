@@ -7,9 +7,7 @@
 #include <unistd.h>
 #include <libgen.h>
 
-
 #include "utilities.h"
-
 
 /*****************************************************************************
   NAME:  write_message

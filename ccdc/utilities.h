@@ -29,13 +29,13 @@
 
 void write_message
 (
-    const char *message, /* I: message to write to the log */
-    const char *module,  /* I: module the message is from */
-    const char *type,    /* I: type of the error */
-    char *file,          /* I: file the message was generated in */
-    int line,            /* I: line number in the file where the message was
-                               generated */
-    FILE * fd            /* I: where to write the log message */
+    const char *message, /* I: message to write to the log            */
+    const char *module,  /* I: module the message is from             */
+    const char *type,    /* I: type of the error                      */
+    char *file,          /* I: file the message was generated in      */
+    int line,            /* I: line number in the file where the
+                               message was generated */
+    FILE * fd            /* I: where to write the log message         */
 );
 
 
