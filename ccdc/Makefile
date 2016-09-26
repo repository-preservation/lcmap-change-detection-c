@@ -35,7 +35,8 @@ EXE = ccdc
 all: $(EXE) 
 
 ccdc: $(OBJ) glmnet5 $(INC)
-	$(CC) $(NCFLAGS) -shared -fpic -o ccdc $(OBJ) glmnet5.o $(LIB)
+	$(CC) $(NCFLAGS) -o ccdc $(OBJ) glmnet5.o $(LIB)
+	$(CC) -shared -fpic $(OBJ) $(LIB)
 
 # This task must be called after ccdc.
 shared:  
