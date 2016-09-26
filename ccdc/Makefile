@@ -36,11 +36,11 @@ all: $(EXE)
 
 ccdc: $(OBJ) glmnet5 $(INC)
 	$(CC) $(NCFLAGS) -o ccdc $(OBJ) glmnet5.o $(LIB)
-	$(CC) -shared -fpic $(OBJ) $(LIB)
+	$(CC) -shared -fPIC $(OBJ) $(LIB)
 
 # This task must be called after ccdc.
 shared:  
-	gcc -std=c99 -g -shared -fpic $(SRC_DIR)/the_ccd.c -o $(SRC_DIR)/the_ccd.so
+	gcc -std=c99 -g -shared -fPIC $(SRC_DIR)/the_ccd.c -o $(SRC_DIR)/the_ccd.so
 
 glmnet5: $(SRC) glmnet5.f
 	$(FORTRAN) $(FFLAGS) -c glmnet5.f -o glmnet5.o
