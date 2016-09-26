@@ -1,8 +1,13 @@
-build:
+build: Dockerfile
 	docker build -t crusty .
 
-rebuild-c:
+Dockerfile:
+	sed "s/DEVELOP_MODE_FLAG//g" Dockerfile.in > Dockerfile
+
+cache-bust-Dockerfile:
 	sed "s/DEVELOP_MODE_FLAG/`date`/g" Dockerfile.in > Dockerfile
+
+rebuild-c: cache-bust-Dockerfile
 	make 
 
 shell:
