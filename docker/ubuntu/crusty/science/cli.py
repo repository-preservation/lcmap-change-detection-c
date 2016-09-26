@@ -1,3 +1,3 @@
 #!/usr/bin/env python3
 import ctypes
-ccdc = ctypes.CDLL("the_ccd.so")
+ccdc = ctypes.CDLL("libccd.so")
