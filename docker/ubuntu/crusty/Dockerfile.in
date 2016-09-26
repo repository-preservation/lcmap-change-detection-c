@@ -29,6 +29,5 @@ RUN cd lcmap-change-detection-c && git checkout topic/c-function-type && \
     BIN=$CCDC_BIN make
 
 COPY    science /home/science
-RUN ln -s /home/science/lcmap-change-detection-c/ccdc/the_ccd.o /home/science/lib/
+RUN ln -s /home/science/lcmap-change-detection-c/ccdc/the_ccd.so /home/science/lib/
 ENTRYPOINT ["/usr/bin/python3", "cli.py"]
-
