@@ -12,8 +12,8 @@ CC = gcc
 FORTRAN = gfortran
 RM = rm -f
 MV = mv
-EXTRA = -Wall -Wextra -g
-FFLAGS=-g -fdefault-real-8
+EXTRA = -Wall -Wextra -g -fPIC
+FFLAGS=-g -fdefault-real-8 -fPIC
 
 # Define the include files
 INC = $(wildcard $(SRC_DIR)/*.h)
@@ -32,15 +32,15 @@ LIB = -L$(GSL_SCI_LIB) -lz -lpthread -lrt -lgsl -lgslcblas -lgfortran -lm
 EXE = ccdc
 
 # Target for the executable
-all: $(EXE) 
+all: $(EXE)
 
 ccdc: $(OBJ) glmnet5 $(INC)
 	$(CC) $(NCFLAGS) -o ccdc $(OBJ) glmnet5.o $(LIB)
 	$(CC) -shared -fPIC $(OBJ) $(LIB)
 
 # This task must be called after ccdc.
-shared:  
-	gcc -std=c99 -g -shared -fPIC $(SRC_DIR)/the_ccd.c -o $(SRC_DIR)/the_ccd.so
+shared:
+	gcc -std=c99 -g -shared -fPIC $(SRC_DIR)/*.o -o $(SRC_DIR)/the_ccd.so
 
 glmnet5: $(SRC) glmnet5.f
 	$(FORTRAN) $(FFLAGS) -c glmnet5.f -o glmnet5.o
