@@ -12,9 +12,6 @@ int the_ccd
     int clr_sum,                     /* Total number of clear cfmask pixels   */
     int sn_sum,                      /* Total number of snow  cfmask pixels   */
     int water_sum,                   /* Total of cfmask water pixels.         */
-    int shadow_sum,                  /* Total of cfmask shadow pixels.        */
-    int cloud_sum,                   /* Total of cfmask cloud pixels.         */
-    int fill_sum,                    /* Total of cfmask fill pixels.          */
     int all_sum,                     /* Total of all cfmask pixels            */
     bool verbose,                    /* Verbose flag for printing messages    */
     Output_t *rec_cg,                /* Output structure of vals and metadata */

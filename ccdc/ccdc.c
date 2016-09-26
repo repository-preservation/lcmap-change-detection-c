@@ -15,6 +15,7 @@
 #include "ccdc.h"
 //#include "matio.h" // for future matlab output.......
 #include "defines.h"
+#include "the_ccd.h"
 
 const char scene_list_name[] = {"scene_list.txt"};  /* default, if none specified */
 int lasso_blist[NUM_LASSO_BANDS] = {1, 2, 3, 4, 5}; /* This is LASSO band index */
