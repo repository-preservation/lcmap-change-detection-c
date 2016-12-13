@@ -49,7 +49,7 @@ details, see:
 ### CCDC - Continuous Change Detection and Classification (Algorithm)
 
 * <b>NOTE:</b> This algorithm is not validated and considered prototype.
-* See [CCDC ADD](http://landsat.usgs.gov/documents/ccdc_add.pdf) for the
+* See [CCDC ADD](https://landsat.usgs.gov/sites/default/files/documents/ccdc_add.pdf) for the
   detailed description.
 
 
