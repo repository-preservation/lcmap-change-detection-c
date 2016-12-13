@@ -1,7 +1,7 @@
 ## LCMAP Change Detection
 
 This project contains application source code for Change Detection C library
-and related scripts.
+and related scripts.  This code is Work In Progress [WIP], non-reviewed and non-verified.  
 
 
 ## Installation
