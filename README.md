@@ -1,7 +1,7 @@
 ## LCMAP Change Detection
 
 This project contains application source code for Change Detection C library
-and related scripts.  *This code is deprecated, non-reviewed and non-verified.  All future work is being directed toward USGS-EROS/lcmap-pyccd.*
+and related scripts.  **This code is deprecated, non-reviewed and non-verified.  All future work is being directed toward USGS-EROS/lcmap-pyccd.**
 
 
 ## Installation
